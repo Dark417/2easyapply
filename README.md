@@ -2,11 +2,17 @@
 
 Chrome extension + automation helpers for LinkedIn Easy Apply workflows.
 
+## Branch Rule
+- Always use the `main` branch.
+- Do not use `master`.
+
 ## Download And Install
 1. Clone the repo:
    - `git clone git@github.com:Dark417/2easyapply.git`
 2. Go into the project:
    - `cd 2easyapply`
+3. Make sure you are on `main`:
+   - `git checkout main`
 3. Open Chrome extension page:
    - `chrome://extensions/`
 4. Enable **Developer mode** (top-right).
