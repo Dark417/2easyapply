@@ -12,19 +12,9 @@ Chrome extension + automation helpers for LinkedIn Easy Apply workflows.
 4. Enable **Developer mode** (top-right).
 5. Click **Load unpacked**.
 6. Select the extension folder path:
-   - `<your-cloned-repo>/abby`
-7. Pin Abby from the Chrome toolbar (optional, recommended).
-
-## Local File Persistence (Required)
-Abby can save search/apply configuration into a local file named `params` in the repo root.
-
-1. Start the local params API bridge:
-   - `python util/lk.py serve`
-2. Keep it running while using Abby.
-3. Abby will read/write local file data through:
-   - `http://127.0.0.1:8765/params`
-4. The persisted file is:
-   - `<your-cloned-repo>/params`
+   - `<your-cloned-repo>/abby` (load the abby folder)
+7. You should see Abby in the list of extensions.
+8. Pin Abby from the Chrome toolbar to manage, enable, and configure.
 
 ## How To Use Abby
 ### 1. Open the correct LinkedIn page
@@ -63,5 +53,5 @@ When editing saved answers:
 
 ## Notes
 - Extension source is under `abby/`.
-- File-based persistence is through the repo `params` file (bridge mode).
-- Some UI state and saved answers are also kept in Chrome local extension storage.
+- Abby works as a standalone Chrome extension (no local server needed).
+- UI state, params, and saved answers are persisted in Chrome local extension storage.

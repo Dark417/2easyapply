@@ -1,5 +1,3 @@
-const PARAMS_API_URL = 'http://127.0.0.1:8765/params';
-
 const DEFAULT_PARAMS = {
     searches: ['California, United States'],
     selectedSearch: 'California, United States',
@@ -69,48 +67,16 @@ function storageSet(values) {
     return new Promise(resolve => chrome.storage.local.set(values, resolve));
 }
 
-async function fetchParamsFromBridge() {
-    const res = await fetch(PARAMS_API_URL);
-    if (!res.ok) throw new Error(`Params fetch failed: ${res.status}`);
-    const data = await res.json();
-    return normalizeParams(data.params || data);
-}
-
-async function postParamsToBridge(params) {
-    const res = await fetch(PARAMS_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
-    });
-    if (!res.ok) throw new Error(`Params save failed: ${res.status}`);
-    const data = await res.json();
-    return normalizeParams(data.params || data);
-}
-
-async function loadParams(preferBridge = true) {
+async function loadParams() {
     const stored = await storageGet(['abbyParams']);
-    const cached = normalizeParams(stored.abbyParams || {});
-    if (!preferBridge) return cached;
-    try {
-        const bridged = await fetchParamsFromBridge();
-        await storageSet({ abbyParams: bridged });
-        return bridged;
-    } catch (err) {
-        return cached;
-    }
+    return normalizeParams(stored.abbyParams || {});
 }
 
 async function saveParams(patch) {
-    const current = await loadParams(false);
-    const merged = normalizeParams(mergeDeep(current, patch || {}));
-    let finalParams = merged;
-    try {
-        finalParams = await postParamsToBridge(merged);
-    } catch (err) {
-        // Keep extension working even if the local bridge is not running.
-    }
-    await storageSet({ abbyParams: finalParams });
-    return finalParams;
+    const current = await loadParams();
+    const next = normalizeParams(mergeDeep(current, patch || {}));
+    await storageSet({ abbyParams: next });
+    return next;
 }
 
 function buildSearchUrl(params) {
@@ -356,7 +322,7 @@ async function runLinkedInSearchSetup(tabId, params) {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.get(['profiles', 'activeProfileId', 'profileData', 'settings', 'abbyParams'], async (result) => {
+    chrome.storage.local.get(['profiles', 'activeProfileId', 'profileData', 'settings', 'abbyParams'], (result) => {
         const next = {};
 
         if (!result.profiles || !result.profiles.length) {
@@ -375,13 +341,6 @@ chrome.runtime.onInstalled.addListener(() => {
         }
 
         chrome.storage.local.set(next);
-
-        try {
-            const params = await loadParams(true);
-            await storageSet({ abbyParams: params });
-        } catch (err) {
-            // Ignore bridge failures during installation.
-        }
     });
 });
 
@@ -389,7 +348,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
         switch (message?.type) {
             case 'abby:get-params': {
-                const params = await loadParams(message.preferBridge !== false);
+                const params = await loadParams();
                 sendResponse({ ok: true, params });
                 return;
             }
