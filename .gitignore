@@ -1,0 +1,22 @@
+# Local AI/tooling state
+.gemini/
+
+# Sensitive/runtime data
+params
+*.env
+.env*
+
+# Generated logs / dumps
+app-log.csv
+msg-log.md
+full-msg-log.md
+dom_dump.html
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+app-log.md

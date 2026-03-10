@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Abby Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #13131a;
+            color: #e0e0f0;
+            font-size: 14px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        body.light-theme {
+            background: #f7f7fa;
+            color: #1a1a24;
+        }
+
+        .light-theme .topbar,
+        .light-theme .body-layout,
+        .light-theme .profiles-sidebar,
+        .light-theme .content-tabs,
+        .light-theme .section,
+        .light-theme .section-header {
+            background: #fff;
+            border-color: #ddd;
+        }
+
+        .light-theme .form-input,
+        .light-theme .form-textarea,
+        .light-theme .form-select,
+        .light-theme .val-input {
+            background: #fff;
+            color: #111;
+            border-color: #ccc;
+        }
+
+        .light-theme .profile-item { color: #555; }
+        .light-theme .profile-item:hover { background: #f0f0f5; color: #111; }
+        .light-theme .profile-item.active { background: #e8e0ff; color: #5925dc; border-left-color: #A18CD1; }
+        .light-theme .section-header h2 { color: #333; }
+        .light-theme .question-cell { color: #444; }
+        .light-theme .confirm-box { background: #fff; border-color: #ddd; color: #111; }
+        .light-theme .toggle-label { color: #333; }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: rgba(18, 18, 28, 0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            padding: 13px 28px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: min(1000px, calc(100vw - 32px));
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 18px;
+        }
+
+        .topbar h1 {
+            font-size: 19px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #A18CD1, #FBC2EB);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #A18CD1, #FBC2EB);
+            color: #fff;
+        }
+
+        .btn:hover {
+            opacity: 0.85;
+        }
+
+        #save-status {
+            font-size: 12px;
+            color: #4CAF50;
+        }
+
+        .body-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            width: min(1000px, calc(100vw - 32px));
+            margin: 20px auto 28px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .profiles-sidebar {
+            width: 200px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.02);
+            border-right: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            flex-direction: column;
+            padding: 16px 0;
+        }
+
+        .sidebar-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: #666;
+            padding: 0 16px 10px;
+        }
+
+        #profile-list {
+            list-style: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .profile-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #aaa;
+            transition: background 0.12s, color 0.12s;
+            border-left: 3px solid transparent;
+        }
+
+        .profile-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: #ddd;
+        }
+
+        .profile-item.active {
+            background: rgba(161, 140, 209, 0.12);
+            border-left-color: #A18CD1;
+            color: #c5aef5;
+            font-weight: 600;
+        }
+
+        .profile-name-text {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .del-profile-btn {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: none;
+            background: none;
+            color: #555;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .add-profile-btn {
+            width: 100%;
+            padding: 7px 10px;
+            background: rgba(161, 140, 209, 0.1);
+            border: 1px dashed rgba(161, 140, 209, 0.3);
+            border-radius: 6px;
+            color: #A18CD1;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .main-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 22px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .content-tabs {
+            width: 136px;
+            flex-shrink: 0;
+            padding: 16px 12px;
+            border-right: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .content-tab {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: #c8c7d7;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .content-tab.active {
+            background: rgba(161, 140, 209, 0.14);
+            border-color: rgba(161, 140, 209, 0.38);
+            color: #e6dcff;
+        }
+
+        .content-pane {
+            display: none;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .content-pane.active {
+            display: flex;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 13px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            user-select: none;
+        }
+
+        .section-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #d0c8f8;
+            flex: 1;
+        }
+
+        .section-header .badge {
+            font-size: 11px;
+            color: #888;
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            padding: 2px 8px;
+        }
+
+        .light-theme .sl-item { color: #111; border-color: #eee; }
+        .light-theme .sl-item:hover { background: #f0f0f5; }
+        .light-theme .sl-item.selected { background: #e8e0ff; }
+
+        .chevron {
+            color: #666;
+            font-size: 11px;
+            transition: transform 0.2s;
+        }
+
+        .section-collapse-btn,
+        .section-delete-btn {
+            border: none;
+            background: transparent;
+            color: #8e889f;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 2px 4px;
+        }
+
+        .section-delete-btn {
+            color: #ff6060;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .section.collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+
+        .section.collapsed .section-body {
+            display: none;
+        }
+
+        .profile-grid,
+        .search-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            padding: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 5px;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0f0;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .form-textarea {
+            min-height: 88px;
+            resize: vertical;
+        }
+
+        .profile-name-input {
+            font-size: 15px;
+            font-weight: 600;
+            color: #c5aef5;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(161, 140, 209, 0.3);
+            border-radius: 0;
+            padding: 4px 0;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 0;
+        }
+
+        .toggle-label {
+            flex: 1;
+            font-size: 13px;
+            color: #d0c8f8;
+            font-weight: 600;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 42px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #333;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            top: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .switch input:checked + .slider {
+            background: linear-gradient(90deg, #A18CD1, #FBC2EB);
+        }
+
+        .switch input:checked + .slider::before {
+            transform: translateX(18px);
+        }
+
+        .toggle-row > input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #A18CD1;
+            cursor: pointer;
+        }
+
+        .fields-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .fields-table thead th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #A18CD1;
+            padding: 8px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            text-align: left;
+        }
+
+        .fields-table td {
+            padding: 7px 20px;
+            vertical-align: middle;
+        }
+
+        .question-cell {
+            color: #bbb;
+            font-size: 13px;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        .val-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #e0e0f0;
+            font-size: 13px;
+            padding: 6px 10px;
+            font-family: inherit;
+        }
+
+        .del-row-btn {
+            background: none;
+            border: none;
+            color: #ff6060;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .drag-handle {
+            color: #666;
+            cursor: grab;
+            padding: 4px;
+            user-select: none;
+            text-align: center;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .fields-table tr.dragging {
+            opacity: 0.5;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .search-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .sl-item {
+            display: flex;
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #e0e0f0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+        }
+        
+        .sl-item:hover { background: rgba(255, 255, 255, 0.1); }
+        .sl-item.selected { background: rgba(161, 140, 209, 0.2); }
+        .sl-text { flex: 1; pointer-events: none; }
+        .sl-del { display: none; color: #ff6060; cursor: pointer; font-weight: bold; padding: 0 4px; }
+        .sl-item:hover .sl-del { display: inline-block; }
+
+        .fields-table tr.drag-over {
+            border-top: 2px solid #A18CD1;
+        }
+
+        .empty-state {
+            padding: 28px;
+            text-align: center;
+            color: #555;
+            font-size: 13px;
+        }
+
+        #settings-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #groups-container {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .confirm-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-overlay.show {
+            display: flex;
+        }
+
+        .confirm-box {
+            background: #1e1e2c;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 28px;
+            width: 340px;
+            text-align: center;
+        }
+
+        .confirm-box p {
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .confirm-actions button {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #confirm-cancel {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ccc;
+        }
+
+        #confirm-ok {
+            background: linear-gradient(90deg, #ff6060, #ff3030);
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="confirm-overlay" id="confirm-overlay">
+        <div class="confirm-box">
+            <p id="confirm-msg">Delete this profile?</p>
+            <div class="confirm-actions">
+                <button id="confirm-cancel">Cancel</button>
+                <button id="confirm-ok">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="topbar">
+        <span style="font-size:20px">⚡</span>
+        <h1>Abby Settings</h1>
+        <div class="topbar-actions">
+            <button class="btn btn-primary" id="save-all-btn">Save All</button>
+            <span id="save-status"></span>
+        </div>
+    </div>
+
+    <div class="body-layout">
+        <aside class="profiles-sidebar">
+            <div class="sidebar-title">Profiles</div>
+            <ul id="profile-list"></ul>
+            <div class="sidebar-footer">
+                <button class="add-profile-btn" id="add-profile-btn">+ Add Profile</button>
+            </div>
+        </aside>
+
+        <aside class="content-tabs">
+            <button class="content-tab active" data-pane="info">Info</button>
+            <button class="content-tab" data-pane="search">Search</button>
+        </aside>
+
+        <main class="main-panel">
+            <div id="pane-info" class="content-pane active">
+                <div id="settings-fields">
+                    <div class="toggle-row">
+                        <label class="toggle-label" for="autopilot">Enable Abby</label>
+                        <label class="switch">
+                            <input type="checkbox" id="autopilot">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <label class="toggle-label" for="themeToggle">Dark Theme</label>
+                        <label class="switch">
+                            <input type="checkbox" id="themeToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Profile Name</label>
+                        <input class="profile-name-input" id="profileName" type="text" placeholder="e.g. Backend Dev">
+                    </div>
+                </div>
+                <div id="groups-container"></div>
+            </div>
+
+            <div id="pane-search" class="content-pane">
+            <div class="section">
+                <div class="section-header">
+                    <h2>Search</h2>
+                    <button class="section-collapse-btn" type="button" title="Collapse/Expand">
+                        <span class="chevron">▼</span>
+                    </button>
+                </div>
+                <div class="section-body">
+                    <div class="search-grid">
+                        <div class="form-group" style="grid-column:1/-1">
+                            <label for="searchText">Selected Search</label>
+                            <input class="form-input" id="searchText" type="text" placeholder="software engineer san francisco">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Saved Search List</label>
+                            <div class="search-list" id="settingsSearchList"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ignoreKeywords">Ignore Keywords</label>
+                            <textarea class="form-textarea" id="ignoreKeywords" placeholder="founding, machine learning"></textarea>
+                        </div>
+                        <div class="form-group" title="How many times to click 'Next' to get past the first page of LinkedIn if required. Default 2.">
+                            <label for="clickCount">LinkedIn Click Count</label>
+                            <input class="form-input" id="clickCount" type="number" min="1" step="1">
+                        </div>
+                        <div class="form-group" title="Time in seconds to wait before clicking pagination or easy apply buttons. Default 0.8.">
+                            <label for="minClickDelaySeconds">Min Click Delay Seconds</label>
+                            <input class="form-input" id="minClickDelaySeconds" type="number" min="0" step="0.1">
+                        </div>
+                        <div class="form-group" title="Minimum random human delay added between fields (milliseconds). Default 300.">
+                            <label for="delayMinMs">Random Delay Min (ms)</label>
+                            <input class="form-input" id="delayMinMs" type="number" min="0" step="50">
+                        </div>
+                        <div class="form-group" title="Maximum random human delay added between fields (milliseconds). Default 1200.">
+                            <label for="delayMaxMs">Random Delay Max (ms)</label>
+                            <input class="form-input" id="delayMaxMs" type="number" min="0" step="50">
+                        </div>
+                        <div class="form-group" title="Hard limit for number of submits per minute. Default 5.">
+                            <label for="limitPerMinute">Apply Limit Per Minute</label>
+                            <input class="form-input" id="limitPerMinute" type="number" min="1" step="1">
+                        </div>
+                        <div class="form-group" title="Hard limit for number of submits per hour. Pauses Abby automatically. Default 30.">
+                            <label for="limitPerHour">Apply Limit Per Hour</label>
+                            <input class="form-input" id="limitPerHour" type="number" min="1" step="1">
+                        </div>
+                        <div class="form-group" title="Hard limit for number of submits per day. Default 200.">
+                            <label for="limitPerDay">Apply Limit Per Day</label>
+                            <input class="form-input" id="limitPerDay" type="number" min="1" step="1">
+                        </div>
+                        <div class="form-group" title="How many consecutive applies before taking a burst rest. Default 5.">
+                            <label for="restEvery">Rest After N Applies</label>
+                            <input class="form-input" id="restEvery" type="number" min="1" step="1">
+                        </div>
+                        <div class="form-group" title="Minimum duration for a burst rest (seconds). Default 5.">
+                            <label for="restMinSeconds">Rest Min Seconds</label>
+                            <input class="form-input" id="restMinSeconds" type="number" min="0" step="0.5">
+                        </div>
+                        <div class="form-group" title="Maximum duration for a burst rest (seconds). Default 10.">
+                            <label for="restMaxSeconds">Rest Max Seconds</label>
+                            <input class="form-input" id="restMaxSeconds" type="number" min="0" step="0.5">
+                        </div>
+                        <div class="form-group" title="Minimum time spent scrolling slowly down a job description (seconds). Default 1.">
+                            <label for="scrollMinSeconds">Detail Scroll Min Seconds</label>
+                            <input class="form-input" id="scrollMinSeconds" type="number" min="0" step="0.5">
+                        </div>
+                        <div class="form-group" title="Maximum time spent scrolling down a job description (seconds). Default 3.">
+                            <label for="scrollMaxSeconds">Detail Scroll Max Seconds</label>
+                            <input class="form-input" id="scrollMaxSeconds" type="number" min="0" step="0.5">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="settings.js"></script>
+</body>
+
+</html>

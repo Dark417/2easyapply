@@ -712,11 +712,16 @@ function findEasyApplyModal() {
 // ──────────────────────────────────────────────────────────
 const SKIP_TYPES = new Set(['file', 'hidden', 'submit', 'button', 'reset', 'image', 'search']);
 const SKIP_LABELS = ['deselect', 'upload', 'remove', 'delete', 'choose file', 'browse'];
+const IGNORED_FIELD_PATTERNS = [
+    /mark (this )?job as (a )?top choice/i,
+    /^resume$/i
+];
 
 // Headings where we hide the field table entirely (show nothing — user just clicks Next)
 const SKIP_HEADINGS = [
     /mark (this )?job as (a )?top choice/i,
-    /top choice/i
+    /top choice/i,
+    /^sort by$/i
 ];
 
 // Regex patterns that canonicalize repeated questions across different jobs.
@@ -734,6 +739,7 @@ const CANONICAL_QUESTIONS = [
     { rx: /are you currently an? .{1,40} client/i, key: 'Are you a current client?' },
     // Interest / motivation
     { rx: /why are you interested in/i, key: 'Why are you interested?' },
+    { rx: /\bwebsite\b/i, key: 'Website' },
     // Education — catches "highest level", "highest academic level", etc.
     { rx: /highest (level of |academic )?education|highest academic level/i, key: 'Highest Education' },
     { rx: /\bfield of study\b|\bmajor\b/i, key: 'Major / Field of Study' },
@@ -759,7 +765,9 @@ const CANONICAL_QUESTIONS = [
     { rx: /days (a|per) week/i, key: 'Work Schedule' },
     // Work authorization detail
     { rx: /authorized for employment in the united states/i, key: 'Work Authorization' },
-    { rx: /green card/i, key: 'Green Card' },
+    { rx: /green card/i, key: 'Green Card/Citizen' },
+    { rx: /u\.?s\.?\s*citizen/i, key: 'Green Card/Citizen' },
+    { rx: /permanent\s+resident/i, key: 'Green Card/Citizen' },
     { rx: /\bsalary\b|\bcompensation\b/i, key: 'Salary' },
     { rx: /year.*experience.*develop/i, key: 'Years of Development Experience' },
     { rx: /develop.*experience.*year/i, key: 'Years of Development Experience' },
@@ -769,10 +777,9 @@ const CANONICAL_QUESTIONS = [
     { rx: /work.*startup/i, key: 'Work Startup Experience' },
     { rx: /relocate/i, key: 'Willing to Relocate' },
     { rx: /are you comfortable/i, key: 'Are you comfortable?' },
-    { rx: /u\.?s\.?\s*citizen/i, key: 'U.S. Citizen?' },
     { rx: /message.*hiring manager/i, key: 'Message Hiring Manager' },
     { rx: /hiring manager.*message/i, key: 'Message Hiring Manager' },
-    { rx: /are you located in/i, key: 'Are you located in?' },
+    { rx: /\bgender\b/i, key: 'Gender' },
 ];
 const CANONICAL_KEYS = new Set(CANONICAL_QUESTIONS.map(item => String(item.key || '').toLowerCase()));
 
@@ -783,6 +790,7 @@ const CANONICAL_DEFAULTS = {
     'Require Sponsorship?': 'Yes',
     'Highest Education': "Master's",
     'Major / Field of Study': 'Computer Science',
+    'Website': 'https://',
     'LinkedIn Profile': 'https://linkedin.com/in/',
     'GitHub Profile': 'https://github.com/',
     'Work Schedule': 'Yes',
@@ -792,9 +800,9 @@ const CANONICAL_DEFAULTS = {
     'Work Startup Experience': 'Yes',
     'Willing to Relocate': 'Yes',
     'Are you comfortable?': 'Yes',
-    'U.S. Citizen?': 'No',
-    'Are you located in?': 'No',
-    'Follow Company?': 'No'
+    'Green Card/Citizen': 'No',
+    'Follow Company?': 'No',
+    'Gender': 'Male'
 };
 
 function normalizeLabel(label, stepHeading) {
@@ -802,23 +810,44 @@ function normalizeLabel(label, stepHeading) {
     if (!cleaned) return '';
     const step = normalizeStepHeading(stepHeading || currentHeading || '');
     if (/^review$/i.test(step) && /^follow\b/i.test(cleaned)) return 'Follow Company?';
+    const locatedCity = extractLocatedCity(cleaned);
+    if (locatedCity) return `Located in ${locatedCity}`;
     for (const { rx, key } of CANONICAL_QUESTIONS) {
         if (rx.test(cleaned)) return key;
     }
-    return cleaned;
+    const doubled = cleaned.match(/^(.+?)\s+\1$/i);
+    return doubled && doubled[1] ? doubled[1].trim() : cleaned;
+}
+
+function extractLocatedCity(label) {
+    const text = clean(String(label || ''));
+    if (!/\blocated\b/i.test(text) || !/\bin\b/i.test(text)) return '';
+    const m = text.match(/\blocated\b[\s\S]{0,40}\bin\s+([A-Za-z][A-Za-z .,'-]{1,60})/i);
+    if (!m || !m[1]) return '';
+    let city = m[1]
+        .replace(/\b(the|usa|us|u\.s\.a\.?|united states)\b/gi, '')
+        .replace(/[?.,;:!]+$/g, '')
+        .trim();
+    city = city.split(/\s{2,}| and |\/|\\|\|/)[0].trim();
+    if (!city) return '';
+    return city
+        .split(/\s+/)
+        .map(part => part ? (part[0].toUpperCase() + part.slice(1).toLowerCase()) : part)
+        .join(' ');
 }
 
 function normalizeStepHeading(label) {
     const text = clean(label || '');
     if (!text) return 'General';
-    if (/^contact info$/i.test(text)) return 'Contact info';
+    if (/^sort by$/i.test(text)) return 'Sort by';
+    if (/^contact info$/i.test(text)) return 'Contact Info';
     if (/^resume$/i.test(text)) return 'Resume';
-    if (/^home address$/i.test(text)) return 'Home address';
-    if (/^work experience$/i.test(text)) return 'Work experience';
+    if (/^home address$/i.test(text)) return 'Home Address';
+    if (/^work experience$/i.test(text)) return 'Work Experience';
     if (/^education$/i.test(text)) return 'Education';
     if (/^additional questions?$/i.test(text)) return 'Additional Questions';
-    if (/^screening questions?$/i.test(text)) return 'Screening questions';
-    if (/^voluntary self identification$/i.test(text)) return 'Voluntary self identification';
+    if (/^screening questions?$/i.test(text)) return 'Screening Questions';
+    if (/^voluntary self identification$/i.test(text)) return 'Voluntary Self Identification';
     if (/^review$/i.test(text)) return 'Review';
     if (/^apply to\b/i.test(text)) return 'Apply';
     if (/mark (this )?job as (a )?top choice/i.test(text) || /top choice/i.test(text)) return 'Top Choice';
@@ -827,7 +856,7 @@ function normalizeStepHeading(label) {
 
 function normalizeGroupHeading(label) {
     const heading = normalizeStepHeading(label);
-    if (/^top choice$/i.test(heading)) return '';
+    if (/^top choice$/i.test(heading) || /^sort by$/i.test(heading)) return '';
     return heading || 'General';
 }
 
@@ -836,7 +865,17 @@ function isHiddenStepHeading(label) {
 }
 
 function isCanonicalKey(label) {
+    if (/^located in /i.test(String(label || '').trim())) return true;
     return CANONICAL_KEYS.has(String(label || '').toLowerCase());
+}
+
+function shouldIgnoreFieldLabel(label, stepHeading) {
+    const normalizedLabel = clean(String(label || ''));
+    if (!normalizedLabel) return true;
+    if (IGNORED_FIELD_PATTERNS.some(rx => rx.test(normalizedLabel))) return true;
+    const step = normalizeStepHeading(stepHeading || currentHeading || '');
+    if (/^resume$/i.test(step) && /^resume$/i.test(normalizedLabel)) return true;
+    return false;
 }
 
 function buildScopedSaveKey(stepHeading, label) {
@@ -1132,6 +1171,7 @@ function extractFormFields(modal) {
             const rawLabel = getRadioGroupLabel(group[0], modal);
             const label = normalizeLabel(rawLabel, currentHeading);
             if (SKIP_LABELS.some(s => label.toLowerCase().includes(s))) return;
+            if (shouldIgnoreFieldLabel(label, currentHeading)) return;
             if (seen.has(label)) return;
             seen.add(label);
             const value = checked ? getRadioOptionLabel(checked, modal) : '';
@@ -1147,6 +1187,7 @@ function extractFormFields(modal) {
         const rawLabel = getLabelInfo(input, modal);
         const label = normalizeLabel(rawLabel, currentHeading);
         if (SKIP_LABELS.some(s => label.toLowerCase().includes(s))) return;
+        if (shouldIgnoreFieldLabel(label, currentHeading)) return;
         if (label === 'Field' && !input.value) return;
         if (seen.has(label)) return;
         seen.add(label);
