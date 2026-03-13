@@ -25,11 +25,18 @@
     }
 
     .header {
-      padding: 16px 18px 12px;
+      padding: 12px 14px 10px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
     }
 
     .logo {
@@ -37,7 +44,7 @@
     }
 
     .title {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 700;
       background: linear-gradient(90deg, #A18CD1 0%, #FBC2EB 100%);
       -webkit-background-clip: text;
@@ -47,14 +54,6 @@
       display: flex;
       align-items: baseline;
       gap: 8px;
-    }
-
-    .version {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      color: #98a2c6;
-      -webkit-text-fill-color: initial;
     }
 
     .btn,
@@ -69,34 +68,51 @@
     .search-summary,
     .search-controls,
     .footer {
-      padding: 14px 18px;
+      padding: 10px 14px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     }
 
     .toggle-stack {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 6px;
     }
 
     .toggle-row {
       display: flex;
-      align-items: center;
-      gap: 12px;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
     }
 
     .toggle-label {
       flex: 1;
     }
 
-    .tl-main {
-      font-weight: 600;
+    .toggle-cell {
+      width: 88px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
     }
 
-    .tl-sub {
-      margin-top: 3px;
+    .toggle-cell-label {
       font-size: 11px;
-      color: #8f8fa8;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: 0.3px;
+      color: #d6ddf7;
+      text-align: center;
+    }
+
+    .theme-icon {
+      font-size: 14px;
+      color: #ffd978;
+      line-height: 1;
+      margin-right: 6px;
+      user-select: none;
     }
 
     .switch {
@@ -144,14 +160,14 @@
     .stats {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 10px;
+      gap: 8px;
     }
 
     .stat {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 10px;
-      padding: 10px;
+      padding: 8px 6px;
       text-align: center;
     }
 
@@ -175,33 +191,34 @@
     }
 
     .search-summary .value {
-      margin-top: 8px;
+      margin-top: 5px;
       font-weight: 600;
-      line-height: 1.4;
+      line-height: 1.25;
       color: #f3f0ff;
+      font-size: 13px;
     }
 
     .search-controls {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .search-row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .search-input,
     .search-select {
       width: 100%;
-      min-height: 36px;
-      padding: 8px 10px;
+      min-height: 32px;
+      padding: 6px 8px;
       border-radius: 8px;
       border: 1px solid rgba(214, 223, 255, 0.22);
       background: rgba(12, 14, 22, 0.82);
       color: #f6f8ff;
-      font-size: 13px;
+      font-size: 12.5px;
     }
 
     .search-input::placeholder {
@@ -209,7 +226,7 @@
     }
 
     .search-list {
-      max-height: 140px;
+      max-height: 116px;
       overflow-y: auto;
       border-radius: 8px;
       border: 1px solid rgba(214, 223, 255, 0.22);
@@ -218,8 +235,8 @@
     
     .sl-item {
       display: flex;
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 5px 8px;
+      font-size: 12.5px;
       color: #f6f8ff;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       cursor: pointer;
@@ -233,8 +250,8 @@
 
     .search-btn {
       border: none;
-      padding: 8px 12px;
-      font-size: 12px;
+      padding: 7px 11px;
+      font-size: 11.5px;
       font-weight: 700;
     }
 
@@ -257,9 +274,9 @@
 
     .btn {
       flex: 1;
-      padding: 10px;
+      padding: 8px;
       border: none;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
     }
 
@@ -286,9 +303,11 @@
       border-color: #ccc;
       color: #111;
     }
-    .light-theme .tl-sub, .light-theme .stat-label, .light-theme .search-summary .label {
+    .light-theme .stat-label, .light-theme .search-summary .label {
       color: #666;
     }
+    .light-theme .toggle-cell-label { color: #37304c; }
+    .light-theme .theme-icon { color: #6d49c6; }
     .light-theme .stat-value { color: #5925dc; }
     .light-theme .search-summary .value { color: #111; }
     .light-theme .sl-item { color: #111; border-color: #eee; }
@@ -300,29 +319,32 @@
 <body>
   <div class="header">
     <span class="logo">⚡</span>
-    <span class="title">Abby <span class="version" id="versionText">v1.1.13</span></span>
+    <span class="title">Abby</span>
+    <div class="header-actions">
+      <span class="theme-icon" id="themeIcon" aria-hidden="true">🌙</span>
+      <label class="switch" title="Dark Theme">
+        <input type="checkbox" id="themeToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
   </div>
 
   <div class="toggle-stack">
     <div class="toggle-row">
-      <div class="toggle-label">
-        <div class="tl-main">Enable Abby</div>
-        <div class="tl-sub" id="toggle-sub">Active on LinkedIn job search pages</div>
+      <div class="toggle-cell">
+        <div class="toggle-cell-label">Enable Abby</div>
+        <label class="switch">
+          <input type="checkbox" id="autopilotToggle">
+          <span class="slider"></span>
+        </label>
       </div>
-      <label class="switch">
-        <input type="checkbox" id="autopilotToggle">
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="toggle-row">
-      <div class="toggle-label">
-        <div class="tl-main">Dark Theme</div>
-        <div class="tl-sub">Syncs with Abby on LinkedIn pages</div>
+      <div class="toggle-cell">
+        <div class="toggle-cell-label">Apply Mode</div>
+        <label class="switch">
+          <input type="checkbox" id="applyModeToggle">
+          <span class="slider"></span>
+        </label>
       </div>
-      <label class="switch">
-        <input type="checkbox" id="themeToggle">
-        <span class="slider"></span>
-      </label>
     </div>
   </div>
 
@@ -355,12 +377,6 @@
   </div>
 
   <div class="search-controls" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
-    <div class="search-row">
-      <select class="search-select" id="applyModeSelect">
-        <option value="auto">Auto mode</option>
-        <option value="manual">Manual mode</option>
-      </select>
-    </div>
     <div class="search-row">
       <input class="search-input" id="searchText" type="text" placeholder="California, United States">
       <button class="search-btn search-btn-save" id="saveSearchBtn">Save</button>

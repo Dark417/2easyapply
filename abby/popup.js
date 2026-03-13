@@ -3,11 +3,10 @@ function openSettings(pane = 'info') {
     window.open(url);
 }
 
-function updateToggleSub(enabled) {
-    const sub = document.getElementById('toggle-sub');
-    if (sub) sub.textContent = enabled
-        ? 'Active on LinkedIn job search pages'
-        : 'Disabled';
+function updateThemeIcon(isDark) {
+    const icon = document.getElementById('themeIcon');
+    if (!icon) return;
+    icon.textContent = isDark ? '🌙' : '☀';
 }
 
 function gatherPopupParams(existingParams) {
@@ -95,16 +94,13 @@ function renderSavedSearchList(searches, selected) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const manifestVersion = chrome.runtime.getManifest().version;
-    const versionText = document.getElementById('versionText');
-    if (versionText) versionText.textContent = `v${manifestVersion}`;
-
     chrome.storage.local.get(['settings', 'savedAnswers', 'abbyParams', 'abbyTheme', 'abbyApplyMode', 'abbyApplyStats'], (res) => {
         if (res.abbyTheme === 'light') document.body.classList.add('light-theme');
         const enabled = res.settings ? res.settings.autopilotEnabled !== false : true;
         document.getElementById('autopilotToggle').checked = enabled;
-        updateToggleSub(enabled);
-        document.getElementById('themeToggle').checked = res.abbyTheme === 'dark';
+        const isDark = res.abbyTheme !== 'light';
+        document.getElementById('themeToggle').checked = isDark;
+        updateThemeIcon(isDark);
 
         document.getElementById('answers-count').textContent = Object.keys(res.savedAnswers || {}).length;
 
@@ -116,7 +112,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('selected-search').textContent = params.selectedSearch || searches[0] || 'No saved location';
         document.getElementById('searchText').value = params.selectedSearch || '';
         renderSavedSearchList(searches, params.selectedSearch || '');
-        document.getElementById('applyModeSelect').value = res.abbyApplyMode === 'manual' ? 'manual' : 'auto';
+        const applyMode = res.abbyApplyMode === 'manual' ? 'manual' : 'auto';
+        document.getElementById('applyModeToggle').checked = applyMode === 'auto';
         const applyStats = Object.assign({ auto: 0, manual: 0 }, res.abbyApplyStats || {});
         document.getElementById('auto-count').textContent = applyStats.auto;
         document.getElementById('manual-count').textContent = applyStats.manual;
@@ -128,9 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const isDark = changes.abbyTheme.newValue === 'dark';
             document.getElementById('themeToggle').checked = isDark;
             document.body.classList.toggle('light-theme', !isDark);
+            updateThemeIcon(isDark);
         }
         if (changes.abbyApplyMode) {
-            document.getElementById('applyModeSelect').value = changes.abbyApplyMode.newValue === 'manual' ? 'manual' : 'auto';
+            const applyMode = changes.abbyApplyMode.newValue === 'manual' ? 'manual' : 'auto';
+            document.getElementById('applyModeToggle').checked = applyMode === 'auto';
         }
         if (changes.abbyApplyStats) {
             const applyStats = Object.assign({ auto: 0, manual: 0 }, changes.abbyApplyStats.newValue || {});
@@ -140,20 +139,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (changes.settings) {
             const enabled = changes.settings.newValue ? changes.settings.newValue.autopilotEnabled !== false : true;
             document.getElementById('autopilotToggle').checked = enabled;
-            updateToggleSub(enabled);
         }
     });
 
     document.getElementById('autopilotToggle').addEventListener('change', function () {
-        updateToggleSub(this.checked);
         chrome.storage.local.get(['settings'], (res) => {
             chrome.storage.local.set({ settings: Object.assign({}, res.settings || {}, { autopilotEnabled: this.checked }) });
         });
     });
 
 
-    document.getElementById('applyModeSelect').addEventListener('change', function () {
-        const mode = this.value === 'manual' ? 'manual' : 'auto';
+    document.getElementById('applyModeToggle').addEventListener('change', function () {
+        const mode = this.checked ? 'auto' : 'manual';
         chrome.storage.local.set({ abbyApplyMode: mode });
     });
 

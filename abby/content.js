@@ -171,6 +171,7 @@ function applyMinimizedState(minimized) {
     if (!ui) return;
     ui.classList.toggle('abby-minimized', !!minimized);
     lsSet(LS_MIN, !!minimized);
+    ui.setAttribute('aria-expanded', minimized ? 'false' : 'true');
 }
 
 function syncApplyAvailability() {
@@ -576,13 +577,16 @@ function injectFloatingUI() {
         if (savedTab === 'info') renderInfoView();
     }
 
+    const isLinkedInJobsPage = /linkedin\.com\/jobs\/(search|view)/i.test(window.location.href);
     makeDraggable(ui, ui.querySelector('.ea-header'));
-    applyMinimizedState(lsGet(LS_MIN));
+    applyMinimizedState(isLinkedInJobsPage ? false : !!lsGet(LS_MIN));
     chrome.storage.local.get(['abbyTheme'], (res) => {
         applyTheme(res.abbyTheme || lsGet(LS_THEME) || 'dark');
     });
 
-    document.getElementById('ea-toggle-minimize').addEventListener('click', () => {
+    document.getElementById('ea-toggle-minimize').addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         const lastDragAt = Number(document.getElementById('abby-floating-ui')?.dataset.abbyLastDragAt || 0);
         if (Date.now() - lastDragAt < 250) return;
         const isMin = document.getElementById('abby-floating-ui').classList.contains('abby-minimized');
@@ -2012,6 +2016,22 @@ function markCurrentJobSubmitted() {
     card.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.3) inset';
 }
 
+function syncAppliedJobCardVisuals() {
+    const cards = Array.from(document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container'));
+    cards.forEach(card => {
+        if (card.getAttribute('data-abby-submitted') === 'true') return;
+        const text = (card.textContent || '').toLowerCase();
+        const alreadyApplied = /(^|\s)applied(\s|$)|application submitted|submitted/i.test(text);
+        if (!alreadyApplied) return;
+        card.setAttribute('data-abby-applied', 'true');
+        card.removeAttribute('data-abby-focused');
+        card.style.opacity = '0.62';
+        card.style.filter = 'grayscale(0.55)';
+        card.style.backgroundColor = 'rgba(172, 178, 188, 0.22)';
+        card.style.borderLeft = '3px solid rgba(134, 141, 153, 0.92)';
+    });
+}
+
 function highlightCurrentJobCard() {
     document.querySelectorAll('[data-abby-focused="true"]').forEach(card => {
         card.removeAttribute('data-abby-focused');
@@ -2607,6 +2627,7 @@ function pollForModalLogic() {
     const stepTab = document.getElementById('ea-tab-step');
     
     highlightCurrentJobCard();
+    syncAppliedJobCardVisuals();
     syncApplyAvailability();
 
     if (modal) {
