@@ -143,7 +143,7 @@
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
     }
 
@@ -339,6 +339,14 @@
       <div class="stat-value" id="ignore-count">0</div>
       <div class="stat-label">Ignored</div>
     </div>
+    <div class="stat">
+      <div class="stat-value" id="auto-count">0</div>
+      <div class="stat-label">Auto</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="manual-count">0</div>
+      <div class="stat-label">Manual</div>
+    </div>
   </div>
 
   <div class="search-summary" style="padding-top:8px; padding-bottom:8px;">
@@ -347,6 +355,12 @@
   </div>
 
   <div class="search-controls" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
+    <div class="search-row">
+      <select class="search-select" id="applyModeSelect">
+        <option value="auto">Auto mode</option>
+        <option value="manual">Manual mode</option>
+      </select>
+    </div>
     <div class="search-row">
       <input class="search-input" id="searchText" type="text" placeholder="California, United States">
       <button class="search-btn search-btn-save" id="saveSearchBtn">Save</button>

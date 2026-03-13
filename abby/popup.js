@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const versionText = document.getElementById('versionText');
     if (versionText) versionText.textContent = `v${manifestVersion}`;
 
-    chrome.storage.local.get(['settings', 'savedAnswers', 'abbyParams', 'abbyTheme'], (res) => {
+    chrome.storage.local.get(['settings', 'savedAnswers', 'abbyParams', 'abbyTheme', 'abbyApplyMode', 'abbyApplyStats'], (res) => {
         if (res.abbyTheme === 'light') document.body.classList.add('light-theme');
         const enabled = res.settings ? res.settings.autopilotEnabled !== false : true;
         document.getElementById('autopilotToggle').checked = enabled;
@@ -116,6 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('selected-search').textContent = params.selectedSearch || searches[0] || 'No saved location';
         document.getElementById('searchText').value = params.selectedSearch || '';
         renderSavedSearchList(searches, params.selectedSearch || '');
+        document.getElementById('applyModeSelect').value = res.abbyApplyMode === 'manual' ? 'manual' : 'auto';
+        const applyStats = Object.assign({ auto: 0, manual: 0 }, res.abbyApplyStats || {});
+        document.getElementById('auto-count').textContent = applyStats.auto;
+        document.getElementById('manual-count').textContent = applyStats.manual;
     });
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -124,6 +128,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const isDark = changes.abbyTheme.newValue === 'dark';
             document.getElementById('themeToggle').checked = isDark;
             document.body.classList.toggle('light-theme', !isDark);
+        }
+        if (changes.abbyApplyMode) {
+            document.getElementById('applyModeSelect').value = changes.abbyApplyMode.newValue === 'manual' ? 'manual' : 'auto';
+        }
+        if (changes.abbyApplyStats) {
+            const applyStats = Object.assign({ auto: 0, manual: 0 }, changes.abbyApplyStats.newValue || {});
+            document.getElementById('auto-count').textContent = applyStats.auto;
+            document.getElementById('manual-count').textContent = applyStats.manual;
         }
         if (changes.settings) {
             const enabled = changes.settings.newValue ? changes.settings.newValue.autopilotEnabled !== false : true;
@@ -137,6 +149,12 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.local.get(['settings'], (res) => {
             chrome.storage.local.set({ settings: Object.assign({}, res.settings || {}, { autopilotEnabled: this.checked }) });
         });
+    });
+
+
+    document.getElementById('applyModeSelect').addEventListener('change', function () {
+        const mode = this.value === 'manual' ? 'manual' : 'auto';
+        chrome.storage.local.set({ abbyApplyMode: mode });
     });
 
     document.getElementById('themeToggle').addEventListener('change', function () {

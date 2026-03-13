@@ -14,8 +14,10 @@ const DEFAULT_PARAMS = {
         delaysMs: { min: 300, max: 1200 },
         rateLimits: { perMinute: 5, perHour: 30, perDay: 200 },
         burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 },
-        detailScrollSeconds: { min: 1, max: 3 }
-    }
+        detailScrollSeconds: { min: 1, max: 3 },
+        delayRangesMs: [{ min: 300, max: 1200 }]
+    },
+    customRegex: []
 };
 
 function mergeDeep(base, patch) {
@@ -56,6 +58,14 @@ function normalizeParams(raw) {
     params.auto.detailScrollSeconds = mergeDeep(DEFAULT_PARAMS.auto.detailScrollSeconds, params.auto.detailScrollSeconds || {});
     params.auto.detailScrollSeconds.min = Math.max(0, Number(params.auto.detailScrollSeconds.min) || DEFAULT_PARAMS.auto.detailScrollSeconds.min);
     params.auto.detailScrollSeconds.max = Math.max(params.auto.detailScrollSeconds.min, Number(params.auto.detailScrollSeconds.max) || DEFAULT_PARAMS.auto.detailScrollSeconds.max);
+    const legacyMin = Math.max(0, parseInt(params.auto?.delaysMs?.min, 10) || DEFAULT_PARAMS.auto.delaysMs.min);
+    const legacyMax = Math.max(legacyMin, parseInt(params.auto?.delaysMs?.max, 10) || DEFAULT_PARAMS.auto.delaysMs.max);
+    const ranges = Array.isArray(params.auto.delayRangesMs) && params.auto.delayRangesMs.length ? params.auto.delayRangesMs : [{ min: legacyMin, max: legacyMax }];
+    params.auto.delayRangesMs = ranges.map(r => ({
+        min: Math.max(0, parseInt(r?.min, 10) || legacyMin),
+        max: Math.max(Math.max(0, parseInt(r?.min, 10) || legacyMin), parseInt(r?.max, 10) || legacyMax)
+    }));
+    params.customRegex = Array.from(new Set((params.customRegex || []).map(v => String(v || '').trim()).filter(Boolean)));
     return params;
 }
 
@@ -321,8 +331,27 @@ async function runLinkedInSearchSetup(tabId, params) {
     return result;
 }
 
+
+async function exportLogsCsv() {
+    const store = await storageGet(['abbyAppLogs']);
+    const logs = store.abbyAppLogs || [];
+    if (!logs.length) return { ok: true, skipped: true };
+    const headers = ['index','id','date','status','company','role','location','about','whoWeHiring','whatYouDo','requirements','whyJoin','timestamp'];
+    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [headers.join(',')].concat(logs.map(log => headers.map(h => escape(log[h])).join(',')));
+    const csv = rows.join('\n');
+    const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    await chrome.downloads.download({
+        url: dataUrl,
+        filename: 'abby/abby_applications.csv',
+        conflictAction: 'overwrite',
+        saveAs: false
+    });
+    return { ok: true };
+}
+
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.get(['profiles', 'activeProfileId', 'profileData', 'settings', 'abbyParams'], (result) => {
+    chrome.storage.local.get(['profiles', 'activeProfileId', 'profileData', 'settings', 'abbyParams', 'abbyApplyMode', 'abbyApplyStats'], (result) => {
         const next = {};
 
         if (!result.profiles || !result.profiles.length) {
@@ -339,6 +368,8 @@ chrome.runtime.onInstalled.addListener(() => {
         if (!result.abbyParams) {
             next.abbyParams = DEFAULT_PARAMS;
         }
+        if (!result.abbyApplyMode) next.abbyApplyMode = 'auto';
+        if (!result.abbyApplyStats) next.abbyApplyStats = { auto: 0, manual: 0 };
 
         chrome.storage.local.set(next);
     });
@@ -390,6 +421,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     } catch { }
                 }));
                 sendResponse({ ok: true, theme });
+                return;
+            }
+            case 'abby:export-logs-csv': {
+                const result = await exportLogsCsv();
+                sendResponse(result);
                 return;
             }
             case 'abby:update-dev-tasks': {
