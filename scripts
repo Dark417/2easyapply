@@ -1,0 +1,23 @@
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["--yes", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222"]
+
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["--yes", "chrome-devtools-mcp@latest", "--autoConnect"]
+
+
+taskkill /F /IM chrome.exe
+
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" `
+  --remote-debugging-port=9222 `
+  --user-data-dir="D:\2au\mcp\chrome-mcp-profile"
+
+
+Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:9222/json/version" | Select-Object -ExpandProperty Content
+Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:9222/json/list" | Select-Object -ExpandProperty Content
+
+python util/lk.py serve
+python util/lk.py run --search "software engineer san francisco" --limit 5
