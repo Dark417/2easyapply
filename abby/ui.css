@@ -810,3 +810,13 @@ textarea.abby-val-input {
     box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
   }
 }
+
+html[data-abby-lock-modal="true"] body * {
+  pointer-events: none !important;
+}
+html[data-abby-lock-modal="true"] .jobs-easy-apply-modal,
+html[data-abby-lock-modal="true"] .jobs-easy-apply-modal *,
+html[data-abby-lock-modal="true"] [data-test-modal-id="easy-apply-modal"],
+html[data-abby-lock-modal="true"] [data-test-modal-id="easy-apply-modal"] * {
+  pointer-events: auto !important;
+}
