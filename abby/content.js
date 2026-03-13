@@ -22,8 +22,10 @@ let abbyParams = {
         delaysMs: { min: 300, max: 1200 },
         rateLimits: { perMinute: 5, perHour: 30, perDay: 200 },
         burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 },
-        detailScrollSeconds: { min: 1, max: 3 }
-    }
+        detailScrollSeconds: { min: 1, max: 3 },
+        delayRangesMs: [{ min: 300, max: 1200 }]
+    },
+    customRegex: []
 };
 let autoApplyRunning = false;
 let autoApplyStopRequested = false;
@@ -33,6 +35,8 @@ let autoLoopRepeats = 0;
 let applyTabReady = false;
 let pendingManualEasyApplyAutoStartUntil = 0;
 let pendingResumeAutoApplyUntil = 0;
+let abbyApplyMode = 'auto';
+let outsideModalBlockerActive = false;
 let stepHistory = [];
 let stepHistoryIndex = -1;
 
@@ -95,6 +99,14 @@ function normalizeParams(raw) {
     params.auto.detailScrollSeconds = mergeDeep({ min: 1, max: 3 }, params.auto.detailScrollSeconds || {});
     params.auto.detailScrollSeconds.min = Math.max(0, Number(params.auto.detailScrollSeconds.min) || 1);
     params.auto.detailScrollSeconds.max = Math.max(params.auto.detailScrollSeconds.min, Number(params.auto.detailScrollSeconds.max) || 3);
+    const legacyMin = Math.max(0, parseInt(params.auto?.delaysMs?.min, 10) || 300);
+    const legacyMax = Math.max(legacyMin, parseInt(params.auto?.delaysMs?.max, 10) || 1200);
+    const rawRanges = Array.isArray(params.auto.delayRangesMs) && params.auto.delayRangesMs.length ? params.auto.delayRangesMs : [{ min: legacyMin, max: legacyMax }];
+    params.auto.delayRangesMs = rawRanges.map(r => ({
+        min: Math.max(0, parseInt(r?.min, 10) || legacyMin),
+        max: Math.max(Math.max(0, parseInt(r?.min, 10) || legacyMin), parseInt(r?.max, 10) || legacyMax)
+    }));
+    params.customRegex = Array.from(new Set((params.customRegex || []).map(v => String(v || '').trim()).filter(Boolean)));
     return params;
 }
 
@@ -159,6 +171,7 @@ function applyMinimizedState(minimized) {
     if (!ui) return;
     ui.classList.toggle('abby-minimized', !!minimized);
     lsSet(LS_MIN, !!minimized);
+    ui.setAttribute('aria-expanded', minimized ? 'false' : 'true');
 }
 
 function syncApplyAvailability() {
@@ -221,6 +234,8 @@ function persistSearchDraft() {
     const restMaxInput = document.getElementById('ea-rest-max');
     const scrollMinInput = document.getElementById('ea-scroll-min');
     const scrollMaxInput = document.getElementById('ea-scroll-max');
+    const delayRangesInput = document.getElementById('ea-delay-ranges');
+    const regexInput = document.getElementById('ea-regex-list');
     if (!searchInput || !clickCountInput || !minDelayInput || !delayMinInput || !delayMaxInput) return;
     const typed = searchInput.value.trim();
     const searches = Array.from(new Set([typed, ...(abbyParams.searches || [])].filter(Boolean)));
@@ -255,8 +270,10 @@ function persistSearchDraft() {
                 detailScrollSeconds: {
                     min: Math.max(0, Number(scrollMinInput?.value) || 1),
                     max: Math.max(Number(scrollMinInput?.value) || 1, Number(scrollMaxInput?.value) || 3)
-                }
-            }
+                },
+                delayRangesMs: String(delayRangesInput?.value || '').split(/[\n,]+/).map(v => v.trim()).filter(Boolean).map(v => { const m=v.split('-').map(n=>parseInt(n.trim(),10)); return { min: Math.max(0,m[0]||300), max: Math.max(Math.max(0,m[0]||300), m[1]||m[0]||1200) }; })
+            },
+            customRegex: String(regexInput?.value || '').split(/\n+/).map(v => v.trim()).filter(Boolean)
         }
     });
 }
@@ -275,6 +292,8 @@ function gatherSearchParamsFromView() {
     const restMaxInput = document.getElementById('ea-rest-max');
     const scrollMinInput = document.getElementById('ea-scroll-min');
     const scrollMaxInput = document.getElementById('ea-scroll-max');
+    const delayRangesInput = document.getElementById('ea-delay-ranges');
+    const regexInput = document.getElementById('ea-regex-list');
     const typed = (searchInput?.value || '').trim();
     const searches = Array.from(new Set([typed, ...(abbyParams.searches || [])].filter(Boolean)));
     return {
@@ -358,6 +377,10 @@ function renderSearchView() {
     document.getElementById('ea-rest-max').value = abbyParams.auto?.burstRest?.maxSeconds || 10;
     document.getElementById('ea-scroll-min').value = abbyParams.auto?.detailScrollSeconds?.min || 1;
     document.getElementById('ea-scroll-max').value = abbyParams.auto?.detailScrollSeconds?.max || 3;
+    const rangeField = document.getElementById('ea-delay-ranges');
+    if (rangeField) rangeField.value = (abbyParams.auto?.delayRangesMs || []).map(r => `${r.min}-${r.max}`).join('\n');
+    const regexField = document.getElementById('ea-regex-list');
+    if (regexField) regexField.value = (abbyParams.customRegex || []).join('\n');
 }
 
 async function saveSearchParams(showMessage = true) {
@@ -481,6 +504,16 @@ function injectFloatingUI() {
             <input type="number" id="ea-scroll-max" class="abby-val-input" min="0" step="0.5">
           </div>
         </div>
+        <div class="ea-grid-2">
+          <div class="ea-stack">
+            <label class="ea-mini-label" for="ea-delay-ranges">Delay ranges list (min-max ms, one per line)</label>
+            <textarea id="ea-delay-ranges" class="abby-val-input" rows="3" placeholder="300-1200\n800-2000"></textarea>
+          </div>
+          <div class="ea-stack">
+            <label class="ea-mini-label" for="ea-regex-list">Custom regex (one pattern per line)</label>
+            <textarea id="ea-regex-list" class="abby-val-input" rows="3" placeholder="\bpython\b"></textarea>
+          </div>
+        </div>
         <div class="ea-btn-row">
           <button id="ea-search-open-btn" class="ea-btn-save">Search</button>
         </div>
@@ -494,6 +527,13 @@ function injectFloatingUI() {
         </div>
         <div id="ea-apply-countdown" style="display:none; color: #ff9800; font-size: 12px; font-weight: 600; margin-bottom: 5px; text-align: center;">Cooldown: 5:00</div>
         <p id="ea-apply-status">Ready.</p>
+        <div class="ea-stack">
+          <label class="ea-mini-label">Apply Mode</label>
+          <select id="ea-apply-mode" class="abby-val-input">
+            <option value="auto">Auto mode</option>
+            <option value="manual">Manual mode</option>
+          </select>
+        </div>
         <div class="ea-btn-row">
           <button id="ea-apply-btn" class="ea-btn-save">Apply</button>
         </div>
@@ -537,13 +577,16 @@ function injectFloatingUI() {
         if (savedTab === 'info') renderInfoView();
     }
 
+    const isLinkedInJobsPage = /linkedin\.com\/jobs\/(search|view)/i.test(window.location.href);
     makeDraggable(ui, ui.querySelector('.ea-header'));
-    applyMinimizedState(lsGet(LS_MIN));
+    applyMinimizedState(isLinkedInJobsPage ? false : !!lsGet(LS_MIN));
     chrome.storage.local.get(['abbyTheme'], (res) => {
         applyTheme(res.abbyTheme || lsGet(LS_THEME) || 'dark');
     });
 
-    document.getElementById('ea-toggle-minimize').addEventListener('click', () => {
+    document.getElementById('ea-toggle-minimize').addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         const lastDragAt = Number(document.getElementById('abby-floating-ui')?.dataset.abbyLastDragAt || 0);
         if (Date.now() - lastDragAt < 250) return;
         const isMin = document.getElementById('abby-floating-ui').classList.contains('abby-minimized');
@@ -562,7 +605,16 @@ function injectFloatingUI() {
     document.getElementById('ea-search-save-btn').addEventListener('click', () => saveSearchParams(true));
     document.getElementById('ea-ignore-add-btn').addEventListener('click', addIgnoreKeyword);
     document.getElementById('ea-search-open-btn').addEventListener('click', handleSearchOpen);
-    document.getElementById('ea-apply-btn').addEventListener('click', () => startAutoApply());
+    chrome.storage.local.get(['abbyApplyMode'], (res) => {
+        abbyApplyMode = res.abbyApplyMode === 'manual' ? 'manual' : 'auto';
+        const modeSel = document.getElementById('ea-apply-mode');
+        if (modeSel) modeSel.value = abbyApplyMode;
+    });
+    document.getElementById('ea-apply-mode').addEventListener('change', (event) => {
+        abbyApplyMode = event.target.value === 'manual' ? 'manual' : 'auto';
+        chrome.storage.local.set({ abbyApplyMode });
+    });
+    document.getElementById('ea-apply-btn').addEventListener('click', () => handleApplyAction());
     document.getElementById('ea-step-prev').addEventListener('click', showPreviousStepSnapshot);
     document.getElementById('ea-ignore-input').addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
@@ -570,7 +622,7 @@ function injectFloatingUI() {
             addIgnoreKeyword();
         }
     });
-    ['ea-search-input', 'ea-click-count', 'ea-min-delay', 'ea-auto-delay-min', 'ea-auto-delay-max', 'ea-limit-minute', 'ea-limit-hour', 'ea-limit-day', 'ea-rest-every', 'ea-rest-min', 'ea-rest-max', 'ea-scroll-min', 'ea-scroll-max'].forEach(id => {
+    ['ea-search-input', 'ea-click-count', 'ea-min-delay', 'ea-auto-delay-min', 'ea-auto-delay-max', 'ea-limit-minute', 'ea-limit-hour', 'ea-limit-day', 'ea-rest-every', 'ea-rest-min', 'ea-rest-max', 'ea-scroll-min', 'ea-scroll-max', 'ea-delay-ranges', 'ea-regex-list'].forEach(id => {
         document.getElementById(id).addEventListener('input', persistSearchDraft);
     });
     renderSearchView();
@@ -670,6 +722,29 @@ function collectFromShadow(root, sel) {
         if (el.shadowRoot) collectFromShadow(el.shadowRoot, sel).forEach(e => list.push(e));
     });
     return list;
+}
+
+
+function compileCustomRegexList() {
+    return (abbyParams.customRegex || []).map(pattern => {
+        try { return new RegExp(pattern, 'i'); } catch { return null; }
+    }).filter(Boolean);
+}
+
+function injectCustomRegexExpression(pattern) {
+    const text = String(pattern || '').trim();
+    if (!text) return { ok: false, error: 'Empty regex pattern.' };
+    try {
+        new RegExp(text, 'i');
+    } catch (err) {
+        return { ok: false, error: `Invalid regex: ${err.message}` };
+    }
+    const next = Array.from(new Set([...(abbyParams.customRegex || []), text]));
+    abbyParams.customRegex = next;
+    persistSearchDraft();
+    saveSearchParams(false);
+    markBlockedJobs();
+    return { ok: true };
 }
 
 function findEasyApplyModal() {
@@ -1490,6 +1565,10 @@ function gatherCurrentValues() {
 
 function saveCurrentFields(andCallback) {
     if (!chrome.runtime?.id) return;
+    if (!findEasyApplyModal()) {
+        if (typeof andCallback === 'function') andCallback();
+        return;
+    }
     chrome.storage.local.get(['savedAnswers', 'savedAnswerGroups'], (res) => {
         const current = gatherCurrentValues();
         const saved = Object.assign({}, res.savedAnswers || {}, current);
@@ -1664,8 +1743,10 @@ function wait(ms) {
 }
 
 function getConfiguredDelayMs() {
-    const minMs = Math.max(0, parseInt(abbyParams.auto?.delaysMs?.min, 10) || 300);
-    const maxMs = Math.max(minMs, parseInt(abbyParams.auto?.delaysMs?.max, 10) || 1200);
+    const ranges = abbyParams.auto?.delayRangesMs || [{ min: 300, max: 1200 }];
+    const selected = ranges[Math.floor(Math.random() * ranges.length)] || { min: 300, max: 1200 };
+    const minMs = Math.max(0, parseInt(selected.min, 10) || 300);
+    const maxMs = Math.max(minMs, parseInt(selected.max, 10) || 1200);
     return Math.round(minMs + (Math.random() * (maxMs - minMs)));
 }
 
@@ -1885,6 +1966,7 @@ function markCurrentJobTested() {
 function markCurrentJobApplied() {
     const card = getActiveJobCard();
     if (!card) return;
+    if (card.getAttribute('data-abby-focused') === 'true') return;
     if (card.getAttribute('data-abby-submitted') === 'true') return; // Don't grey out successfully submitted
 
     card.removeAttribute('data-abby-focused');
@@ -1932,6 +2014,22 @@ function markCurrentJobSubmitted() {
     card.style.backgroundColor = 'rgba(164, 235, 172, 0.45)';
     card.style.borderLeft = '4px solid rgba(76, 175, 80, 0.98)';
     card.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.3) inset';
+}
+
+function syncAppliedJobCardVisuals() {
+    const cards = Array.from(document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container'));
+    cards.forEach(card => {
+        if (card.getAttribute('data-abby-submitted') === 'true') return;
+        const text = (card.textContent || '').toLowerCase();
+        const alreadyApplied = /(^|\s)applied(\s|$)|application submitted|submitted/i.test(text);
+        if (!alreadyApplied) return;
+        card.setAttribute('data-abby-applied', 'true');
+        card.removeAttribute('data-abby-focused');
+        card.style.opacity = '0.62';
+        card.style.filter = 'grayscale(0.55)';
+        card.style.backgroundColor = 'rgba(172, 178, 188, 0.22)';
+        card.style.borderLeft = '3px solid rgba(134, 141, 153, 0.92)';
+    });
 }
 
 function highlightCurrentJobCard() {
@@ -2044,6 +2142,12 @@ async function closeSubmittedModalIfPresent() {
     if (discardButton) {
         await clickButton(discardButton, 1);
         await wait(Math.max(900, getConfiguredDelayMs()));
+    }
+    const stillModal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
+    if (stillModal) {
+        const backdrop = document.querySelector('.artdeco-modal-overlay') || document.body;
+        backdrop.click();
+        await wait(Math.max(600, getConfiguredDelayMs()));
     }
 }
 
@@ -2178,9 +2282,29 @@ async function logApplicationSuccess() {
             logs.push(logEntry);
             chrome.storage.local.set({ abbyAppLogs: logs }, () => {
                 updateApplyStatsUI();
+                if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'abby:export-logs-csv' });
             });
         });
     } catch(e) { console.error('Abby log error:', e); }
+}
+
+async function handleApplyAction() {
+    if (abbyApplyMode === 'manual') {
+        const easyApplyButton = findEasyApplyButton();
+        if (!easyApplyButton) {
+            setAutoApplyDataset('blocked', formatApplyStatus('Could not find Easy Apply button'), currentHeading);
+            return { ok: false, state: 'blocked' };
+        }
+        await openEasyApplyModal(easyApplyButton, Math.max(1, abbyParams.linkedin?.clickCount || 1));
+        setAutoApplyDataset('running', formatApplyStatus('Manual mode: Easy Apply opened.'), currentHeading);
+        chrome.storage.local.get(['abbyApplyStats'], (res) => {
+            const stats = Object.assign({ auto: 0, manual: 0 }, res.abbyApplyStats || {});
+            stats.manual += 1;
+            chrome.storage.local.set({ abbyApplyStats: stats });
+        });
+        return { ok: true, state: 'manual-opened' };
+    }
+    return startAutoApply();
 }
 
 async function startAutoApply() {
@@ -2194,6 +2318,11 @@ async function startAutoApply() {
     pendingManualEasyApplyAutoStartUntil = 0;
     pendingResumeAutoApplyUntil = 0;
     autoApplyRunning = true;
+    chrome.storage.local.get(['abbyApplyStats'], (res) => {
+        const stats = Object.assign({ auto: 0, manual: 0 }, res.abbyApplyStats || {});
+        stats.auto += 1;
+        chrome.storage.local.set({ abbyApplyStats: stats });
+    });
     autoApplyStopRequested = false;
     applySchedule.running = true;
     applySchedule.mode = 'duty';
@@ -2300,6 +2429,21 @@ function handlePotentialEasyApplyClick(event) {
     requestAutoApplyFromManualEasyApply();
 }
 
+
+function enforceEasyApplyModalFocus(modal) {
+    if (!modal) return;
+    modal.setAttribute('tabindex', '-1');
+    modal.focus();
+    if (outsideModalBlockerActive) return;
+    outsideModalBlockerActive = true;
+    document.documentElement.dataset.abbyLockModal = 'true';
+}
+
+function releaseEasyApplyModalFocus() {
+    outsideModalBlockerActive = false;
+    delete document.documentElement.dataset.abbyLockModal;
+}
+
 function runAutoApplyLoop() {
     if (!autoApplyRunning || !chrome.runtime?.id) return;
     const applyError = findApplyErrorMessage();
@@ -2311,11 +2455,13 @@ function runAutoApplyLoop() {
     }
     const modal = findEasyApplyModal();
     if (!modal) {
+        releaseEasyApplyModalFocus();
         resetAutoApplySession({ preserveStepHistory: true, message: 'Easy Apply flow completed or modal closed.' });
         return;
     }
 
     currentModal = modal;
+    enforceEasyApplyModalFocus(modal);
     const headingEl = findInShadow(modal, 'h3') || findInShadow(modal, 'h2') || modal.querySelector('h3') || modal.querySelector('h2');
     currentHeading = normalizeStepHeading(headingEl ? headingEl.innerText.trim() : currentHeading || 'General');
     setAutoApplyDataset('running', isHiddenStepHeading(currentHeading) ? 'Applying hidden step' : `Applying ${currentHeading}`, currentHeading);
@@ -2481,6 +2627,7 @@ function pollForModalLogic() {
     const stepTab = document.getElementById('ea-tab-step');
     
     highlightCurrentJobCard();
+    syncAppliedJobCardVisuals();
     syncApplyAvailability();
 
     if (modal) {
@@ -2490,6 +2637,7 @@ function pollForModalLogic() {
             stepTab.classList.remove('ea-tab-disabled');
         }
         currentModal = modal;
+    enforceEasyApplyModalFocus(modal);
         const headingEl = findInShadow(modal, 'h3') || findInShadow(modal, 'h2') ||
             modal.querySelector('h3') || modal.querySelector('h2');
         currentHeading = normalizeStepHeading(headingEl ? headingEl.innerText.trim() : 'General');
@@ -2572,6 +2720,7 @@ function markBlockedJobs() {
     chrome.storage.local.get(['abbyParams'], (res) => {
         if (res.abbyParams) abbyParams = normalizeParams(res.abbyParams);
         const keywords = abbyParams.ignore?.keywords || [];
+        const customRegex = compileCustomRegexList();
         const caseSensitive = false;
 
         const jobCards = document.querySelectorAll('.jobs-search-results__list-item, .job-card-container, [data-occludable-job-id]');
@@ -2584,7 +2733,7 @@ function markBlockedJobs() {
             const isBlocked = keywords.some(k => {
                 const needle = caseSensitive ? String(k || '').trim() : String(k || '').trim().toLowerCase();
                 return needle && fullText.includes(needle);
-            });
+            }) || customRegex.some(rx => rx.test(rawText || ''));
 
             card.querySelectorAll('[data-abby-skip-badge="true"]').forEach(node => node.remove());
 
@@ -2629,6 +2778,8 @@ function escHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function handleDevTaskUpdate() {}
+
 if (chrome.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message?.type === 'abby:start-auto-apply') {
@@ -2668,6 +2819,16 @@ window.addEventListener('message', (event) => {
 });
 document.addEventListener('click', handlePotentialEasyApplyClick, true);
 document.addEventListener('pointerup', handlePotentialEasyApplyClick, true);
+document.addEventListener('mousedown', (event) => {
+    if (!outsideModalBlockerActive) return;
+    const modal = findEasyApplyModal();
+    if (!modal) return;
+    if (!modal.contains(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        modal.focus();
+    }
+}, true);
 
 // ──────────────────────────────────────────────────────────
 // 9. BOOTSTRAP
@@ -2691,99 +2852,4 @@ urlChecker = setInterval(checkUrlAndManageUI, 1000);
 setTimeout(seedCanonicalDefaults, 1500); // run once after extension settles
 setAutoApplyDataset('idle', 'Ready.', '');
 refreshParams(false);
-
-let devTasks = [
-    { text: "When user clicks 'X' during Easy Apply auto, immediately completely halt the process. If Cancel/Discard, discontinue the whole process.", done: true },
-    { text: "Fix applied/greyed card logic: once marked Green (submitted) or Grey (applied), it should never revert.", done: true },
-    { text: "After completing 'search', do not auto-start applying immediately. Wait for user to manually click 'Start Auto Apply' or 'Apply'.", done: true }
-];
-
-function updateDevTasksUI() {
-    let ui = document.getElementById('abby-dev-tasks');
-    if (!ui) {
-        ui = document.createElement('div');
-        ui.id = 'abby-dev-tasks';
-        ui.style = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999999; background: rgba(0,0,0,0.85); color: #fff; border-radius: 8px; border: 1px solid #444; width: 320px; font-family: sans-serif; font-size: 13px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: auto; display: flex; flex-direction: column;';
-        document.body.appendChild(ui);
-
-        let header = document.createElement('div');
-        header.style = 'font-size: 14px; font-weight: bold; color: #4CAF50; border-bottom: 1px solid #444; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; background: rgba(30,30,30,0.9); border-radius: 8px 8px 0 0;';
-        header.innerHTML = `<span>Current Tasks</span><span style="font-size: 10px; color: #888; margin-left: auto; margin-right: 10px;">DEV</span><button id="dev-task-collapse-btn" style="background:none; border:none; color:#ccc; cursor:pointer; font-size:16px; padding:0 4px;">_</button>`;
-        ui.appendChild(header);
-
-        let contentDiv = document.createElement('div');
-        contentDiv.id = 'abby-dev-tasks-content';
-        contentDiv.style = 'padding: 15px; max-height: 400px; overflow-y: auto;';
-        ui.appendChild(contentDiv);
-
-        let collapsed = false;
-        header.querySelector('#dev-task-collapse-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            collapsed = !collapsed;
-            contentDiv.style.display = collapsed ? 'none' : 'block';
-            e.target.textContent = collapsed ? '+' : '_';
-        });
-
-        let isDragging = false, startX, startY, origLeft, origTop;
-        header.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            let rect = ui.getBoundingClientRect();
-            origLeft = rect.left;
-            origTop = rect.top;
-            document.addEventListener('mousemove', onDrag);
-            document.addEventListener('mouseup', stopDrag);
-        });
-        function onDrag(e) {
-            if (!isDragging) return;
-            let dx = e.clientX - startX;
-            let dy = e.clientY - startY;
-            ui.style.left = (origLeft + dx) + 'px';
-            ui.style.top = (origTop + dy) + 'px';
-            ui.style.bottom = 'auto';
-            ui.style.right = 'auto';
-        }
-        function stopDrag() {
-            isDragging = false;
-            document.removeEventListener('mousemove', onDrag);
-            document.removeEventListener('mouseup', stopDrag);
-        }
-    }
-
-    const taskHtml = devTasks.map((task, idx) => `
-        <div style="display:flex; align-items:flex-start; margin-bottom: 8px; opacity: ${task.done ? '0.6' : '1'};">
-            <input type="checkbox" style="margin-right: 10px; margin-top: 2px; transform: scale(1.1); cursor: pointer;" ${task.done ? 'checked' : ''} class="dev-task-cb" data-idx="${idx}">
-            <div style="text-decoration: ${task.done ? 'line-through' : 'none'};">${escHtml(task.text)}</div>
-        </div>
-    `).join('');
-
-    const contentDiv = document.getElementById('abby-dev-tasks-content');
-    if (contentDiv) {
-        contentDiv.innerHTML = taskHtml || '<p style="color: #888; font-style: italic;">No active tasks.</p>';
-        
-        contentDiv.querySelectorAll('.dev-task-cb').forEach(cb => {
-            cb.addEventListener('change', (e) => {
-                const idx = parseInt(e.target.dataset.idx, 10);
-                if (e.target.checked) {
-                    devTasks.splice(idx, 1);
-                    updateDevTasksUI();
-                    if (chrome.runtime?.id) chrome.storage.local.set({ devTasks });
-                }
-            });
-        });
-    }
-}
-
-function handleDevTaskUpdate(tasks) {
-    if (Array.isArray(tasks)) {
-        devTasks = tasks;
-        updateDevTasksUI();
-    }
-}
-
-// Re-inject on load
-setTimeout(updateDevTasksUI, 1000);
-
 

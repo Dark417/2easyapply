@@ -23,6 +23,8 @@ Requirements are listed in descending timestamp order. Each requirement ID is pr
 
 | # | Requirement | Status |
 |---|-------------|--------|
+| 260313-R67 | Improve dark theme readability in Abby UI, simplify popup controls, add sun/moon dark-theme icon in popup header, remove popup version text, compact location/search fields, and always grey applied jobs on the current page in both manual and auto modes | ✅ Done |
+| 260313-R66 | Popup menu moves dark theme toggle into the top-right header, stacks `Enable Abby` and `Apply Mode` toggles vertically in one row, and Abby floating panel must always restore on LinkedIn job pages even if a prior minimized flag was persisted | ✅ Done |
 | 260308-R65 | Add canonical regex mappings for `*work*startup*` = `Yes`, `*Are you located in*` = `No`, and fully reset Abby Apply state when the modal closes so the next `Apply` click restarts cleanly | ✅ Done |
 | 260308-R64 | Add canonical regex mappings for `Have you worked with*` = `Yes` and `*U.S. Citizen*` = `No`, and preserve the last seen step snapshot while resetting Abby Apply state after a mid-flow Easy Apply exit | ✅ Done |
 | 260308-R63 | Add a canonical regex mapping for `Are you comfortable*` and seed the shared answer as `Yes` | ✅ Done |

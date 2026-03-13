@@ -6,11 +6,11 @@
   --abby-header-bg: rgba(11, 13, 21, 0.95);
   --abby-border: rgba(255, 255, 255, 0.12);
   --abby-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
-  --abby-text: #f5f7fb;
+  --abby-text: #f7f9ff;
   --abby-text-strong: #ffffff;
-  --abby-text-muted: #d8dcec;
-  --abby-text-dim: #a4acc4;
-  --abby-text-faint: #8790a8;
+  --abby-text-muted: #e7ecff;
+  --abby-text-dim: #c7d0ec;
+  --abby-text-faint: #b3bedf;
   --abby-accent: #d4bcff;
   --abby-accent-strong: #bda0ff;
   --abby-accent-soft: rgba(164, 127, 255, 0.22);
@@ -286,6 +286,7 @@
   margin: 0;
   white-space: pre-line;
   line-height: 1.45;
+  color: var(--abby-text-strong);
 }
 
 .ea-token-list {
@@ -459,6 +460,13 @@
   box-sizing: border-box;
   font-family: inherit;
   transition: border-color 0.15s;
+}
+
+#abby-floating-ui .abby-val-input,
+#abby-floating-ui .abby-val-select,
+#abby-floating-ui #ea-current-action,
+#abby-floating-ui #ea-apply-status {
+  color: var(--abby-input-text);
 }
 
 textarea.abby-val-input {
@@ -809,4 +817,14 @@ textarea.abby-val-input {
   100% {
     box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
   }
+}
+
+html[data-abby-lock-modal="true"] body * {
+  pointer-events: none !important;
+}
+html[data-abby-lock-modal="true"] .jobs-easy-apply-modal,
+html[data-abby-lock-modal="true"] .jobs-easy-apply-modal *,
+html[data-abby-lock-modal="true"] [data-test-modal-id="easy-apply-modal"],
+html[data-abby-lock-modal="true"] [data-test-modal-id="easy-apply-modal"] * {
+  pointer-events: auto !important;
 }
