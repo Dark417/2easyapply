@@ -241,6 +241,44 @@
   color: var(--abby-text-dim);
 }
 
+.ea-delay-row {
+  display: grid;
+  grid-template-columns: minmax(168px, 1.2fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.ea-delay-inline {
+  display: grid;
+  grid-template-columns: auto minmax(54px, 1fr) auto auto minmax(54px, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.ea-delay-inline span {
+  font-size: 11px;
+  color: var(--abby-text-dim);
+}
+
+.ea-delay-inline .abby-val-input {
+  padding: 4px 6px;
+}
+
+.ea-delay-sep {
+  color: var(--abby-text-dim);
+  font-size: 12px;
+  text-align: center;
+}
+
+.ea-delay-row .ea-mini-label {
+  margin: 0;
+}
+
+.ea-delay-row label {
+  display: flex;
+  align-items: center;
+}
+
 .ea-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -286,7 +324,7 @@
   margin: 0;
   white-space: pre-line;
   line-height: 1.45;
-  color: var(--abby-text-strong);
+  color: var(--abby-text-strong) !important;
 }
 
 .ea-token-list {
@@ -466,7 +504,23 @@
 #abby-floating-ui .abby-val-select,
 #abby-floating-ui #ea-current-action,
 #abby-floating-ui #ea-apply-status {
-  color: var(--abby-input-text);
+  color: var(--abby-input-text) !important;
+  -webkit-text-fill-color: var(--abby-input-text) !important;
+}
+
+#abby-floating-ui select.abby-val-input {
+  color: var(--abby-input-text) !important;
+  background: var(--abby-input-bg) !important;
+}
+
+#abby-floating-ui select.abby-val-input option {
+  background: #171a24;
+  color: #f5f7fb;
+}
+
+#abby-floating-ui.abby-theme-light select.abby-val-input option {
+  background: #ffffff;
+  color: #1d162d;
 }
 
 textarea.abby-val-input {
@@ -819,12 +873,3 @@ textarea.abby-val-input {
   }
 }
 
-html[data-abby-lock-modal="true"] body * {
-  pointer-events: none !important;
-}
-html[data-abby-lock-modal="true"] .jobs-easy-apply-modal,
-html[data-abby-lock-modal="true"] .jobs-easy-apply-modal *,
-html[data-abby-lock-modal="true"] [data-test-modal-id="easy-apply-modal"],
-html[data-abby-lock-modal="true"] [data-test-modal-id="easy-apply-modal"] * {
-  pointer-events: auto !important;
-}

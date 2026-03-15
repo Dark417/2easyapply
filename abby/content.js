@@ -1,7 +1,6 @@
 // Abby — content.js
 // Floating UI on LinkedIn Easy Apply: field table, live edit, save/fill, Info tab.
 console.log("Abby: Content script loaded.");
-const ABBY_VERSION = chrome.runtime?.getManifest?.().version || 'dev';
 // ──────────────────────────────────────────────────────────
 // STATE
 // ──────────────────────────────────────────────────────────
@@ -19,11 +18,17 @@ let abbyParams = {
     ignore: { caseSensitive: false, keywords: ['founding', 'machine learning'] },
     linkedin: { filters: ['Easy Apply'], clickCount: 2, minClickDelaySeconds: 0.8 },
     auto: {
-        delaysMs: { min: 300, max: 1200 },
+        delaysSec: {
+            nextJobItem: { min: 0.4, max: 1.1 },
+            clickEasyApply: { min: 0.4, max: 1.2 },
+            easyApplyScroll: { min: 0.6, max: 1.6 },
+            inputFields: { min: 0.2, max: 0.7 },
+            nextStep: { min: 0.5, max: 1.3 },
+            submitPageScroll: { min: 1.0, max: 2.0 },
+            closeSubmitPage: { min: 0.6, max: 1.4 }
+        },
         rateLimits: { perMinute: 5, perHour: 30, perDay: 200 },
-        burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 },
-        detailScrollSeconds: { min: 1, max: 3 },
-        delayRangesMs: [{ min: 300, max: 1200 }]
+        burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 }
     },
     customRegex: []
 };
@@ -68,6 +73,16 @@ function mergeDeep(base, patch) {
     return merged;
 }
 
+const DEFAULT_DELAYS_SEC = {
+    nextJobItem: { min: 0.4, max: 1.1 },
+    clickEasyApply: { min: 0.4, max: 1.2 },
+    easyApplyScroll: { min: 0.6, max: 1.6 },
+    inputFields: { min: 0.2, max: 0.7 },
+    nextStep: { min: 0.5, max: 1.3 },
+    submitPageScroll: { min: 1.0, max: 2.0 },
+    closeSubmitPage: { min: 0.6, max: 1.4 }
+};
+
 function normalizeParams(raw) {
     const params = mergeDeep(abbyParams, raw || {});
     params.searches = Array.from(new Set((params.searches || []).map(v => String(v || '').trim()).filter(Boolean)));
@@ -80,14 +95,26 @@ function normalizeParams(raw) {
     params.linkedin.clickCount = Math.max(1, parseInt(params.linkedin.clickCount, 10) || 2);
     params.linkedin.minClickDelaySeconds = Math.max(0, Number(params.linkedin.minClickDelaySeconds) || 0.8);
     params.auto = mergeDeep({
-        delaysMs: { min: 300, max: 1200 },
+        delaysSec: DEFAULT_DELAYS_SEC,
         rateLimits: { perMinute: 5, perHour: 30, perDay: 200 },
-        burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 },
-        detailScrollSeconds: { min: 1, max: 3 }
+        burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 }
     }, params.auto || {});
-    params.auto.delaysMs = mergeDeep({ min: 300, max: 1200 }, params.auto.delaysMs || {});
-    params.auto.delaysMs.min = Math.max(0, parseInt(params.auto.delaysMs.min, 10) || 300);
-    params.auto.delaysMs.max = Math.max(params.auto.delaysMs.min, parseInt(params.auto.delaysMs.max, 10) || 1200);
+    const legacyMinSec = Math.max(0, (parseInt(params.auto?.delaysMs?.min, 10) || 300) / 1000);
+    const legacyMaxSec = Math.max(legacyMinSec, (parseInt(params.auto?.delaysMs?.max, 10) || 1200) / 1000);
+    const normalizeRange = (range, fallback) => {
+        const min = Math.max(0, Number(range?.min ?? fallback.min));
+        const max = Math.max(min, Number(range?.max ?? fallback.max));
+        return { min: Number(min.toFixed(2)), max: Number(max.toFixed(2)) };
+    };
+    params.auto.delaysSec = {
+        nextJobItem: normalizeRange(params.auto.delaysSec?.nextJobItem, { min: legacyMinSec || DEFAULT_DELAYS_SEC.nextJobItem.min, max: legacyMaxSec || DEFAULT_DELAYS_SEC.nextJobItem.max }),
+        clickEasyApply: normalizeRange(params.auto.delaysSec?.clickEasyApply, { min: legacyMinSec || DEFAULT_DELAYS_SEC.clickEasyApply.min, max: legacyMaxSec || DEFAULT_DELAYS_SEC.clickEasyApply.max }),
+        easyApplyScroll: normalizeRange(params.auto.delaysSec?.easyApplyScroll, DEFAULT_DELAYS_SEC.easyApplyScroll),
+        inputFields: normalizeRange(params.auto.delaysSec?.inputFields, DEFAULT_DELAYS_SEC.inputFields),
+        nextStep: normalizeRange(params.auto.delaysSec?.nextStep, { min: legacyMinSec || DEFAULT_DELAYS_SEC.nextStep.min, max: legacyMaxSec || DEFAULT_DELAYS_SEC.nextStep.max }),
+        submitPageScroll: normalizeRange(params.auto.delaysSec?.submitPageScroll, DEFAULT_DELAYS_SEC.submitPageScroll),
+        closeSubmitPage: normalizeRange(params.auto.delaysSec?.closeSubmitPage, DEFAULT_DELAYS_SEC.closeSubmitPage)
+    };
     params.auto.rateLimits = mergeDeep({ perMinute: 5, perHour: 30, perDay: 200 }, params.auto.rateLimits || {});
     params.auto.rateLimits.perMinute = Math.max(1, parseInt(params.auto.rateLimits.perMinute, 10) || 5);
     params.auto.rateLimits.perHour = Math.max(params.auto.rateLimits.perMinute, parseInt(params.auto.rateLimits.perHour, 10) || 30);
@@ -96,16 +123,6 @@ function normalizeParams(raw) {
     params.auto.burstRest.every = Math.max(1, parseInt(params.auto.burstRest.every, 10) || 5);
     params.auto.burstRest.minSeconds = Math.max(0, Number(params.auto.burstRest.minSeconds) || 5);
     params.auto.burstRest.maxSeconds = Math.max(params.auto.burstRest.minSeconds, Number(params.auto.burstRest.maxSeconds) || 10);
-    params.auto.detailScrollSeconds = mergeDeep({ min: 1, max: 3 }, params.auto.detailScrollSeconds || {});
-    params.auto.detailScrollSeconds.min = Math.max(0, Number(params.auto.detailScrollSeconds.min) || 1);
-    params.auto.detailScrollSeconds.max = Math.max(params.auto.detailScrollSeconds.min, Number(params.auto.detailScrollSeconds.max) || 3);
-    const legacyMin = Math.max(0, parseInt(params.auto?.delaysMs?.min, 10) || 300);
-    const legacyMax = Math.max(legacyMin, parseInt(params.auto?.delaysMs?.max, 10) || 1200);
-    const rawRanges = Array.isArray(params.auto.delayRangesMs) && params.auto.delayRangesMs.length ? params.auto.delayRangesMs : [{ min: legacyMin, max: legacyMax }];
-    params.auto.delayRangesMs = rawRanges.map(r => ({
-        min: Math.max(0, parseInt(r?.min, 10) || legacyMin),
-        max: Math.max(Math.max(0, parseInt(r?.min, 10) || legacyMin), parseInt(r?.max, 10) || legacyMax)
-    }));
     params.customRegex = Array.from(new Set((params.customRegex || []).map(v => String(v || '').trim()).filter(Boolean)));
     return params;
 }
@@ -224,19 +241,33 @@ function persistSearchDraft() {
     const searchInput = document.getElementById('ea-search-input');
     const clickCountInput = document.getElementById('ea-click-count');
     const minDelayInput = document.getElementById('ea-min-delay');
-    const delayMinInput = document.getElementById('ea-auto-delay-min');
-    const delayMaxInput = document.getElementById('ea-auto-delay-max');
+    const nextJobMinInput = document.getElementById('ea-delay-next-job-min');
+    const nextJobMaxInput = document.getElementById('ea-delay-next-job-max');
+    const easyApplyMinInput = document.getElementById('ea-delay-easy-apply-min');
+    const easyApplyMaxInput = document.getElementById('ea-delay-easy-apply-max');
+    const easyScrollMinInput = document.getElementById('ea-delay-easy-scroll-min');
+    const easyScrollMaxInput = document.getElementById('ea-delay-easy-scroll-max');
+    const inputDelayMinInput = document.getElementById('ea-delay-input-min');
+    const inputDelayMaxInput = document.getElementById('ea-delay-input-max');
+    const nextStepMinInput = document.getElementById('ea-delay-next-step-min');
+    const nextStepMaxInput = document.getElementById('ea-delay-next-step-max');
+    const submitScrollMinInput = document.getElementById('ea-delay-submit-scroll-min');
+    const submitScrollMaxInput = document.getElementById('ea-delay-submit-scroll-max');
+    const closeSubmitMinInput = document.getElementById('ea-delay-close-submit-min');
+    const closeSubmitMaxInput = document.getElementById('ea-delay-close-submit-max');
     const perMinuteInput = document.getElementById('ea-limit-minute');
     const perHourInput = document.getElementById('ea-limit-hour');
     const perDayInput = document.getElementById('ea-limit-day');
     const restEveryInput = document.getElementById('ea-rest-every');
     const restMinInput = document.getElementById('ea-rest-min');
     const restMaxInput = document.getElementById('ea-rest-max');
-    const scrollMinInput = document.getElementById('ea-scroll-min');
-    const scrollMaxInput = document.getElementById('ea-scroll-max');
-    const delayRangesInput = document.getElementById('ea-delay-ranges');
     const regexInput = document.getElementById('ea-regex-list');
-    if (!searchInput || !clickCountInput || !minDelayInput || !delayMinInput || !delayMaxInput) return;
+    if (!searchInput || !clickCountInput || !minDelayInput) return;
+    const readRange = (minEl, maxEl, fallback) => {
+        const min = Math.max(0, Number(minEl?.value) || fallback.min);
+        const max = Math.max(min, Number(maxEl?.value) || fallback.max);
+        return { min: Number(min.toFixed(2)), max: Number(max.toFixed(2)) };
+    };
     const typed = searchInput.value.trim();
     const searches = Array.from(new Set([typed, ...(abbyParams.searches || [])].filter(Boolean)));
     chrome.storage.local.set({
@@ -253,9 +284,14 @@ function persistSearchDraft() {
                 minClickDelaySeconds: Math.max(0, Number(minDelayInput.value) || 0.8)
             },
             auto: {
-                delaysMs: {
-                    min: Math.max(0, parseInt(delayMinInput.value, 10) || 300),
-                    max: Math.max(parseInt(delayMinInput.value, 10) || 300, parseInt(delayMaxInput.value, 10) || 1200)
+                delaysSec: {
+                    nextJobItem: readRange(nextJobMinInput, nextJobMaxInput, DEFAULT_DELAYS_SEC.nextJobItem),
+                    clickEasyApply: readRange(easyApplyMinInput, easyApplyMaxInput, DEFAULT_DELAYS_SEC.clickEasyApply),
+                    easyApplyScroll: readRange(easyScrollMinInput, easyScrollMaxInput, DEFAULT_DELAYS_SEC.easyApplyScroll),
+                    inputFields: readRange(inputDelayMinInput, inputDelayMaxInput, DEFAULT_DELAYS_SEC.inputFields),
+                    nextStep: readRange(nextStepMinInput, nextStepMaxInput, DEFAULT_DELAYS_SEC.nextStep),
+                    submitPageScroll: readRange(submitScrollMinInput, submitScrollMaxInput, DEFAULT_DELAYS_SEC.submitPageScroll),
+                    closeSubmitPage: readRange(closeSubmitMinInput, closeSubmitMaxInput, DEFAULT_DELAYS_SEC.closeSubmitPage)
                 },
                 rateLimits: {
                     perMinute: Math.max(1, parseInt(perMinuteInput?.value, 10) || 5),
@@ -266,12 +302,7 @@ function persistSearchDraft() {
                     every: Math.max(1, parseInt(restEveryInput?.value, 10) || 5),
                     minSeconds: Math.max(0, Number(restMinInput?.value) || 5),
                     maxSeconds: Math.max(Number(restMinInput?.value) || 5, Number(restMaxInput?.value) || 10)
-                },
-                detailScrollSeconds: {
-                    min: Math.max(0, Number(scrollMinInput?.value) || 1),
-                    max: Math.max(Number(scrollMinInput?.value) || 1, Number(scrollMaxInput?.value) || 3)
-                },
-                delayRangesMs: String(delayRangesInput?.value || '').split(/[\n,]+/).map(v => v.trim()).filter(Boolean).map(v => { const m=v.split('-').map(n=>parseInt(n.trim(),10)); return { min: Math.max(0,m[0]||300), max: Math.max(Math.max(0,m[0]||300), m[1]||m[0]||1200) }; })
+                }
             },
             customRegex: String(regexInput?.value || '').split(/\n+/).map(v => v.trim()).filter(Boolean)
         }
@@ -282,18 +313,32 @@ function gatherSearchParamsFromView() {
     const searchInput = document.getElementById('ea-search-input');
     const clickCountInput = document.getElementById('ea-click-count');
     const minDelayInput = document.getElementById('ea-min-delay');
-    const delayMinInput = document.getElementById('ea-auto-delay-min');
-    const delayMaxInput = document.getElementById('ea-auto-delay-max');
+    const nextJobMinInput = document.getElementById('ea-delay-next-job-min');
+    const nextJobMaxInput = document.getElementById('ea-delay-next-job-max');
+    const easyApplyMinInput = document.getElementById('ea-delay-easy-apply-min');
+    const easyApplyMaxInput = document.getElementById('ea-delay-easy-apply-max');
+    const easyScrollMinInput = document.getElementById('ea-delay-easy-scroll-min');
+    const easyScrollMaxInput = document.getElementById('ea-delay-easy-scroll-max');
+    const inputDelayMinInput = document.getElementById('ea-delay-input-min');
+    const inputDelayMaxInput = document.getElementById('ea-delay-input-max');
+    const nextStepMinInput = document.getElementById('ea-delay-next-step-min');
+    const nextStepMaxInput = document.getElementById('ea-delay-next-step-max');
+    const submitScrollMinInput = document.getElementById('ea-delay-submit-scroll-min');
+    const submitScrollMaxInput = document.getElementById('ea-delay-submit-scroll-max');
+    const closeSubmitMinInput = document.getElementById('ea-delay-close-submit-min');
+    const closeSubmitMaxInput = document.getElementById('ea-delay-close-submit-max');
     const perMinuteInput = document.getElementById('ea-limit-minute');
     const perHourInput = document.getElementById('ea-limit-hour');
     const perDayInput = document.getElementById('ea-limit-day');
     const restEveryInput = document.getElementById('ea-rest-every');
     const restMinInput = document.getElementById('ea-rest-min');
     const restMaxInput = document.getElementById('ea-rest-max');
-    const scrollMinInput = document.getElementById('ea-scroll-min');
-    const scrollMaxInput = document.getElementById('ea-scroll-max');
-    const delayRangesInput = document.getElementById('ea-delay-ranges');
     const regexInput = document.getElementById('ea-regex-list');
+    const readRange = (minEl, maxEl, fallback) => {
+        const min = Math.max(0, Number(minEl?.value) || fallback.min);
+        const max = Math.max(min, Number(maxEl?.value) || fallback.max);
+        return { min: Number(min.toFixed(2)), max: Number(max.toFixed(2)) };
+    };
     const typed = (searchInput?.value || '').trim();
     const searches = Array.from(new Set([typed, ...(abbyParams.searches || [])].filter(Boolean)));
     return {
@@ -309,9 +354,14 @@ function gatherSearchParamsFromView() {
             minClickDelaySeconds: Math.max(0, Number(minDelayInput?.value) || 0.8)
         },
         auto: {
-            delaysMs: {
-                min: Math.max(0, parseInt(delayMinInput?.value, 10) || 300),
-                max: Math.max(parseInt(delayMinInput?.value, 10) || 300, parseInt(delayMaxInput?.value, 10) || 1200)
+            delaysSec: {
+                nextJobItem: readRange(nextJobMinInput, nextJobMaxInput, DEFAULT_DELAYS_SEC.nextJobItem),
+                clickEasyApply: readRange(easyApplyMinInput, easyApplyMaxInput, DEFAULT_DELAYS_SEC.clickEasyApply),
+                easyApplyScroll: readRange(easyScrollMinInput, easyScrollMaxInput, DEFAULT_DELAYS_SEC.easyApplyScroll),
+                inputFields: readRange(inputDelayMinInput, inputDelayMaxInput, DEFAULT_DELAYS_SEC.inputFields),
+                nextStep: readRange(nextStepMinInput, nextStepMaxInput, DEFAULT_DELAYS_SEC.nextStep),
+                submitPageScroll: readRange(submitScrollMinInput, submitScrollMaxInput, DEFAULT_DELAYS_SEC.submitPageScroll),
+                closeSubmitPage: readRange(closeSubmitMinInput, closeSubmitMaxInput, DEFAULT_DELAYS_SEC.closeSubmitPage)
             },
             rateLimits: {
                 perMinute: Math.max(1, parseInt(perMinuteInput?.value, 10) || 5),
@@ -322,10 +372,6 @@ function gatherSearchParamsFromView() {
                 every: Math.max(1, parseInt(restEveryInput?.value, 10) || 5),
                 minSeconds: Math.max(0, Number(restMinInput?.value) || 5),
                 maxSeconds: Math.max(Number(restMinInput?.value) || 5, Number(restMaxInput?.value) || 10)
-            },
-            detailScrollSeconds: {
-                min: Math.max(0, Number(scrollMinInput?.value) || 1),
-                max: Math.max(Number(scrollMinInput?.value) || 1, Number(scrollMaxInput?.value) || 3)
             }
         }
     };
@@ -367,18 +413,26 @@ function renderSearchView() {
     renderIgnoreKeywordList();
     document.getElementById('ea-click-count').value = abbyParams.linkedin?.clickCount || 2;
     document.getElementById('ea-min-delay').value = abbyParams.linkedin?.minClickDelaySeconds || 0.8;
-    document.getElementById('ea-auto-delay-min').value = abbyParams.auto?.delaysMs?.min || 300;
-    document.getElementById('ea-auto-delay-max').value = abbyParams.auto?.delaysMs?.max || 1200;
+    document.getElementById('ea-delay-next-job-min').value = abbyParams.auto?.delaysSec?.nextJobItem?.min ?? DEFAULT_DELAYS_SEC.nextJobItem.min;
+    document.getElementById('ea-delay-next-job-max').value = abbyParams.auto?.delaysSec?.nextJobItem?.max ?? DEFAULT_DELAYS_SEC.nextJobItem.max;
+    document.getElementById('ea-delay-easy-apply-min').value = abbyParams.auto?.delaysSec?.clickEasyApply?.min ?? DEFAULT_DELAYS_SEC.clickEasyApply.min;
+    document.getElementById('ea-delay-easy-apply-max').value = abbyParams.auto?.delaysSec?.clickEasyApply?.max ?? DEFAULT_DELAYS_SEC.clickEasyApply.max;
+    document.getElementById('ea-delay-easy-scroll-min').value = abbyParams.auto?.delaysSec?.easyApplyScroll?.min ?? DEFAULT_DELAYS_SEC.easyApplyScroll.min;
+    document.getElementById('ea-delay-easy-scroll-max').value = abbyParams.auto?.delaysSec?.easyApplyScroll?.max ?? DEFAULT_DELAYS_SEC.easyApplyScroll.max;
+    document.getElementById('ea-delay-input-min').value = abbyParams.auto?.delaysSec?.inputFields?.min ?? DEFAULT_DELAYS_SEC.inputFields.min;
+    document.getElementById('ea-delay-input-max').value = abbyParams.auto?.delaysSec?.inputFields?.max ?? DEFAULT_DELAYS_SEC.inputFields.max;
+    document.getElementById('ea-delay-next-step-min').value = abbyParams.auto?.delaysSec?.nextStep?.min ?? DEFAULT_DELAYS_SEC.nextStep.min;
+    document.getElementById('ea-delay-next-step-max').value = abbyParams.auto?.delaysSec?.nextStep?.max ?? DEFAULT_DELAYS_SEC.nextStep.max;
+    document.getElementById('ea-delay-submit-scroll-min').value = abbyParams.auto?.delaysSec?.submitPageScroll?.min ?? DEFAULT_DELAYS_SEC.submitPageScroll.min;
+    document.getElementById('ea-delay-submit-scroll-max').value = abbyParams.auto?.delaysSec?.submitPageScroll?.max ?? DEFAULT_DELAYS_SEC.submitPageScroll.max;
+    document.getElementById('ea-delay-close-submit-min').value = abbyParams.auto?.delaysSec?.closeSubmitPage?.min ?? DEFAULT_DELAYS_SEC.closeSubmitPage.min;
+    document.getElementById('ea-delay-close-submit-max').value = abbyParams.auto?.delaysSec?.closeSubmitPage?.max ?? DEFAULT_DELAYS_SEC.closeSubmitPage.max;
     document.getElementById('ea-limit-minute').value = abbyParams.auto?.rateLimits?.perMinute || 5;
     document.getElementById('ea-limit-hour').value = abbyParams.auto?.rateLimits?.perHour || 30;
     document.getElementById('ea-limit-day').value = abbyParams.auto?.rateLimits?.perDay || 200;
     document.getElementById('ea-rest-every').value = abbyParams.auto?.burstRest?.every || 5;
     document.getElementById('ea-rest-min').value = abbyParams.auto?.burstRest?.minSeconds || 5;
     document.getElementById('ea-rest-max').value = abbyParams.auto?.burstRest?.maxSeconds || 10;
-    document.getElementById('ea-scroll-min').value = abbyParams.auto?.detailScrollSeconds?.min || 1;
-    document.getElementById('ea-scroll-max').value = abbyParams.auto?.detailScrollSeconds?.max || 3;
-    const rangeField = document.getElementById('ea-delay-ranges');
-    if (rangeField) rangeField.value = (abbyParams.auto?.delayRangesMs || []).map(r => `${r.min}-${r.max}`).join('\n');
     const regexField = document.getElementById('ea-regex-list');
     if (regexField) regexField.value = (abbyParams.customRegex || []).join('\n');
 }
@@ -419,7 +473,7 @@ function injectFloatingUI() {
     ui.innerHTML = `
       <div class="ea-header">
         <button id="ea-toggle-minimize" class="ea-min-btn" title="Hide Abby">−</button>
-        <span class="ea-title">Abby <span class="ea-version">v${ABBY_VERSION}</span></span>
+        <span class="ea-title">Abby</span>
         <div class="ea-tabs">
           <button id="ea-tab-search" class="ea-tab">Search</button>
           <button id="ea-tab-apply" class="ea-tab">Apply</button>
@@ -429,6 +483,9 @@ function injectFloatingUI() {
         <span id="ea-status-indicator" class="ea-status-active"></span>
       </div>
       <div id="ea-body-search" class="ea-body ea-hidden">
+        <div class="ea-btn-row">
+          <button id="ea-search-open-btn" class="ea-btn-save">Search</button>
+        </div>
         <div class="ea-stack">
           <label class="ea-mini-label" for="ea-search-input">Location</label>
           <div class="ea-inline-row">
@@ -448,25 +505,73 @@ function injectFloatingUI() {
           </div>
           <div id="ea-ignore-list" class="ea-token-list"></div>
         </div>
-        <div class="ea-grid-4">
+        <div class="ea-grid-2">
           <div class="ea-stack">
             <label class="ea-mini-label" for="ea-click-count">Click count</label>
             <input type="number" id="ea-click-count" class="abby-val-input" min="1" step="1">
           </div>
           <div class="ea-stack">
-            <label class="ea-mini-label" for="ea-min-delay">Min click delay</label>
+            <label class="ea-mini-label" for="ea-min-delay">Min click delay (s)</label>
             <input type="number" id="ea-min-delay" class="abby-val-input" min="0" step="0.1">
           </div>
-          <div class="ea-stack">
-            <label class="ea-mini-label" for="ea-auto-delay-min">Random delay min (ms)</label>
-            <input type="number" id="ea-auto-delay-min" class="abby-val-input" min="0" step="50">
-          </div>
-          <div class="ea-stack">
-            <label class="ea-mini-label" for="ea-auto-delay-max">Random delay max (ms)</label>
-            <input type="number" id="ea-auto-delay-max" class="abby-val-input" min="0" step="50">
+        </div>
+        <div class="ea-delay-row" title="After starting apply, delay before clicking the next job item in the list">
+          <label class="ea-mini-label">Next job item delay (s)</label>
+          <div class="ea-delay-inline">
+            <span>Low</span><input type="number" id="ea-delay-next-job-min" class="abby-val-input" min="0" step="0.1">
+            <span class="ea-delay-sep">-</span>
+            <span>High</span><input type="number" id="ea-delay-next-job-max" class="abby-val-input" min="0" step="0.1">
           </div>
         </div>
-        <div class="ea-grid-4">
+        <div class="ea-delay-row" title="Delay before clicking the Easy Apply button">
+          <label class="ea-mini-label">Click Easy Apply delay (s)</label>
+          <div class="ea-delay-inline">
+            <span>Low</span><input type="number" id="ea-delay-easy-apply-min" class="abby-val-input" min="0" step="0.1">
+            <span class="ea-delay-sep">-</span>
+            <span>High</span><input type="number" id="ea-delay-easy-apply-max" class="abby-val-input" min="0" step="0.1">
+          </div>
+        </div>
+        <div class="ea-delay-row" title="In each Easy Apply step, if the modal can scroll, this is the scroll duration range">
+          <label class="ea-mini-label">Easy Apply scroll delay (s)</label>
+          <div class="ea-delay-inline">
+            <span>Low</span><input type="number" id="ea-delay-easy-scroll-min" class="abby-val-input" min="0" step="0.1">
+            <span class="ea-delay-sep">-</span>
+            <span>High</span><input type="number" id="ea-delay-easy-scroll-max" class="abby-val-input" min="0" step="0.1">
+          </div>
+        </div>
+        <div class="ea-delay-row" title="Delay between each field input (text, textarea, dropdown, radio)">
+          <label class="ea-mini-label">Input fields delay (s)</label>
+          <div class="ea-delay-inline">
+            <span>Low</span><input type="number" id="ea-delay-input-min" class="abby-val-input" min="0" step="0.1">
+            <span class="ea-delay-sep">-</span>
+            <span>High</span><input type="number" id="ea-delay-input-max" class="abby-val-input" min="0" step="0.1">
+          </div>
+        </div>
+        <div class="ea-delay-row" title="Delay before clicking Next/Continue/Review between Easy Apply steps">
+          <label class="ea-mini-label">Next step delay (s)</label>
+          <div class="ea-delay-inline">
+            <span>Low</span><input type="number" id="ea-delay-next-step-min" class="abby-val-input" min="0" step="0.1">
+            <span class="ea-delay-sep">-</span>
+            <span>High</span><input type="number" id="ea-delay-next-step-max" class="abby-val-input" min="0" step="0.1">
+          </div>
+        </div>
+        <div class="ea-delay-row" title="On the final review page, scroll duration before Submit">
+          <label class="ea-mini-label">Submit page scroll delay (s)</label>
+          <div class="ea-delay-inline">
+            <span>Low</span><input type="number" id="ea-delay-submit-scroll-min" class="abby-val-input" min="0" step="0.1">
+            <span class="ea-delay-sep">-</span>
+            <span>High</span><input type="number" id="ea-delay-submit-scroll-max" class="abby-val-input" min="0" step="0.1">
+          </div>
+        </div>
+        <div class="ea-delay-row" title="Delay before closing/dismissing final submit confirmation pages">
+          <label class="ea-mini-label">Close submit page delay (s)</label>
+          <div class="ea-delay-inline">
+            <span>Low</span><input type="number" id="ea-delay-close-submit-min" class="abby-val-input" min="0" step="0.1">
+            <span class="ea-delay-sep">-</span>
+            <span>High</span><input type="number" id="ea-delay-close-submit-max" class="abby-val-input" min="0" step="0.1">
+          </div>
+        </div>
+        <div class="ea-grid-3">
           <div class="ea-stack">
             <label class="ea-mini-label" for="ea-limit-minute">Per min</label>
             <input type="number" id="ea-limit-minute" class="abby-val-input" min="1" step="1">
@@ -479,43 +584,26 @@ function injectFloatingUI() {
             <label class="ea-mini-label" for="ea-limit-day">Per day</label>
             <input type="number" id="ea-limit-day" class="abby-val-input" min="1" step="1">
           </div>
+        </div>
+        <div class="ea-grid-2">
           <div class="ea-stack">
             <label class="ea-mini-label" for="ea-rest-every">Rest every</label>
             <input type="number" id="ea-rest-every" class="abby-val-input" min="1" step="1">
           </div>
-        </div>
-        <div class="ea-grid-4">
           <div class="ea-stack">
             <label class="ea-mini-label" for="ea-rest-min">Rest min (s)</label>
             <input type="number" id="ea-rest-min" class="abby-val-input" min="0" step="0.5">
           </div>
+        </div>
+        <div class="ea-grid-2">
           <div class="ea-stack">
             <label class="ea-mini-label" for="ea-rest-max">Rest max (s)</label>
             <input type="number" id="ea-rest-max" class="abby-val-input" min="0" step="0.5">
           </div>
-        </div>
-        <div class="ea-grid-2">
           <div class="ea-stack">
-            <label class="ea-mini-label" for="ea-scroll-min">Detail scroll min (s)</label>
-            <input type="number" id="ea-scroll-min" class="abby-val-input" min="0" step="0.5">
+            <label class="ea-mini-label" for="ea-regex-list">Custom regex (one per line)</label>
+            <textarea id="ea-regex-list" class="abby-val-input" rows="2" placeholder="\bpython\b"></textarea>
           </div>
-          <div class="ea-stack">
-            <label class="ea-mini-label" for="ea-scroll-max">Detail scroll max (s)</label>
-            <input type="number" id="ea-scroll-max" class="abby-val-input" min="0" step="0.5">
-          </div>
-        </div>
-        <div class="ea-grid-2">
-          <div class="ea-stack">
-            <label class="ea-mini-label" for="ea-delay-ranges">Delay ranges list (min-max ms, one per line)</label>
-            <textarea id="ea-delay-ranges" class="abby-val-input" rows="3" placeholder="300-1200\n800-2000"></textarea>
-          </div>
-          <div class="ea-stack">
-            <label class="ea-mini-label" for="ea-regex-list">Custom regex (one pattern per line)</label>
-            <textarea id="ea-regex-list" class="abby-val-input" rows="3" placeholder="\bpython\b"></textarea>
-          </div>
-        </div>
-        <div class="ea-btn-row">
-          <button id="ea-search-open-btn" class="ea-btn-save">Search</button>
         </div>
         <p id="ea-search-msg" class="ea-inline-msg"></p>
       </div>
@@ -622,7 +710,7 @@ function injectFloatingUI() {
             addIgnoreKeyword();
         }
     });
-    ['ea-search-input', 'ea-click-count', 'ea-min-delay', 'ea-auto-delay-min', 'ea-auto-delay-max', 'ea-limit-minute', 'ea-limit-hour', 'ea-limit-day', 'ea-rest-every', 'ea-rest-min', 'ea-rest-max', 'ea-scroll-min', 'ea-scroll-max', 'ea-delay-ranges', 'ea-regex-list'].forEach(id => {
+    ['ea-search-input', 'ea-click-count', 'ea-min-delay', 'ea-delay-next-job-min', 'ea-delay-next-job-max', 'ea-delay-easy-apply-min', 'ea-delay-easy-apply-max', 'ea-delay-easy-scroll-min', 'ea-delay-easy-scroll-max', 'ea-delay-input-min', 'ea-delay-input-max', 'ea-delay-next-step-min', 'ea-delay-next-step-max', 'ea-delay-submit-scroll-min', 'ea-delay-submit-scroll-max', 'ea-delay-close-submit-min', 'ea-delay-close-submit-max', 'ea-limit-minute', 'ea-limit-hour', 'ea-limit-day', 'ea-rest-every', 'ea-rest-min', 'ea-rest-max', 'ea-regex-list'].forEach(id => {
         document.getElementById(id).addEventListener('input', persistSearchDraft);
     });
     renderSearchView();
@@ -1742,21 +1830,21 @@ function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function getConfiguredDelayMs() {
-    const ranges = abbyParams.auto?.delayRangesMs || [{ min: 300, max: 1200 }];
-    const selected = ranges[Math.floor(Math.random() * ranges.length)] || { min: 300, max: 1200 };
-    const minMs = Math.max(0, parseInt(selected.min, 10) || 300);
-    const maxMs = Math.max(minMs, parseInt(selected.max, 10) || 1200);
-    return Math.round(minMs + (Math.random() * (maxMs - minMs)));
+function getActionDelayMs(key) {
+    const range = abbyParams.auto?.delaysSec?.[key] || DEFAULT_DELAYS_SEC[key] || { min: 0.4, max: 1.2 };
+    const minSec = Math.max(0, Number(range.min) || 0);
+    const maxSec = Math.max(minSec, Number(range.max) || minSec);
+    const valueSec = minSec + (Math.random() * (maxSec - minSec));
+    return Math.round(valueSec * 1000);
 }
 
 function getLinkedInRetryDelayMs() {
-    return Math.max(getConfiguredDelayMs(), Math.round((Number(abbyParams.linkedin?.minClickDelaySeconds) || 0.8) * 1000));
+    return Math.max(getActionDelayMs('clickEasyApply'), Math.round((Number(abbyParams.linkedin?.minClickDelaySeconds) || 0.8) * 1000));
 }
 
-async function ensureActionDelay() {
+async function ensureActionDelay(key = 'nextStep') {
     const elapsed = Date.now() - lastAutoActionAt;
-    const delay = getConfiguredDelayMs();
+    const delay = getActionDelayMs(key);
     if (elapsed < delay) await wait(delay - elapsed);
 }
 
@@ -1847,22 +1935,25 @@ async function fillFieldFromSaved(field, savedAnswers) {
 async function fillPendingFieldsFromSaved(fields, savedAnswers) {
     for (const field of fields) {
         if (getFieldLiveValue(field)) continue;
+        const before = getFieldLiveValue(field);
         await fillFieldFromSaved(field, savedAnswers);
+        const after = getFieldLiveValue(field);
+        if (!before && after) await wait(getActionDelayMs('inputFields'));
     }
 }
 
 async function clickButton(button, repeatCount = 1) {
     for (let i = 0; i < repeatCount; i++) {
-        await ensureActionDelay();
+        await ensureActionDelay('nextStep');
         button.click();
         lastAutoActionAt = Date.now();
-        if (i < repeatCount - 1) await wait(getConfiguredDelayMs());
+        if (i < repeatCount - 1) await wait(getActionDelayMs('nextStep'));
     }
 }
 
 async function openEasyApplyModal(button, maxAttempts = 1) {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        await ensureActionDelay();
+        await ensureActionDelay('clickEasyApply');
         button.click();
         lastAutoActionAt = Date.now();
         const modal = await waitForEasyApplyModal(4500);
@@ -1936,19 +2027,28 @@ function findNextEligibleJobCard() {
     ) || null;
 }
 
+function isCurrentJobAlreadyApplied() {
+    const activeCard = getActiveJobCard();
+    if (!activeCard) return false;
+    if (activeCard.getAttribute('data-abby-submitted') === 'true') return true;
+    if (activeCard.getAttribute('data-abby-applied') === 'true') return true;
+    const text = clean(activeCard.textContent || '').toLowerCase();
+    return /(^|\s)applied(\s|$)|application submitted|submitted/i.test(text);
+}
+
 async function focusJobCard(card) {
     if (!card) return false;
     card.scrollIntoView({ block: 'center', behavior: 'smooth' });
     await wait(250);
     const clickable = card.querySelector('.job-card-list__title--link, a[href*="/jobs/view/"], .job-card-container__link, .job-card-container--clickable') || card;
-    await ensureActionDelay();
+    await ensureActionDelay('nextJobItem');
     clickable.click();
     lastAutoActionAt = Date.now();
     currentHeading = getJobLabelFromCard(card) || currentHeading;
     await wait(250);
     highlightCurrentJobCard();
     setAutoApplyDataset('running', formatApplyStatus('Queued'), currentHeading);
-    await wait(getConfiguredDelayMs());
+    await wait(getActionDelayMs('nextJobItem'));
     return true;
 }
 
@@ -2075,18 +2175,18 @@ async function dismissEasyApplyForTest(modal) {
         throw new Error('Could not find the Easy Apply close button.');
     }
     await clickButton(dismissButton, 1);
-    await wait(getConfiguredDelayMs());
+    await wait(getActionDelayMs('closeSubmitPage'));
     const discardButton = findDiscardButton();
     if (discardButton) {
         await clickButton(discardButton, 1);
-        await wait(getConfiguredDelayMs());
+        await wait(getActionDelayMs('closeSubmitPage'));
     }
 }
 
 async function scrollActiveJobDetail() {
     const detailPane = document.querySelector('.jobs-search__job-details--container, .scaffold-layout__detail, .jobs-details, .jobs-search-two-pane__job-details-pane');
     if (!detailPane) return;
-    const durationMs = Math.round((1 + Math.random()) * 1000);
+    const durationMs = getActionDelayMs('nextJobItem');
     const startedAt = Date.now();
     let direction = 1;
     while (Date.now() - startedAt < durationMs) {
@@ -2100,7 +2200,7 @@ async function scrollActiveJobDetail() {
 async function scrollEasyApplyReview(modal) {
     if (!modal) return;
     const scroller = findInShadow(modal, '.jobs-easy-apply-content, .artdeco-modal__content, .pb4') || modal.querySelector('.jobs-easy-apply-content, .artdeco-modal__content, .pb4') || modal;
-    const durationMs = Math.round((1 + Math.random()) * 1000);
+    const durationMs = getActionDelayMs('submitPageScroll');
     const startedAt = Date.now();
     while (Date.now() - startedAt < durationMs) {
         const delta = Math.max(80, Math.round(scroller.clientHeight * 0.32));
@@ -2109,16 +2209,29 @@ async function scrollEasyApplyReview(modal) {
     }
 }
 
+async function scrollEasyApplyStep(modal) {
+    if (!modal) return;
+    const scroller = findInShadow(modal, '.jobs-easy-apply-content, .artdeco-modal__content, .pb4') || modal.querySelector('.jobs-easy-apply-content, .artdeco-modal__content, .pb4') || modal;
+    if (!scroller || scroller.scrollHeight <= (scroller.clientHeight + 10)) return;
+    const durationMs = getActionDelayMs('easyApplyScroll');
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < durationMs) {
+        const delta = Math.max(60, Math.round(scroller.clientHeight * 0.22));
+        scroller.scrollTop = Math.min(scroller.scrollHeight, scroller.scrollTop + delta);
+        await wait(180);
+    }
+}
+
 function saveCurrentFieldsAsync() {
     return new Promise(resolve => saveCurrentFields(resolve));
 }
 
 async function closeSubmittedModalIfPresent() {
-    await wait(Math.max(600, getConfiguredDelayMs()));
+    await wait(Math.max(600, getActionDelayMs('closeSubmitPage')));
     let modal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
     if (!modal) return;
     
-    await wait(Math.max(900, getConfiguredDelayMs()));
+    await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
     
     const doneButtons = Array.from(modal.querySelectorAll('button, span')).filter(b => {
         const t = (b.innerText || '').trim();
@@ -2126,7 +2239,7 @@ async function closeSubmittedModalIfPresent() {
     });
     if (doneButtons.length > 0) {
         await clickButton(doneButtons[0], 1);
-        await wait(Math.max(900, getConfiguredDelayMs()));
+        await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
         modal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
         if (!modal) return;
     }
@@ -2134,20 +2247,20 @@ async function closeSubmittedModalIfPresent() {
     const dismissButton = findDismissButton(modal);
     if (dismissButton) {
         await clickButton(dismissButton, 1);
-        await wait(Math.max(900, getConfiguredDelayMs()));
+        await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
         modal = findEasyApplyModal();
         if (!modal) return;
     }
     const discardButton = findDiscardButton();
     if (discardButton) {
         await clickButton(discardButton, 1);
-        await wait(Math.max(900, getConfiguredDelayMs()));
+        await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
     }
     const stillModal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
     if (stillModal) {
         const backdrop = document.querySelector('.artdeco-modal-overlay') || document.body;
         backdrop.click();
-        await wait(Math.max(600, getConfiguredDelayMs()));
+        await wait(Math.max(600, getActionDelayMs('closeSubmitPage')));
     }
 }
 
@@ -2282,7 +2395,6 @@ async function logApplicationSuccess() {
             logs.push(logEntry);
             chrome.storage.local.set({ abbyAppLogs: logs }, () => {
                 updateApplyStatsUI();
-                if (chrome.runtime?.id) chrome.runtime.sendMessage({ type: 'abby:export-logs-csv' });
             });
         });
     } catch(e) { console.error('Abby log error:', e); }
@@ -2434,14 +2546,11 @@ function enforceEasyApplyModalFocus(modal) {
     if (!modal) return;
     modal.setAttribute('tabindex', '-1');
     modal.focus();
-    if (outsideModalBlockerActive) return;
     outsideModalBlockerActive = true;
-    document.documentElement.dataset.abbyLockModal = 'true';
 }
 
 function releaseEasyApplyModalFocus() {
     outsideModalBlockerActive = false;
-    delete document.documentElement.dataset.abbyLockModal;
 }
 
 function runAutoApplyLoop() {
@@ -2468,6 +2577,7 @@ function runAutoApplyLoop() {
 
     chrome.storage.local.get(['savedAnswers'], async (res) => {
         const savedAnswers = res.savedAnswers || {};
+        await scrollEasyApplyStep(modal);
         const fields = extractFormFields(modal);
         await fillPendingFieldsFromSaved(fields, savedAnswers);
         ensureConfirmCheckboxesChecked(modal);
@@ -2526,7 +2636,7 @@ function runAutoApplyLoop() {
 
         saveCurrentFields(async () => {
             await clickButton(advanceButton, 1);
-            await wait(getConfiguredDelayMs());
+            await wait(getActionDelayMs('nextStep'));
             runAutoApplyLoop();
         });
     });

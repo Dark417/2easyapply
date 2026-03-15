@@ -23,6 +23,11 @@ Requirements are listed in descending timestamp order. Each requirement ID is pr
 
 | # | Requirement | Status |
 |---|-------------|--------|
+| 260314-R72 | Reorder search setup to open filters first, wait 2 seconds, scroll to middle, enable Easy Apply, submit filters, then fill role/location and pick first location suggestion; disable automatic CSV file download path | ✅ Done |
+| 260314-R71 | Stop auto CSV downloads on each submit, keep app logs in local storage only, restore auto apply runtime by defining `isCurrentJobAlreadyApplied`, render delay rows inline as `low - high`, and make search setup stop after opening `All filters` for manual Easy Apply selection | ✅ Done |
+| 260314-R70 | Restore `isCurrentJobAlreadyApplied` for auto mode flow safety and render each delay config as a single row (`delay name`, `low`, `high`) | ✅ Done |
+| 260314-R69 | In Abby popup Search delays, each delay must appear once by name with one low/high line, and auto mode must never freeze page interaction due modal focus lock | ✅ Done |
+| 260313-R68 | Clarify menu/popup/tab vocabulary in agents rules, move version from Abby floating popup to extension menu, show current manual/auto mode by toggle in menu, keep dark/light text readable, move Search action to top of popup Search tab, and replace old ms delay controls with readable per-action low/high ranges in seconds (with hover explanations) | ✅ Done |
 | 260313-R67 | Improve dark theme readability in Abby UI, simplify popup controls, add sun/moon dark-theme icon in popup header, remove popup version text, compact location/search fields, and always grey applied jobs on the current page in both manual and auto modes | ✅ Done |
 | 260313-R66 | Popup menu moves dark theme toggle into the top-right header, stacks `Enable Abby` and `Apply Mode` toggles vertically in one row, and Abby floating panel must always restore on LinkedIn job pages even if a prior minimized flag was persisted | ✅ Done |
 | 260308-R65 | Add canonical regex mappings for `*work*startup*` = `Yes`, `*Are you located in*` = `No`, and fully reset Abby Apply state when the modal closes so the next `Apply` click restarts cleanly | ✅ Done |

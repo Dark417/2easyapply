@@ -56,6 +56,14 @@
       gap: 8px;
     }
 
+    .menu-version {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.35px;
+      color: #a9b5da;
+      -webkit-text-fill-color: #a9b5da;
+    }
+
     .btn,
     .search-btn {
       border-radius: 8px;
@@ -105,6 +113,13 @@
       letter-spacing: 0.3px;
       color: #d6ddf7;
       text-align: center;
+    }
+
+    .toggle-cell-value {
+      font-size: 11px;
+      color: #9da8cc;
+      text-align: center;
+      margin-top: -4px;
     }
 
     .theme-icon {
@@ -307,6 +322,7 @@
       color: #666;
     }
     .light-theme .toggle-cell-label { color: #37304c; }
+    .light-theme .toggle-cell-value { color: #5a5670; }
     .light-theme .theme-icon { color: #6d49c6; }
     .light-theme .stat-value { color: #5925dc; }
     .light-theme .search-summary .value { color: #111; }
@@ -319,7 +335,7 @@
 <body>
   <div class="header">
     <span class="logo">⚡</span>
-    <span class="title">Abby</span>
+    <span class="title">Abby <span class="menu-version" id="versionText">v1.1.20</span></span>
     <div class="header-actions">
       <span class="theme-icon" id="themeIcon" aria-hidden="true">🌙</span>
       <label class="switch" title="Dark Theme">
@@ -340,6 +356,7 @@
       </div>
       <div class="toggle-cell">
         <div class="toggle-cell-label">Apply Mode</div>
+        <div class="toggle-cell-value" id="applyModeValue">Auto</div>
         <label class="switch">
           <input type="checkbox" id="applyModeToggle">
           <span class="slider"></span>

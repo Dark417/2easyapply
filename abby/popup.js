@@ -9,6 +9,12 @@ function updateThemeIcon(isDark) {
     icon.textContent = isDark ? '🌙' : '☀';
 }
 
+function updateApplyModeLabel(mode) {
+    const el = document.getElementById('applyModeValue');
+    if (!el) return;
+    el.textContent = mode === 'manual' ? 'Manual' : 'Auto';
+}
+
 function gatherPopupParams(existingParams) {
     const params = Object.assign({}, existingParams || {});
     const typed = document.getElementById('searchText').value.trim();
@@ -94,6 +100,9 @@ function renderSavedSearchList(searches, selected) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const versionText = document.getElementById('versionText');
+    if (versionText) versionText.textContent = `v${chrome.runtime.getManifest().version}`;
+
     chrome.storage.local.get(['settings', 'savedAnswers', 'abbyParams', 'abbyTheme', 'abbyApplyMode', 'abbyApplyStats'], (res) => {
         if (res.abbyTheme === 'light') document.body.classList.add('light-theme');
         const enabled = res.settings ? res.settings.autopilotEnabled !== false : true;
@@ -114,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSavedSearchList(searches, params.selectedSearch || '');
         const applyMode = res.abbyApplyMode === 'manual' ? 'manual' : 'auto';
         document.getElementById('applyModeToggle').checked = applyMode === 'auto';
+        updateApplyModeLabel(applyMode);
         const applyStats = Object.assign({ auto: 0, manual: 0 }, res.abbyApplyStats || {});
         document.getElementById('auto-count').textContent = applyStats.auto;
         document.getElementById('manual-count').textContent = applyStats.manual;
@@ -130,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (changes.abbyApplyMode) {
             const applyMode = changes.abbyApplyMode.newValue === 'manual' ? 'manual' : 'auto';
             document.getElementById('applyModeToggle').checked = applyMode === 'auto';
+            updateApplyModeLabel(applyMode);
         }
         if (changes.abbyApplyStats) {
             const applyStats = Object.assign({ auto: 0, manual: 0 }, changes.abbyApplyStats.newValue || {});
@@ -151,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('applyModeToggle').addEventListener('change', function () {
         const mode = this.checked ? 'auto' : 'manual';
+        updateApplyModeLabel(mode);
         chrome.storage.local.set({ abbyApplyMode: mode });
     });
 

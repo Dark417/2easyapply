@@ -11,11 +11,17 @@ const DEFAULT_PARAMS = {
         minClickDelaySeconds: 0.8
     },
     auto: {
-        delaysMs: { min: 300, max: 1200 },
+        delaysSec: {
+            nextJobItem: { min: 0.4, max: 1.1 },
+            clickEasyApply: { min: 0.4, max: 1.2 },
+            easyApplyScroll: { min: 0.6, max: 1.6 },
+            inputFields: { min: 0.2, max: 0.7 },
+            nextStep: { min: 0.5, max: 1.3 },
+            submitPageScroll: { min: 1.0, max: 2.0 },
+            closeSubmitPage: { min: 0.6, max: 1.4 }
+        },
         rateLimits: { perMinute: 5, perHour: 30, perDay: 200 },
-        burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 },
-        detailScrollSeconds: { min: 1, max: 3 },
-        delayRangesMs: [{ min: 300, max: 1200 }]
+        burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 }
     },
     customRegex: []
 };
@@ -44,9 +50,22 @@ function normalizeParams(raw) {
     params.linkedin.clickCount = Math.max(1, parseInt(params.linkedin.clickCount, 10) || DEFAULT_PARAMS.linkedin.clickCount);
     params.linkedin.minClickDelaySeconds = Math.max(0, Number(params.linkedin.minClickDelaySeconds) || DEFAULT_PARAMS.linkedin.minClickDelaySeconds);
     params.auto = mergeDeep(DEFAULT_PARAMS.auto, params.auto || {});
-    params.auto.delaysMs = mergeDeep(DEFAULT_PARAMS.auto.delaysMs, params.auto.delaysMs || {});
-    params.auto.delaysMs.min = Math.max(0, parseInt(params.auto.delaysMs.min, 10) || DEFAULT_PARAMS.auto.delaysMs.min);
-    params.auto.delaysMs.max = Math.max(params.auto.delaysMs.min, parseInt(params.auto.delaysMs.max, 10) || DEFAULT_PARAMS.auto.delaysMs.max);
+    const legacyMinSec = Math.max(0, (parseInt(params.auto?.delaysMs?.min, 10) || 300) / 1000);
+    const legacyMaxSec = Math.max(legacyMinSec, (parseInt(params.auto?.delaysMs?.max, 10) || 1200) / 1000);
+    const normalizeRange = (range, fallback) => {
+        const min = Math.max(0, Number(range?.min ?? fallback.min));
+        const max = Math.max(min, Number(range?.max ?? fallback.max));
+        return { min: Number(min.toFixed(2)), max: Number(max.toFixed(2)) };
+    };
+    params.auto.delaysSec = {
+        nextJobItem: normalizeRange(params.auto.delaysSec?.nextJobItem, { min: legacyMinSec || DEFAULT_PARAMS.auto.delaysSec.nextJobItem.min, max: legacyMaxSec || DEFAULT_PARAMS.auto.delaysSec.nextJobItem.max }),
+        clickEasyApply: normalizeRange(params.auto.delaysSec?.clickEasyApply, { min: legacyMinSec || DEFAULT_PARAMS.auto.delaysSec.clickEasyApply.min, max: legacyMaxSec || DEFAULT_PARAMS.auto.delaysSec.clickEasyApply.max }),
+        easyApplyScroll: normalizeRange(params.auto.delaysSec?.easyApplyScroll, DEFAULT_PARAMS.auto.delaysSec.easyApplyScroll),
+        inputFields: normalizeRange(params.auto.delaysSec?.inputFields, DEFAULT_PARAMS.auto.delaysSec.inputFields),
+        nextStep: normalizeRange(params.auto.delaysSec?.nextStep, { min: legacyMinSec || DEFAULT_PARAMS.auto.delaysSec.nextStep.min, max: legacyMaxSec || DEFAULT_PARAMS.auto.delaysSec.nextStep.max }),
+        submitPageScroll: normalizeRange(params.auto.delaysSec?.submitPageScroll, DEFAULT_PARAMS.auto.delaysSec.submitPageScroll),
+        closeSubmitPage: normalizeRange(params.auto.delaysSec?.closeSubmitPage, DEFAULT_PARAMS.auto.delaysSec.closeSubmitPage)
+    };
     params.auto.rateLimits = mergeDeep(DEFAULT_PARAMS.auto.rateLimits, params.auto.rateLimits || {});
     params.auto.rateLimits.perMinute = Math.max(1, parseInt(params.auto.rateLimits.perMinute, 10) || DEFAULT_PARAMS.auto.rateLimits.perMinute);
     params.auto.rateLimits.perHour = Math.max(params.auto.rateLimits.perMinute, parseInt(params.auto.rateLimits.perHour, 10) || DEFAULT_PARAMS.auto.rateLimits.perHour);
@@ -55,16 +74,6 @@ function normalizeParams(raw) {
     params.auto.burstRest.every = Math.max(1, parseInt(params.auto.burstRest.every, 10) || DEFAULT_PARAMS.auto.burstRest.every);
     params.auto.burstRest.minSeconds = Math.max(0, Number(params.auto.burstRest.minSeconds) || DEFAULT_PARAMS.auto.burstRest.minSeconds);
     params.auto.burstRest.maxSeconds = Math.max(params.auto.burstRest.minSeconds, Number(params.auto.burstRest.maxSeconds) || DEFAULT_PARAMS.auto.burstRest.maxSeconds);
-    params.auto.detailScrollSeconds = mergeDeep(DEFAULT_PARAMS.auto.detailScrollSeconds, params.auto.detailScrollSeconds || {});
-    params.auto.detailScrollSeconds.min = Math.max(0, Number(params.auto.detailScrollSeconds.min) || DEFAULT_PARAMS.auto.detailScrollSeconds.min);
-    params.auto.detailScrollSeconds.max = Math.max(params.auto.detailScrollSeconds.min, Number(params.auto.detailScrollSeconds.max) || DEFAULT_PARAMS.auto.detailScrollSeconds.max);
-    const legacyMin = Math.max(0, parseInt(params.auto?.delaysMs?.min, 10) || DEFAULT_PARAMS.auto.delaysMs.min);
-    const legacyMax = Math.max(legacyMin, parseInt(params.auto?.delaysMs?.max, 10) || DEFAULT_PARAMS.auto.delaysMs.max);
-    const ranges = Array.isArray(params.auto.delayRangesMs) && params.auto.delayRangesMs.length ? params.auto.delayRangesMs : [{ min: legacyMin, max: legacyMax }];
-    params.auto.delayRangesMs = ranges.map(r => ({
-        min: Math.max(0, parseInt(r?.min, 10) || legacyMin),
-        max: Math.max(Math.max(0, parseInt(r?.min, 10) || legacyMin), parseInt(r?.max, 10) || legacyMax)
-    }));
     params.customRegex = Array.from(new Set((params.customRegex || []).map(v => String(v || '').trim()).filter(Boolean)));
     return params;
 }
@@ -134,7 +143,6 @@ async function runLinkedInSearchSetup(tabId, params) {
             const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
             const keyword = 'software engineer';
             const location = String(runtimeParams.selectedSearch || runtimeParams.searches?.[0] || 'California, United States').trim();
-            const wantsEasyApply = (runtimeParams.linkedin?.filters || []).some(value => String(value || '').toLowerCase() === 'easy apply');
             const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
             const fillInput = (input, value) => {
                 if (!input) return false;
@@ -160,51 +168,34 @@ async function runLinkedInSearchSetup(tabId, params) {
                 const text = clean(node.innerText || node.textContent || node.getAttribute('aria-label') || '');
                 return /show all filters|^all filters$/i.test(text);
             }) || null;
-            const findEasyApplyToggle = (scope = document, allowDialog = true) => {
-                const root = scope || document;
-                const nodes = Array.from(root.querySelectorAll('button, label, input, span, div'));
-                return nodes.find(node => {
-                    if (!allowDialog && node.closest('[role="dialog"]')) return false;
-                    const text = clean(node.innerText || node.textContent || node.getAttribute('aria-label') || '');
-                    return /easy apply/i.test(text);
-                }) || null;
-            };
             const findShowResultsButton = () => Array.from(document.querySelectorAll('button, [role="button"]')).find(node => {
                 const text = clean(node.innerText || node.textContent || node.getAttribute('aria-label') || '');
                 return /^show results$/i.test(text) || /show results/i.test(text);
             }) || null;
+            const findEasyApplyToggle = (scope = document) => {
+                const root = scope || document;
+                return Array.from(root.querySelectorAll('button, [role="switch"], [role="checkbox"], label, input[type="checkbox"], span, div')).find(node => {
+                    const text = clean(node.innerText || node.textContent || node.getAttribute('aria-label') || '');
+                    return /easy apply/i.test(text);
+                }) || null;
+            };
             const isToggleOn = (node) => {
                 if (!node) return false;
-                return node.getAttribute('aria-pressed') === 'true'
-                    || node.getAttribute('aria-checked') === 'true'
-                    || node.checked === true
-                    || node.querySelector?.('input:checked')
-                    || /selected|checked|active|on/i.test(node.className || '');
+                if (node.tagName === 'INPUT' && node.type === 'checkbox') return node.checked;
+                if (node.getAttribute('aria-pressed') === 'true' || node.getAttribute('aria-checked') === 'true') return true;
+                const checkbox = node.querySelector?.('input[type="checkbox"]');
+                if (checkbox?.checked) return true;
+                return /selected|checked|active|on/i.test(String(node.className || ''));
             };
             const clickToggle = (node) => {
                 if (!node) return false;
-                if (node.tagName === 'INPUT') {
+                if (node.tagName === 'INPUT' && node.type === 'checkbox') {
                     node.checked = true;
                     ['click', 'input', 'change'].forEach(eventName => node.dispatchEvent(new Event(eventName, { bubbles: true })));
                     return true;
                 }
                 node.click();
                 return true;
-            };
-            const enableTopBarEasyApply = async () => {
-                const startedAt = Date.now();
-                while (Date.now() - startedAt < 5000) {
-                    const toggle = findEasyApplyToggle(document, false);
-                    if (toggle) {
-                        if (!isToggleOn(toggle)) {
-                            clickToggle(toggle);
-                            await wait(500);
-                        }
-                        if (isToggleOn(toggle)) return true;
-                    }
-                    await wait(200);
-                }
-                return false;
             };
             const openAllFilters = async () => {
                 const allFiltersButton = findAllFiltersButton();
@@ -217,48 +208,12 @@ async function runLinkedInSearchSetup(tabId, params) {
                 }
                 return false;
             };
-            const enableEasyApplyInFilters = async () => {
-                const modal = document.querySelector('[role="dialog"]');
-                const scroller = modal ? (modal.querySelector('.artdeco-modal__content') || modal) : null;
-                
-                if (scroller) {
-                    // Scroll to half of the scroller as requested
-                    scroller.scrollTop = scroller.scrollHeight / 2;
-                    await wait(500);
-                }
-
-                const startedAt = Date.now();
-                while (Date.now() - startedAt < 5000) {
-                    const easyApplyToggle = findEasyApplyToggle(modal);
-                    if (easyApplyToggle) {
-                        if (!isToggleOn(easyApplyToggle)) {
-                            // Ensure it's in view before clicking
-                            easyApplyToggle.scrollIntoView({ block: 'center' });
-                            await wait(200);
-                            clickToggle(easyApplyToggle);
-                            await wait(500);
-                        }
-                        
-                        // Scroll to bottom after selecting Easy Apply
-                        if (scroller) {
-                            scroller.scrollTop = scroller.scrollHeight;
-                            await wait(500);
-                        }
-                        return true;
-                    }
-                    await wait(200);
-                }
-                return false;
-            };
             const pickLocationSuggestion = async () => {
                 const startedAt = Date.now();
                 while (Date.now() - startedAt < 5000) {
-                    const options = Array.from(document.querySelectorAll('[role="option"], li, div')).filter(node => {
-                        const text = clean(node.innerText || node.textContent || '');
-                        return text && !/title|skill|company|city|state|zip/i.test(text); // Filter out labels
-                    });
-                    const exact = options.find(node => clean(node.innerText || node.textContent || '').toLowerCase().includes(location.toLowerCase()));
-                    const first = exact || options[0];
+                    const listbox = document.querySelector('[role="listbox"]');
+                    const options = Array.from((listbox || document).querySelectorAll('[role="option"]')).filter(node => clean(node.innerText || node.textContent || ''));
+                    const first = options[0];
                     if (first) {
                         first.click();
                         return clean(first.innerText || first.textContent || '');
@@ -267,63 +222,56 @@ async function runLinkedInSearchSetup(tabId, params) {
                 }
                 return '';
             };
-
             const startedAt = Date.now();
             while (Date.now() - startedAt < 15000) {
-                const { keywordInput, locationInput } = getSearchInputs();
-                if (keywordInput && locationInput) {
-                    fillInput(keywordInput, keyword);
-                    await wait(200);
-                    fillInput(locationInput, location);
-                    await wait(500);
-                    await pickLocationSuggestion();
-                    await wait(500); // Wait 0.5s as requested
-                    
-                    if (wantsEasyApply) {
-                        const allFiltersButton = findAllFiltersButton();
-                        if (allFiltersButton) {
-                            allFiltersButton.click();
-                            // Wait for modal and scroll
-                            await wait(1000);
-                            const modal = document.querySelector('[role="dialog"]');
-                            const scroller = modal ? (modal.querySelector('.artdeco-modal__content') || modal) : null;
-                            if (scroller) {
-                                scroller.scrollTop = scroller.scrollHeight / 2;
-                                await wait(500);
-                            }
-                            
-                            const easyApplyToggle = findEasyApplyToggle(modal);
-                            if (easyApplyToggle) {
-                                if (!isToggleOn(easyApplyToggle)) {
-                                    clickToggle(easyApplyToggle);
-                                    await wait(500);
-                                }
-                                
-                                if (scroller) {
-                                    scroller.scrollTop = scroller.scrollHeight;
-                                    await wait(500);
-                                }
-                                
-                                const showResultsButton = findShowResultsButton();
-                                if (showResultsButton) {
-                                    localStorage.setItem('abby_auto_open_apply_once', '1');
-                                    showResultsButton.click();
-                                    return { ok: true, keyword, location, filtered: true, filterMode: 'all-filters' };
-                                }
-                            }
+                if (await openAllFilters()) {
+                    await wait(2000);
+                    const modal = document.querySelector('[role="dialog"]');
+                    const scroller = modal ? (modal.querySelector('.artdeco-modal__content') || modal) : null;
+                    if (scroller) {
+                        scroller.scrollTop = Math.round(scroller.scrollHeight * 0.5);
+                        await wait(400);
+                    }
+                    const toggleStartedAt = Date.now();
+                    let easyApplyToggle = null;
+                    while (Date.now() - toggleStartedAt < 6000) {
+                        easyApplyToggle = findEasyApplyToggle(modal || document);
+                        if (easyApplyToggle) break;
+                        await wait(200);
+                    }
+                    if (!easyApplyToggle) return { ok: false, error: 'Easy Apply toggle not found in filters modal.' };
+                    if (!isToggleOn(easyApplyToggle)) {
+                        easyApplyToggle.scrollIntoView?.({ block: 'center' });
+                        await wait(200);
+                        clickToggle(easyApplyToggle);
+                        await wait(600);
+                    }
+                    const showResultsButton = findShowResultsButton();
+                    if (!showResultsButton) return { ok: false, error: 'Show results button not found in filters modal.' };
+                    showResultsButton.click();
+                    await wait(1200);
+
+                    const fillStartedAt = Date.now();
+                    while (Date.now() - fillStartedAt < 10000) {
+                        const { keywordInput, locationInput } = getSearchInputs();
+                        if (keywordInput && locationInput) {
+                            fillInput(keywordInput, keyword);
+                            await wait(250);
+                            fillInput(locationInput, location);
+                            await wait(450);
+                            await pickLocationSuggestion();
+                            await wait(500);
+                            const searchButton = findSearchButton();
+                            if (searchButton) searchButton.click();
+                            return { ok: true, keyword, location, filterOpened: true, easyApplyEnabled: true };
                         }
+                        await wait(250);
                     }
-                    
-                    const searchButton = findSearchButton();
-                    if (searchButton) {
-                        localStorage.setItem('abby_auto_open_apply_once', '1');
-                        searchButton.click();
-                        return { ok: true, keyword, location };
-                    }
+                    return { ok: false, error: 'Search inputs not found after applying filters.' };
                 }
                 await wait(250);
             }
-            return { ok: false, error: 'Could not find LinkedIn search inputs.' };
+            return { ok: false, error: 'Could not open All filters.' };
         },
         args: [params]
     });
@@ -333,21 +281,7 @@ async function runLinkedInSearchSetup(tabId, params) {
 
 
 async function exportLogsCsv() {
-    const store = await storageGet(['abbyAppLogs']);
-    const logs = store.abbyAppLogs || [];
-    if (!logs.length) return { ok: true, skipped: true };
-    const headers = ['index','id','date','status','company','role','location','about','whoWeHiring','whatYouDo','requirements','whyJoin','timestamp'];
-    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [headers.join(',')].concat(logs.map(log => headers.map(h => escape(log[h])).join(',')));
-    const csv = rows.join('\n');
-    const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-    await chrome.downloads.download({
-        url: dataUrl,
-        filename: 'abby/abby_applications.csv',
-        conflictAction: 'overwrite',
-        saveAs: false
-    });
-    return { ok: true };
+    return { ok: true, skipped: true, reason: 'csv_export_disabled' };
 }
 
 chrome.runtime.onInstalled.addListener(() => {
