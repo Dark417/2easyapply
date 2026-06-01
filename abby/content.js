@@ -15,7 +15,7 @@ let currentModal = null;
 let abbyParams = {
     searches: ['California, United States'],
     selectedSearch: 'California, United States',
-    ignore: { caseSensitive: false, keywords: ['founding', 'machine learning'] },
+    ignore: { enabled: true, caseSensitive: false, keywords: ['founding', 'machine learning'] },
     linkedin: { filters: ['Easy Apply'], clickCount: 2, minClickDelaySeconds: 0.8 },
     auto: {
         delaysSec: {
@@ -30,20 +30,28 @@ let abbyParams = {
         rateLimits: { perMinute: 5, perHour: 30, perDay: 200 },
         burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 }
     },
-    customRegex: []
+    customRegex: ['in office']
 };
 let autoApplyRunning = false;
 let autoApplyStopRequested = false;
+let autoApplyPostSubmit = false; // true while closing confirm window + advancing to next job
 let lastAutoActionAt = 0;
 let autoLoopSignature = '';
 let autoLoopRepeats = 0;
 let applyTabReady = false;
 let pendingManualEasyApplyAutoStartUntil = 0;
 let pendingResumeAutoApplyUntil = 0;
-let abbyApplyMode = 'auto';
+let abbyApplyMode = 'manual';
 let outsideModalBlockerActive = false;
 let stepHistory = [];
 let stepHistoryIndex = -1;
+let pendingResumeRequiredFieldsTimer = null;
+let requiredFieldInputListeners = [];
+let jobListObserver = null;
+let currentJobStartedAt = 0;
+let lastStepHeading = '';
+let stuckStepStartedAt = 0;
+let applyActionInProgress = false;
 
 // ──────────────────────────────────────────────────────────
 // LOCAL STORAGE HELPERS  (position + active tab persist)
@@ -55,10 +63,26 @@ const LS_THEME = 'abby_panel_theme';   // 'light' | 'dark'
 const LS_AUTO_OPEN_APPLY = 'abby_auto_open_apply_once';
 
 function lsGet(key) {
-    try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+    try { 
+        const val = localStorage.getItem(key);
+        return val ? JSON.parse(val) : null;
+    } catch { return null; }
 }
 function lsSet(key, val) {
     try { localStorage.setItem(key, JSON.stringify(val)); } catch { }
+    if (chrome.runtime?.id) {
+        chrome.storage.local.set({ [key]: val });
+    }
+}
+
+async function storageGetAsync(key) {
+    return new Promise(resolve => {
+        chrome.storage.local.get([key], res => resolve(res[key]));
+    });
+}
+
+function storageSetAsync(key, val) {
+    return chrome.storage.local.set({ [key]: val });
 }
 
 function mergeDeep(base, patch) {
@@ -72,6 +96,14 @@ function mergeDeep(base, patch) {
     });
     return merged;
 }
+
+// Default regex-based field answer patterns.
+// pattern: glob (*keyword* style), type: 'text' | 'binary', answer: default value ('' = user must fill)
+const DEFAULT_REGEX_ANSWERS = [
+    { pattern: '*why do you want to work*', type: 'text', answer: '' },
+    { pattern: '*accomplishments*', type: 'text', answer: '' },
+    { pattern: '*any family members*', type: 'binary', answer: 'No' }
+];
 
 const DEFAULT_DELAYS_SEC = {
     nextJobItem: { min: 0.4, max: 1.1 },
@@ -229,7 +261,7 @@ function addIgnoreKeyword() {
     if (!input) return;
     const keyword = input.value.trim();
     if (!keyword) return;
-    const next = Array.from(new Set([...(abbyParams.ignore?.keywords || []), keyword]));
+    const next = Array.from(new Set([keyword, ...(abbyParams.ignore?.keywords || [])]));
     abbyParams.ignore = Object.assign({}, abbyParams.ignore || {}, { keywords: next });
     input.value = '';
     renderIgnoreKeywordList();
@@ -237,76 +269,11 @@ function addIgnoreKeyword() {
     markBlockedJobs();
 }
 
+let _saveParamsDebounceTimer = null;
 function persistSearchDraft() {
-    const searchInput = document.getElementById('ea-search-input');
-    const clickCountInput = document.getElementById('ea-click-count');
-    const minDelayInput = document.getElementById('ea-min-delay');
-    const nextJobMinInput = document.getElementById('ea-delay-next-job-min');
-    const nextJobMaxInput = document.getElementById('ea-delay-next-job-max');
-    const easyApplyMinInput = document.getElementById('ea-delay-easy-apply-min');
-    const easyApplyMaxInput = document.getElementById('ea-delay-easy-apply-max');
-    const easyScrollMinInput = document.getElementById('ea-delay-easy-scroll-min');
-    const easyScrollMaxInput = document.getElementById('ea-delay-easy-scroll-max');
-    const inputDelayMinInput = document.getElementById('ea-delay-input-min');
-    const inputDelayMaxInput = document.getElementById('ea-delay-input-max');
-    const nextStepMinInput = document.getElementById('ea-delay-next-step-min');
-    const nextStepMaxInput = document.getElementById('ea-delay-next-step-max');
-    const submitScrollMinInput = document.getElementById('ea-delay-submit-scroll-min');
-    const submitScrollMaxInput = document.getElementById('ea-delay-submit-scroll-max');
-    const closeSubmitMinInput = document.getElementById('ea-delay-close-submit-min');
-    const closeSubmitMaxInput = document.getElementById('ea-delay-close-submit-max');
-    const perMinuteInput = document.getElementById('ea-limit-minute');
-    const perHourInput = document.getElementById('ea-limit-hour');
-    const perDayInput = document.getElementById('ea-limit-day');
-    const restEveryInput = document.getElementById('ea-rest-every');
-    const restMinInput = document.getElementById('ea-rest-min');
-    const restMaxInput = document.getElementById('ea-rest-max');
-    const regexInput = document.getElementById('ea-regex-list');
-    if (!searchInput || !clickCountInput || !minDelayInput) return;
-    const readRange = (minEl, maxEl, fallback) => {
-        const min = Math.max(0, Number(minEl?.value) || fallback.min);
-        const max = Math.max(min, Number(maxEl?.value) || fallback.max);
-        return { min: Number(min.toFixed(2)), max: Number(max.toFixed(2)) };
-    };
-    const typed = searchInput.value.trim();
-    const searches = Array.from(new Set([typed, ...(abbyParams.searches || [])].filter(Boolean)));
-    chrome.storage.local.set({
-        abbyParamsDraft: {
-            searches,
-            selectedSearch: typed || abbyParams.selectedSearch,
-            ignore: {
-                caseSensitive: false,
-                keywords: getIgnoreKeywordsFromView()
-            },
-            linkedin: {
-                filters: ['Easy Apply'],
-                clickCount: Math.max(1, parseInt(clickCountInput.value, 10) || 2),
-                minClickDelaySeconds: Math.max(0, Number(minDelayInput.value) || 0.8)
-            },
-            auto: {
-                delaysSec: {
-                    nextJobItem: readRange(nextJobMinInput, nextJobMaxInput, DEFAULT_DELAYS_SEC.nextJobItem),
-                    clickEasyApply: readRange(easyApplyMinInput, easyApplyMaxInput, DEFAULT_DELAYS_SEC.clickEasyApply),
-                    easyApplyScroll: readRange(easyScrollMinInput, easyScrollMaxInput, DEFAULT_DELAYS_SEC.easyApplyScroll),
-                    inputFields: readRange(inputDelayMinInput, inputDelayMaxInput, DEFAULT_DELAYS_SEC.inputFields),
-                    nextStep: readRange(nextStepMinInput, nextStepMaxInput, DEFAULT_DELAYS_SEC.nextStep),
-                    submitPageScroll: readRange(submitScrollMinInput, submitScrollMaxInput, DEFAULT_DELAYS_SEC.submitPageScroll),
-                    closeSubmitPage: readRange(closeSubmitMinInput, closeSubmitMaxInput, DEFAULT_DELAYS_SEC.closeSubmitPage)
-                },
-                rateLimits: {
-                    perMinute: Math.max(1, parseInt(perMinuteInput?.value, 10) || 5),
-                    perHour: Math.max(parseInt(perMinuteInput?.value, 10) || 5, parseInt(perHourInput?.value, 10) || 30),
-                    perDay: Math.max(parseInt(perHourInput?.value, 10) || 30, parseInt(perDayInput?.value, 10) || 200)
-                },
-                burstRest: {
-                    every: Math.max(1, parseInt(restEveryInput?.value, 10) || 5),
-                    minSeconds: Math.max(0, Number(restMinInput?.value) || 5),
-                    maxSeconds: Math.max(Number(restMinInput?.value) || 5, Number(restMaxInput?.value) || 10)
-                }
-            },
-            customRegex: String(regexInput?.value || '').split(/\n+/).map(v => v.trim()).filter(Boolean)
-        }
-    });
+    // Auto-save all params on every input change (debounced 800ms)
+    clearTimeout(_saveParamsDebounceTimer);
+    _saveParamsDebounceTimer = setTimeout(() => saveSearchParams(false), 800);
 }
 
 function gatherSearchParamsFromView() {
@@ -487,6 +454,13 @@ function injectFloatingUI() {
           <button id="ea-search-open-btn" class="ea-btn-save">Search</button>
         </div>
         <div class="ea-stack">
+          <label class="ea-mini-label">Search Mode</label>
+          <div class="ea-mode-radio-group">
+            <div class="ea-mode-btn active" id="ea-search-mode-1" data-mode="1">Direct</div>
+            <div class="ea-mode-btn" id="ea-search-mode-2" data-mode="2">Filter</div>
+          </div>
+        </div>
+        <div class="ea-stack">
           <label class="ea-mini-label" for="ea-search-input">Location</label>
           <div class="ea-inline-row">
             <input type="text" id="ea-search-input" class="abby-val-input" placeholder="California, United States">
@@ -632,6 +606,9 @@ function injectFloatingUI() {
           <div id="ea-step-position" class="ea-step-position">Live</div>
           <button id="ea-step-next" class="ea-step-nav-btn" type="button" title="Next visited step">-></button>
         </div>
+        <div class="ea-btn-row" id="ea-step-stop-row" style="display:none; margin-bottom: 4px;">
+          <button id="ea-step-stop-btn" class="ea-btn-save ea-btn-stop">STOP AUTO PROCESS</button>
+        </div>
         <p id="ea-current-action">Standing by for Easy Apply...</p>
         <div id="ea-fields-wrap"></div>
         <div class="ea-btn-row">
@@ -645,7 +622,8 @@ function injectFloatingUI() {
           <button id="ea-info-save-btn" class="ea-btn-primary">Save Changes</button>
         </div>
         <p id="ea-info-msg"></p>
-      </div>`;
+      </div>
+      <div class="ea-resize-handle"></div>`;
     document.body.appendChild(ui);
 
     const savedPos = lsGet(LS_POS);
@@ -657,6 +635,47 @@ function injectFloatingUI() {
         const clampedTop = Math.max(0, Math.min(savedPos.top, vh - 80));
         ui.style.left = clampedLeft + 'px';
         ui.style.top = clampedTop + 'px';
+    }
+
+    // Load saved window width
+    chrome.storage.local.get(['easyApplyFloatingUIWidth'], (res) => {
+        const savedWidth = res.easyApplyFloatingUIWidth;
+        if (savedWidth && typeof savedWidth === 'number' && savedWidth >= 360 && savedWidth <= 800) {
+            ui.style.width = savedWidth + 'px';
+        }
+    });
+
+    // Setup resize handle
+    const resizeHandle = ui.querySelector('.ea-resize-handle');
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = ui.offsetWidth;
+            resizeHandle.classList.add('resizing');
+            document.addEventListener('mousemove', handleResize);
+            document.addEventListener('mouseup', stopResize);
+        });
+
+        function handleResize(e) {
+            if (!isResizing) return;
+            const deltaX = e.clientX - startX;
+            const newWidth = Math.max(360, Math.min(startWidth + deltaX, 800));
+            ui.style.width = newWidth + 'px';
+        }
+
+        function stopResize() {
+            if (isResizing) {
+                isResizing = false;
+                resizeHandle.classList.remove('resizing');
+                chrome.storage.local.set({ easyApplyFloatingUIWidth: ui.offsetWidth });
+                document.removeEventListener('mousemove', handleResize);
+                document.removeEventListener('mouseup', stopResize);
+            }
+        }
     }
 
     const savedTab = lsGet(LS_TAB);
@@ -702,14 +721,56 @@ function injectFloatingUI() {
         abbyApplyMode = event.target.value === 'manual' ? 'manual' : 'auto';
         chrome.storage.local.set({ abbyApplyMode });
     });
-    document.getElementById('ea-apply-btn').addEventListener('click', () => handleApplyAction());
+    document.getElementById('ea-apply-btn').addEventListener('click', async () => {
+        if (applyActionInProgress) return;
+        applyActionInProgress = true;
+        const btn = document.getElementById('ea-apply-btn');
+        btn.disabled = true;
+        try {
+            const result = await handleApplyAction();
+            // Keep button disabled if auto-apply is now running
+            if (autoApplyRunning) {
+                btn.disabled = true;
+            } else {
+                btn.disabled = false;
+            }
+        } catch (err) {
+            console.error('Apply action error:', err);
+            btn.disabled = false;
+        } finally {
+            applyActionInProgress = false;
+            updateApplyButton();
+        }
+    });
+    document.getElementById('ea-step-stop-btn').addEventListener('click', () => {
+        autoApplyRunning = false;
+        applySchedule.running = false;
+        setAutoApplyDataset('stopped', 'Process interrupted by user.', currentHeading);
+        updateApplyButton();
+    });
     document.getElementById('ea-step-prev').addEventListener('click', showPreviousStepSnapshot);
+    const searchInput = document.getElementById('ea-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('focus', function() {
+            if (this.value === abbyParams.selectedSearch || this.value === 'California, United States') {
+                this.value = '';
+            }
+        });
+    }
     document.getElementById('ea-ignore-input').addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             event.preventDefault();
             addIgnoreKeyword();
         }
     });
+    document.querySelectorAll('.ea-mode-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const mode = this.dataset.mode;
+            updateSearchModeUI(mode);
+            chrome.storage.local.set({ abbySearchMode: mode });
+        });
+    });
+
     ['ea-search-input', 'ea-click-count', 'ea-min-delay', 'ea-delay-next-job-min', 'ea-delay-next-job-max', 'ea-delay-easy-apply-min', 'ea-delay-easy-apply-max', 'ea-delay-easy-scroll-min', 'ea-delay-easy-scroll-max', 'ea-delay-input-min', 'ea-delay-input-max', 'ea-delay-next-step-min', 'ea-delay-next-step-max', 'ea-delay-submit-scroll-min', 'ea-delay-submit-scroll-max', 'ea-delay-close-submit-min', 'ea-delay-close-submit-max', 'ea-limit-minute', 'ea-limit-hour', 'ea-limit-day', 'ea-rest-every', 'ea-rest-min', 'ea-rest-max', 'ea-regex-list'].forEach(id => {
         document.getElementById(id).addEventListener('input', persistSearchDraft);
     });
@@ -784,6 +845,10 @@ function switchView(view) {
     document.getElementById('ea-tab-apply').classList.toggle('ea-tab-active', view === 'apply');
     document.getElementById('ea-tab-step').classList.toggle('ea-tab-active', view === 'step');
     document.getElementById('ea-tab-info').classList.toggle('ea-tab-active', view === 'info');
+
+    const stopRow = document.getElementById('ea-step-stop-row');
+    if (stopRow) stopRow.style.display = (autoApplyRunning || applySchedule.running) ? 'flex' : 'none';
+
     lsSet(LS_TAB, view);
     if (view === 'step') renderCurrentStepPanel();
 }
@@ -844,10 +909,19 @@ function findEasyApplyModal() {
     // 2. Check for generic artdeco-modal but ensure it's NOT the "All filters" one
     const modals = document.querySelectorAll('.artdeco-modal');
     for (const modal of modals) {
+        // Skip if it is clearly a filters modal
+        if (modal.querySelector('[data-test-modal-id="reusable-filters-modal"]') ||
+            modal.querySelector('.reusable-filters-modal') ||
+            modal.querySelector('.jobs-search-filters-modal')) {
+            continue;
+        }
+
         // LinkedIn "All filters" modal usually has a header with "All filters"
         const header = modal.querySelector('.artdeco-modal__header, h2');
         const headerText = header ? header.innerText.toLowerCase() : '';
         if (headerText.includes('all filters')) continue;
+        if (headerText.includes('filter by')) continue;
+        if (headerText.includes('show results')) continue;
         
         // Easy Apply modals usually have "Apply to" or "Review your application"
         // or contain elements with jobs-easy-apply classes
@@ -864,6 +938,7 @@ function findEasyApplyModal() {
     if (shadowModal) {
         const text = shadowModal.innerText.toLowerCase();
         if (text.includes('all filters') && !text.includes('easy apply')) return null;
+        if (text.includes('filter by') && !text.includes('easy apply')) return null;
         if (text.includes('easy apply') || text.includes('apply to')) return shadowModal;
     }
 
@@ -893,6 +968,7 @@ const SKIP_HEADINGS = [
 const CANONICAL_QUESTIONS = [
     { rx: /do you agree to the additional job application terms/i, key: 'Job Application Agreement' },
     // Work authorization — multiple phrasings across companies
+    { rx: /auth.*to work/i, key: 'Authorized to work' },
     { rx: /authorized to work/i, key: 'Work Authorization' },
     { rx: /legally authorized to work/i, key: 'Work Authorization' },
     // Sponsorship — catches "require", "require...visa sponsor", "transfer"
@@ -902,6 +978,7 @@ const CANONICAL_QUESTIONS = [
     { rx: /are you currently an? .{1,40} client/i, key: 'Are you a current client?' },
     // Interest / motivation
     { rx: /why are you interested in/i, key: 'Why are you interested?' },
+    { rx: /why do you want to work (at|for)/i, key: 'Why do you want to work at?' },
     { rx: /\bwebsite\b/i, key: 'Website' },
     // Education — catches "highest level", "highest academic level", etc.
     { rx: /highest (level of |academic )?education|highest academic level/i, key: 'Highest Education' },
@@ -913,6 +990,9 @@ const CANONICAL_QUESTIONS = [
     { rx: /\brace\s*\/?\s*ethnicity\b/i, key: 'Race/Ethnicity' },
     { rx: /\brace categories are defined as follows\b/i, key: 'Race/Ethnicity' },
     { rx: /\bhispanic or latino\b.*\bwhite\s*\(not hispanic or latino\)\b/i, key: 'Race/Ethnicity' },
+    { rx: /hispanic/i, key: 'Hispanic/Latino' },
+    { rx: /do you know anyone who/i, key: 'Know anyone here?' },
+    { rx: /were you referred/i, key: 'Were you referred?' },
     // Veteran status (long VEVRAA/USERRA legal text -> short canonical key)
     { rx: /\bveteran status\b/i, key: 'Veteran' },
     { rx: /\bvevraa\b|\bvietnam era veterans'? readjustment assistance act\b/i, key: 'Veteran' },
@@ -934,22 +1014,34 @@ const CANONICAL_QUESTIONS = [
     { rx: /\bsalary\b|\bcompensation\b/i, key: 'Salary' },
     { rx: /year.*experience.*develop/i, key: 'Years of Development Experience' },
     { rx: /develop.*experience.*year/i, key: 'Years of Development Experience' },
-    { rx: /how did you learn about/i, key: 'How did you learn about this role?' },
+    { rx: /how many.*years.*python|python.*years.*experience/i, key: 'Years of Python Experience' },
+    { rx: /how did you (learn|hear) about/i, key: 'How did you learn about this role?' },
     { rx: /have you ever worked for/i, key: 'Worked Here Before?' },
+    { rx: /have you previously worked/i, key: 'Have you previously worked?' },
     { rx: /have you worked with/i, key: 'Have you worked with?' },
     { rx: /work.*startup/i, key: 'Work Startup Experience' },
     { rx: /relocate/i, key: 'Willing to Relocate' },
+    { rx: /do you.*live in/i, key: 'Do you live in?' },
     { rx: /are you comfortable/i, key: 'Are you comfortable?' },
     { rx: /message.*hiring manager/i, key: 'Message Hiring Manager' },
     { rx: /hiring manager.*message/i, key: 'Message Hiring Manager' },
     { rx: /\bgender\b/i, key: 'Gender' },
+    { rx: /\bcity\b/i, key: 'City' },
 ];
 const CANONICAL_KEYS = new Set(CANONICAL_QUESTIONS.map(item => String(item.key || '').toLowerCase()));
 
 // Default answers seeded into chrome.storage on first run (user editable)
 const CANONICAL_DEFAULTS = {
+    'Job Application Agreement': 'Yes',
+    'Authorized to work': 'Yes',
+    'Know anyone here?': 'No',
+    'Were you referred?': 'No',
+    'Hispanic/Latino': 'No',
+    'Race/Ethnicity': 'No',
+    'Work Authorization': 'Yes',
     'Are you a current client?': 'No',
     'Why are you interested?': 'I am excited about this opportunity because it aligns with my background in software engineering and my passion for building impactful products. I believe my skills would contribute meaningfully to the team.',
+    'Why do you want to work at?': 'I want to join your company because it is genuinely a cool, category-defining product that has reshaped how design work is done across the industry. As the leading design collaboration platform, Figma has had an outsized impact on how teams build and iterate on products, and that scale of influence is exciting to be part of.\nFrom a technical perspective, Figma operates large-scale distributed systems that support real-time collaboration, multi-feature workflows, and emerging AI capabilities. I\'m motivated by working on systems where performance, reliability, and scalability directly affect user experience.\nI\'m also looking for an environment that encourages strong ownership and long-term technical growth, where I can deepen my backend expertise and grow toward broader system-level responsibility.',
     'Require Sponsorship?': 'Yes',
     'Highest Education': "Master's",
     'Major / Field of Study': 'Computer Science',
@@ -958,21 +1050,23 @@ const CANONICAL_DEFAULTS = {
     'GitHub Profile': 'https://github.com/',
     'Work Schedule': 'Yes',
     'How did you learn about this role?': 'Linkedin',
+    'Years of Python Experience': '4',
     'Worked Here Before?': 'No',
+    'Have you previously worked?': 'No',
     'Have you worked with?': 'Yes',
     'Work Startup Experience': 'Yes',
     'Willing to Relocate': 'Yes',
+    'Do you live in?': 'No',
     'Are you comfortable?': 'Yes',
     'Green Card/Citizen': 'No',
-    'Follow Company?': 'No',
-    'Gender': 'Male'
+    'Gender': 'Male',
+    'City': 'Dallas, Texas, United States'
 };
 
 function normalizeLabel(label, stepHeading) {
     const cleaned = clean(String(label || ''));
     if (!cleaned) return '';
     const step = normalizeStepHeading(stepHeading || currentHeading || '');
-    if (/^review$/i.test(step) && /^follow\b/i.test(cleaned)) return 'Follow Company?';
     const locatedCity = extractLocatedCity(cleaned);
     if (locatedCity) return `Located in ${locatedCity}`;
     for (const { rx, key } of CANONICAL_QUESTIONS) {
@@ -1070,6 +1164,35 @@ function formatTodayForInput(input) {
     return `${m}/${d}/${y}`;
 }
 
+// ── Regex-based saved answers ─────────────────────────────
+// Each entry: { pattern: 'why do you want to work at', type: 'text'|'binary', answer: '' }
+// Pattern uses glob syntax: * = wildcard. Stored under chrome.storage.local key 'savedRegexAnswers'.
+let cachedRegexAnswers = null;
+
+function globToRegex(pattern) {
+    // Escape regex specials except *, then replace * with .*
+    const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    return new RegExp(escaped, 'i');
+}
+
+function resolveRegexAnswer(label) {
+    if (!cachedRegexAnswers || !label) return '';
+    for (const entry of cachedRegexAnswers) {
+        if (!entry.pattern || !entry.answer) continue;
+        try {
+            if (globToRegex(entry.pattern).test(label)) return entry.answer;
+        } catch { /* invalid pattern — skip */ }
+    }
+    return '';
+}
+
+function loadRegexAnswers(callback) {
+    chrome.storage.local.get(['savedRegexAnswers'], (res) => {
+        cachedRegexAnswers = res.savedRegexAnswers || DEFAULT_REGEX_ANSWERS;
+        if (callback) callback(cachedRegexAnswers);
+    });
+}
+
 function resolveSavedValue(savedAnswers, field) {
     if (!field) return '';
     if (isDynamicTodayDateField(field)) return formatTodayForInput(field.input);
@@ -1077,7 +1200,10 @@ function resolveSavedValue(savedAnswers, field) {
     const scoped = savedAnswers[field.saveKey];
     if (scoped) return scoped;
     // Backward compatibility: old data used the raw label as key.
-    return savedAnswers[field.label] || '';
+    const direct = savedAnswers[field.label];
+    if (direct) return direct;
+    // Regex-pattern fallback
+    return resolveRegexAnswer(field.label);
 }
 
 function getLabelInfo(input, container) {
@@ -1267,12 +1393,22 @@ function ensureConfirmCheckboxesChecked(scope) {
     const root = scope || document;
     const checkboxes = collectFromShadow(root, 'input[type="checkbox"]');
     checkboxes.forEach(box => {
-        if (box.checked || box.disabled) return;
         const labelText = clean([
             box.getAttribute('aria-label') || '',
             box.closest('label')?.innerText || '',
             box.parentElement?.innerText || ''
         ].join(' ')).toLowerCase();
+
+        // Always uncheck "follow company" checkboxes
+        if (/follow.*company|company.*follow/i.test(labelText)) {
+            if (box.checked) {
+                box.click();
+                ['input', 'change'].forEach(eventName => box.dispatchEvent(new Event(eventName, { bubbles: true })));
+            }
+            return;
+        }
+
+        if (box.checked || box.disabled) return;
         if (!/(confirm|agree|acknowledge|certify|consent|attest|terms|i understand)/i.test(labelText)) return;
         box.click();
         ['input', 'change'].forEach(eventName => box.dispatchEvent(new Event(eventName, { bubbles: true })));
@@ -1306,6 +1442,19 @@ async function chooseAutocompleteOption(input, value) {
         }
         await wait(120);
     }
+
+    // Fallback: if it's a City field and we haven't found a match, pick the first option
+    const labelText = clean(input.getAttribute('aria-label') || input.placeholder || '').toLowerCase();
+    if (labelText.includes('city') || labelText.includes('location')) {
+        const options = findVisibleAutocompleteOptions();
+        if (options.length > 0) {
+            const first = options[0];
+            first.click();
+            ['mousedown', 'mouseup', 'click'].forEach(eventName => first.dispatchEvent(new MouseEvent(eventName, { bubbles: true })));
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -1659,7 +1808,19 @@ function saveCurrentFields(andCallback) {
     }
     chrome.storage.local.get(['savedAnswers', 'savedAnswerGroups'], (res) => {
         const current = gatherCurrentValues();
+        // Filter out "follow company" questions - never save these
+        Object.keys(current).forEach(key => {
+            if (/follow.*company|company.*follow/i.test(key)) {
+                delete current[key];
+            }
+        });
         const saved = Object.assign({}, res.savedAnswers || {}, current);
+        // Also remove any existing "follow" entries from saved answers
+        Object.keys(saved).forEach(key => {
+            if (/follow.*company|company.*follow/i.test(key)) {
+                delete saved[key];
+            }
+        });
         const groups = Object.assign({}, res.savedAnswerGroups || {});
         // Flush sessionFields
         sessionFields.forEach((v, k) => { if (v) saved[k] = v; });
@@ -1693,12 +1854,14 @@ function hookNextButton(modal) {
             hookedBtns.add(btn);
             btn.addEventListener('click', () => {
                 saveCurrentFields();
-                if (!autoApplyRunning && pendingResumeAutoApplyUntil && Date.now() <= pendingResumeAutoApplyUntil) {
+                if (abbyApplyMode === 'auto' && !autoApplyRunning && pendingResumeAutoApplyUntil && Date.now() <= pendingResumeAutoApplyUntil) {
                     setTimeout(() => {
                         if (autoApplyRunning) return;
-                        if (!findEasyApplyModal()) return;
+                        const liveModal = findEasyApplyModal();
+                        if (!liveModal) return;
                         pendingResumeAutoApplyUntil = 0;
-                        startAutoApply();
+                        autoApplyRunning = true;
+                        runAutoApplyLoop(); // directly resume the loop, modal is already open
                     }, 700);
                 }
             }, { capture: true });
@@ -1879,13 +2042,97 @@ function findEasyApplyButton() {
 }
 
 function findAdvanceButton(modal) {
-    const buttons = collectFromShadow(modal, 'button').filter(btn => !btn.disabled);
+    if (!modal) return null;
+
+    // Collect all buttons from modal and shadow DOM
+    const allButtons = collectFromShadow(modal, 'button');
+
+    // Filter to likely enabled buttons (check multiple indicators)
+    const potentialButtons = allButtons.filter(btn => {
+        // Must not be hidden
+        if (btn.offsetParent === null) return false;
+
+        // Check disabled attribute and aria-disabled
+        const isDisabledAttr = btn.getAttribute('disabled') !== null;
+        const isAriaDisabled = btn.getAttribute('aria-disabled') === 'true';
+        const hasDisabledClass = (btn.className || '').includes('disabled');
+
+        // Accept if disabled property is false OR disabled attributes/classes not present
+        return !btn.disabled && !isDisabledAttr && !isAriaDisabled && !hasDisabledClass;
+    });
+
+    // Priority order: Submit > Review > Next > Continue > any visible button
     const priorities = [/submit/i, /review/i, /next/i, /continue/i];
+
     for (const rx of priorities) {
-        const found = buttons.find(btn => rx.test(btn.getAttribute('aria-label') || btn.innerText || ''));
-        if (found) return found;
+        const found = potentialButtons.find(btn => {
+            const ariaLabel = (btn.getAttribute('aria-label') || '').trim().toLowerCase();
+            const innerText = (btn.innerText || '').trim().toLowerCase();
+            const textContent = (btn.textContent || '').trim().toLowerCase();
+
+            return rx.test(ariaLabel) || rx.test(innerText) || rx.test(textContent);
+        });
+
+        if (found) {
+            console.log('[EZ Apply] Found advance button:', found.innerText || found.getAttribute('aria-label'));
+            return found;
+        }
     }
+
+    // Fallback: find any visible button that's not obviously a close/skip button
+    const fallback = potentialButtons.find(btn => {
+        const text = ((btn.getAttribute('aria-label') || btn.innerText || btn.textContent) || '').trim().toLowerCase();
+        return text.length > 0 && !/(skip|close|cancel|x|back|previous)/i.test(text);
+    });
+
+    if (fallback) {
+        console.log('[EZ Apply] Using fallback button:', fallback.innerText || fallback.getAttribute('aria-label'));
+    }
+
+    return fallback || null;
+}
+
+// Poll until the advance button becomes enabled (React validation runs async after fill)
+async function waitForAdvanceButtonEnabled(modal, timeoutMs = 5500) {
+    const deadline = Date.now() + timeoutMs;
+    const startTime = Date.now();
+
+    while (Date.now() < deadline) {
+        const btn = findAdvanceButton(modal);
+        if (btn) {
+            const elapsed = Date.now() - startTime;
+            console.log(`[EZ Apply] Found advance button after ${elapsed}ms`);
+            return btn;
+        }
+
+        await wait(250);
+    }
+
+    console.warn(`[EZ Apply] Advance button not found within ${timeoutMs}ms`);
     return null;
+}
+
+// Poll until the modal step changes (heading or field count changes) after clicking Next
+async function waitForStepChange(modal, prevHeading, prevFieldSig, timeoutMs = 5000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        await wait(300);
+        if (!findEasyApplyModal()) {
+            console.log('[EZ Apply] Modal closed - step change detected');
+            return true; // modal closed — done
+        }
+        const headingEl = modal.querySelector('h3') || modal.querySelector('h2');
+        const newHeading = (headingEl?.innerText || '').trim();
+        const newFieldSig = Array.from(modal.querySelectorAll('input:not([type=hidden]), select, textarea'))
+            .map(el => el.id || el.name || el.getAttribute('aria-label') || '').join('|');
+
+        if (newHeading !== prevHeading || newFieldSig !== prevFieldSig) {
+            console.log('[EZ Apply] Step changed detected');
+            return true;
+        }
+    }
+    console.warn('[EZ Apply] No step change detected after', timeoutMs, 'ms');
+    return false;
 }
 
 function findApplyErrorMessage() {
@@ -1945,8 +2192,27 @@ async function fillPendingFieldsFromSaved(fields, savedAnswers) {
 async function clickButton(button, repeatCount = 1) {
     for (let i = 0; i < repeatCount; i++) {
         await ensureActionDelay('nextStep');
-        button.click();
-        lastAutoActionAt = Date.now();
+
+        // Try multiple click methods to ensure it registers
+        try {
+            // Method 1: Standard click
+            button.click();
+            lastAutoActionAt = Date.now();
+
+            // Method 2: Dispatch click event (in case standard click doesn't work)
+            const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true
+            });
+            button.dispatchEvent(clickEvent);
+
+            // Wait to let the click register
+            await wait(300);
+        } catch (err) {
+            console.warn('Click button error:', err);
+        }
+
         if (i < repeatCount - 1) await wait(getActionDelayMs('nextStep'));
     }
 }
@@ -2010,8 +2276,15 @@ function formatApplyStatus(detail = '') {
 }
 
 function getVisibleJobCards() {
-    return Array.from(document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container'))
-        .filter(card => /Easy Apply/i.test(card.textContent || ''));
+    const cards = Array.from(document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container, div[data-job-id]'));
+    const unique = [];
+    for (const c of cards) {
+        if (!unique.some(u => u === c || u.contains(c))) unique.push(c);
+    }
+    return unique.filter(card => {
+        const text = card.textContent || '';
+        return /easy apply/i.test(text);
+    });
 }
 
 function findNextEligibleJobCard() {
@@ -2021,10 +2294,27 @@ function findNextEligibleJobCard() {
     const ordered = activeIndex >= 0 ? [...cards.slice(activeIndex + 1), ...cards.slice(0, activeIndex)] : cards;
     return ordered.find(card =>
         card.getAttribute('data-abby-blocked') !== 'true' &&
+        card.getAttribute('data-abby-dismissed') !== 'true' &&
         card.getAttribute('data-abby-processed') !== 'true' &&
         card.getAttribute('data-abby-applied') !== 'true' &&
         card.getAttribute('data-abby-submitted') !== 'true'
     ) || null;
+}
+
+function isJobCardEligible(card) {
+    if (!card) return false;
+    return (
+        card.getAttribute('data-abby-blocked') !== 'true' &&
+        card.getAttribute('data-abby-dismissed') !== 'true' &&
+        card.getAttribute('data-abby-processed') !== 'true' &&
+        card.getAttribute('data-abby-applied') !== 'true' &&
+        card.getAttribute('data-abby-submitted') !== 'true'
+    );
+}
+
+function findFirstEligibleJobCard() {
+    const cards = getVisibleJobCards();
+    return cards.find(card => isJobCardEligible(card)) || null;
 }
 
 function isCurrentJobAlreadyApplied() {
@@ -2033,22 +2323,26 @@ function isCurrentJobAlreadyApplied() {
     if (activeCard.getAttribute('data-abby-submitted') === 'true') return true;
     if (activeCard.getAttribute('data-abby-applied') === 'true') return true;
     const text = clean(activeCard.textContent || '').toLowerCase();
+    // Check for "Applied X minutes/hours ago" or "Request cannot be completed because you've already applied" messages
+    if (/applied\s+\d+\s+(minutes?|hours?|days?|weeks?)\s+ago|request cannot be completed because you.*already applied/i.test(text)) {
+        return true;
+    }
     return /(^|\s)applied(\s|$)|application submitted|submitted/i.test(text);
 }
 
-async function focusJobCard(card) {
+async function focusJobCard(card, isInitialStart = false) {
     if (!card) return false;
-    card.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    await wait(250);
+    card.scrollIntoView({ block: 'center', behavior: 'auto' });
+    await wait(isInitialStart ? 100 : 250);
     const clickable = card.querySelector('.job-card-list__title--link, a[href*="/jobs/view/"], .job-card-container__link, .job-card-container--clickable') || card;
-    await ensureActionDelay('nextJobItem');
+    if (!isInitialStart) await ensureActionDelay('nextJobItem');
     clickable.click();
     lastAutoActionAt = Date.now();
     currentHeading = getJobLabelFromCard(card) || currentHeading;
-    await wait(250);
+    await wait(isInitialStart ? 150 : 250);
     highlightCurrentJobCard();
     setAutoApplyDataset('running', formatApplyStatus('Queued'), currentHeading);
-    await wait(getActionDelayMs('nextJobItem'));
+    if (!isInitialStart) await wait(getActionDelayMs('nextJobItem'));
     return true;
 }
 
@@ -2103,17 +2397,60 @@ function clearCurrentJobApplying() {
     });
 }
 
+function getCurrentJobId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const jobId = urlParams.get('currentJobId') || document.querySelector('.job-card-container--active')?.dataset.jobId;
+    const jobUrl = window.location.href.split('?')[0];
+    return jobId || jobUrl;
+}
+
+async function saveAppliedJobPersistent() {
+    const jobId = getCurrentJobId();
+    if (!jobId) return;
+    chrome.storage.local.get(['appliedJobsLog'], (res) => {
+        const log = res.appliedJobsLog || [];
+        const entry = {
+            jobId,
+            url: window.location.href,
+            timestamp: Date.now(),
+            appliedAt: new Date().toISOString()
+        };
+        if (!log.some(e => e.jobId === jobId)) {
+            log.push(entry);
+            chrome.storage.local.set({ appliedJobsLog: log });
+            console.log('[EZ Apply] Saved applied job:', jobId);
+            addAppliedCheckmarks(); // Update UI immediately
+        }
+    });
+}
+
 function markCurrentJobSubmitted() {
     const card = getActiveJobCard();
     if (!card) return;
     card.removeAttribute('data-abby-applying');
     card.removeAttribute('data-abby-focused');
     card.setAttribute('data-abby-submitted', 'true');
+    card.setAttribute('data-abby-processed', 'true');
     card.style.opacity = '1';
     card.style.filter = '';
     card.style.backgroundColor = 'rgba(164, 235, 172, 0.45)';
     card.style.borderLeft = '4px solid rgba(76, 175, 80, 0.98)';
     card.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.3) inset';
+    saveAppliedJobPersistent();
+}
+
+function markCurrentJobStuck() {
+    const card = getActiveJobCard();
+    if (!card) return;
+    card.removeAttribute('data-abby-applying');
+    card.removeAttribute('data-abby-focused');
+    card.setAttribute('data-abby-stuck', 'true');
+    card.setAttribute('data-abby-processed', 'true');
+    card.style.opacity = '1';
+    card.style.filter = '';
+    card.style.backgroundColor = 'rgba(255, 235, 130, 0.35)';
+    card.style.borderLeft = '4px solid rgba(255, 193, 7, 0.95)';
+    card.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.2) inset';
 }
 
 function syncAppliedJobCardVisuals() {
@@ -2226,54 +2563,143 @@ function saveCurrentFieldsAsync() {
     return new Promise(resolve => saveCurrentFields(resolve));
 }
 
+function findDismissButton(modal) {
+    if (!modal) return null;
+    // Look for X button (close icon button) at top right
+    const buttons = collectFromShadow(modal, 'button');
+    const dismissBtn = buttons.find(btn => {
+        const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+        const innerText = (btn.innerText || '').toLowerCase();
+        const classList = (btn.className || '').toLowerCase();
+        return ariaLabel.includes('dismiss') || ariaLabel.includes('close') ||
+               innerText === 'x' || classList.includes('dismiss');
+    });
+    if (dismissBtn) return dismissBtn;
+    // Fallback: look for button with X content (using ::before or text content)
+    return buttons.find(btn => {
+        const text = (btn.textContent || '').trim();
+        return text === '×' || text === 'X';
+    });
+}
+
 async function closeSubmittedModalIfPresent() {
-    await wait(Math.max(600, getActionDelayMs('closeSubmitPage')));
+    // Wait briefly for the confirmation window to appear
+    await wait(800);
     let modal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
     if (!modal) return;
-    
-    await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
-    
-    const doneButtons = Array.from(modal.querySelectorAll('button, span')).filter(b => {
-        const t = (b.innerText || '').trim();
-        return t === 'Done' || t === 'Dismiss';
-    });
-    if (doneButtons.length > 0) {
-        await clickButton(doneButtons[0], 1);
-        await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
-        modal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
-        if (!modal) return;
+
+    const buttons = collectFromShadow(modal, 'button');
+
+    // Try common button labels: Done, Dismiss, Not now, X, Close
+    for (const btn of buttons) {
+        const text = (btn.innerText || btn.textContent || btn.getAttribute('aria-label') || '').trim().toLowerCase();
+        if (/^(done|dismiss|not now|close|x|×)$/.test(text)) {
+            console.log('[EZ Apply] Closing modal with button:', text);
+            await clickButton(btn, 1);
+            await wait(300);
+            modal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
+            if (!modal) return; // Modal closed successfully
+        }
     }
 
-    const dismissButton = findDismissButton(modal);
-    if (dismissButton) {
-        await clickButton(dismissButton, 1);
-        await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
-        modal = findEasyApplyModal();
-        if (!modal) return;
+    // If modal still exists, try X dismiss button specifically
+    if (modal) {
+        const dismissButton = findDismissButton(modal);
+        if (dismissButton) {
+            console.log('[EZ Apply] Closing modal with X button');
+            await clickButton(dismissButton, 1);
+            await wait(300);
+            modal = findEasyApplyModal();
+            if (!modal) return;
+        }
     }
-    const discardButton = findDiscardButton();
-    if (discardButton) {
-        await clickButton(discardButton, 1);
-        await wait(Math.max(900, getActionDelayMs('closeSubmitPage')));
-    }
-    const stillModal = findEasyApplyModal() || document.querySelector('.artdeco-modal');
-    if (stillModal) {
+
+    // Last resort: click backdrop
+    if (modal) {
+        console.log('[EZ Apply] Closing modal by clicking backdrop');
         const backdrop = document.querySelector('.artdeco-modal-overlay') || document.body;
         backdrop.click();
-        await wait(Math.max(600, getActionDelayMs('closeSubmitPage')));
+        await wait(300);
     }
+}
+
+async function scrollJobResultsList() {
+    const list = document.querySelector('.jobs-search-results-list, .jobs-search-results, .scaffold-layout__list-container') ||
+                 findInShadow(document, '.jobs-search-results-list');
+    if (!list) return;
+    const durationMs = getActionDelayMs('nextJobItem');
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < durationMs) {
+        const delta = Math.max(60, Math.round(list.clientHeight * 0.22));
+        list.scrollTop = Math.min(list.scrollHeight, list.scrollTop + delta);
+        await wait(220);
+    }
+}
+
+// Watch for job cards being removed by user (dismissed with 'x' button)
+function startWatchingJobListForDismissals() {
+    if (jobListObserver) jobListObserver.disconnect();
+    const list = document.querySelector('.jobs-search-results-list, .jobs-search-results, .scaffold-layout__list-container');
+    if (!list) return;
+
+    jobListObserver = new MutationObserver((mutations) => {
+        mutations.forEach(m => {
+            m.removedNodes.forEach(node => {
+                if (node.nodeType === 1 && (
+                    node.classList?.contains('jobs-search-results__list-item') ||
+                    node.classList?.contains('job-card-container') ||
+                    node.hasAttribute?.('data-occludable-job-id')
+                )) {
+                    // User dismissed this job via 'x' - mark it as blocked so we skip it
+                    const jobId = node.getAttribute?.('data-occludable-job-id') || node.getAttribute?.('data-job-id');
+                    if (jobId) node.setAttribute('data-abby-dismissed', 'true');
+                }
+            });
+        });
+    });
+    jobListObserver.observe(list, { childList: true, subtree: true });
+}
+
+// Try to navigate to next page if available
+async function tryAdvanceToNextPage() {
+    const nextBtn = document.querySelector('[aria-label*="Next"]') ||
+                    document.querySelector('button[aria-disabled="false"]')?.parentElement?.querySelector('button:last-of-type') ||
+                    Array.from(document.querySelectorAll('button')).find(btn => /next|>>|→/i.test(btn.textContent || btn.getAttribute('aria-label') || ''));
+
+    if (!nextBtn || nextBtn.getAttribute('aria-disabled') === 'true') {
+        autoApplyRunning = false;
+        setAutoApplyDataset('completed', formatApplyStatus('All pages processed. No more jobs.'), currentHeading);
+        return false;
+    }
+
+    setAutoApplyDataset('running', formatApplyStatus('Loading next page...'), currentHeading);
+    nextBtn.click();
+    await wait(2000);
+    await scrollJobResultsList();
+    return true;
 }
 
 async function advanceToNextEligibleJob() {
     if (!autoApplyRunning) return;
 
-    await scrollJobResultsList();
-    if (!autoApplyRunning) return;
+    let nextCard = null;
+    const deadline = Date.now() + 8000;
+    
+    while (Date.now() < deadline) {
+        await scrollJobResultsList();
+        if (!autoApplyRunning) return;
+        nextCard = findNextEligibleJobCard();
+        if (nextCard) break;
+        await wait(600);
+    }
 
-    const nextCard = findNextEligibleJobCard();
     if (!nextCard) {
-        autoApplyRunning = false;
-        setAutoApplyDataset('completed', formatApplyStatus('No more eligible Easy Apply jobs found.'), currentHeading);
+        // Try to go to next page before giving up
+        const hasNextPage = await tryAdvanceToNextPage();
+        if (hasNextPage && autoApplyRunning) {
+            // Recursively search for jobs on the new page
+            await advanceToNextEligibleJob();
+        }
         return;
     }
     await focusJobCard(nextCard);
@@ -2285,14 +2711,22 @@ async function advanceToNextEligibleJob() {
         return;
     }
     setAutoApplyDataset('running', formatApplyStatus('Opening Easy Apply'), currentHeading);
-    await scrollActiveJobDetail();
     let modal = findEasyApplyModal();
     if (!modal) {
-        const easyApplyButton = findEasyApplyButton();
+        let easyApplyButton = findEasyApplyButton();
+        let retries = 0;
+        while (!easyApplyButton && retries < 15) {
+            if (!autoApplyRunning) return;
+            await wait(400);
+            easyApplyButton = findEasyApplyButton();
+            retries++;
+        }
+
         if (!easyApplyButton) {
             if (!autoApplyRunning) return;
-            autoApplyRunning = false;
-            setAutoApplyDataset('blocked', formatApplyStatus('Could not find Easy Apply button'), currentHeading);
+            nextCard.setAttribute('data-abby-blocked', 'true');
+            setAutoApplyDataset('running', formatApplyStatus('No Easy Apply found, skipping...'), currentHeading);
+            await advanceToNextEligibleJob();
             return;
         }
         if (!autoApplyRunning) return;
@@ -2300,8 +2734,9 @@ async function advanceToNextEligibleJob() {
     }
     if (!modal) {
         if (!autoApplyRunning) return;
-        autoApplyRunning = false;
-        setAutoApplyDataset('blocked', formatApplyStatus('Easy Apply did not open'), currentHeading);
+        nextCard.setAttribute('data-abby-blocked', 'true');
+        setAutoApplyDataset('running', formatApplyStatus('Easy Apply did not open, skipping...'), currentHeading);
+        await advanceToNextEligibleJob();
         return;
     }
     if (!autoApplyRunning) return;
@@ -2309,26 +2744,32 @@ async function advanceToNextEligibleJob() {
 }
 
 async function submitCurrentApplication(modal, advanceButton) {
-    await saveCurrentFieldsAsync();
     await scrollEasyApplyReview(modal);
+    await wait(2000); // Wait 2s for page to fully load before interacting
     ensureConfirmCheckboxesChecked(modal);
+    await saveCurrentFieldsAsync();
 
-    const followSpan = Array.from(modal.querySelectorAll('label')).find(el => /follow.*company/i.test(el.textContent) || /follow/i.test(el.textContent));
-    if (followSpan) {
-        const checkbox = followSpan.closest('label')?.querySelector('input') || document.getElementById(followSpan.getAttribute('for') || '');
-        if (checkbox && checkbox.checked) {
-            followSpan.scrollIntoView({block: 'center', behavior: 'smooth'});
-            await wait(400);
-            followSpan.click();
-            await wait(400);
-        }
-    }
-
+    autoApplyPostSubmit = true; // guard: prevent pollForModalLogic from resetting during close+advance (set BEFORE click to prevent race)
     await clickButton(advanceButton, 1);
-    await closeSubmittedModalIfPresent();
-    markCurrentJobSubmitted();
-    await logApplicationSuccess();
-    await advanceToNextEligibleJob();
+    try {
+        await wait(1500); // Wait for submission to process
+        // Check if submission had an error
+        const submitError = findApplyErrorMessage();
+        if (submitError) {
+            autoApplyPostSubmit = false;
+            autoApplyRunning = false;
+            switchView('step');
+            setAutoApplyDataset('error', formatApplyStatus(`Submit error: ${submitError}`), currentHeading);
+            return;
+        }
+        await closeSubmittedModalIfPresent();
+        autoApplyRunning = true; // re-assert in case pollForModalLogic reset it
+        markCurrentJobSubmitted(); // This sets data-abby-processed="true"
+        await logApplicationSuccess();
+        await advanceToNextEligibleJob();
+    } finally {
+        autoApplyPostSubmit = false;
+    }
 }
 
 let applySchedule = {
@@ -2430,6 +2871,7 @@ async function startAutoApply() {
     pendingManualEasyApplyAutoStartUntil = 0;
     pendingResumeAutoApplyUntil = 0;
     autoApplyRunning = true;
+    startWatchingJobListForDismissals();
     chrome.storage.local.get(['abbyApplyStats'], (res) => {
         const stats = Object.assign({ auto: 0, manual: 0 }, res.abbyApplyStats || {});
         stats.auto += 1;
@@ -2441,11 +2883,20 @@ async function startAutoApply() {
     applySchedule.endTime = Date.now() + 10 * 60 * 1000;
     autoLoopSignature = '';
     autoLoopRepeats = 0;
+    currentJobStartedAt = Date.now();
+    lastStepHeading = '';
+    stuckStepStartedAt = 0;
     switchView('apply');
-    currentHeading = getCurrentJobLabel();
-    highlightCurrentJobCard();
-    setAutoApplyDataset('running', formatApplyStatus('Starting'), currentHeading);
+    setAutoApplyDataset('running', formatApplyStatus('Starting'), '');
     try {
+        // If a job is already focused, start from it; otherwise start from the first eligible
+        let startCard = getActiveJobCard();
+        if (!startCard || !isJobCardEligible(startCard)) {
+            startCard = findFirstEligibleJobCard();
+        }
+        if (startCard) {
+            await focusJobCard(startCard, true); // isInitialStart = true for faster startup
+        }
         await refreshParams(false);
         syncApplyAvailability();
         currentHeading = getCurrentJobLabel();
@@ -2456,7 +2907,6 @@ async function startAutoApply() {
             return { ok: true, state: 'running' };
         }
         setAutoApplyDataset('running', formatApplyStatus('Opening Easy Apply'), currentHeading);
-        await scrollActiveJobDetail();
         let modal = findEasyApplyModal();
         if (!modal) {
             const easyApplyButton = findEasyApplyButton();
@@ -2485,12 +2935,17 @@ function resetAutoApplySession(options = {}) {
     const { preserveStepHistory = false, message = 'Ready.' } = options;
     autoApplyRunning = false;
     autoApplyStopRequested = false;
+    autoApplyPostSubmit = false;
     applySchedule.running = false;
     autoLoopSignature = '';
     autoLoopRepeats = 0;
     pendingManualEasyApplyAutoStartUntil = 0;
     pendingResumeAutoApplyUntil = 0;
     currentModal = null;
+    if (jobListObserver) {
+        jobListObserver.disconnect();
+        jobListObserver = null;
+    }
     if (!preserveStepHistory) resetStepHistory();
     setAutoApplyDataset('idle', formatApplyStatus(message), '');
     updateApplyButton();
@@ -2504,7 +2959,7 @@ function requestAutoApplyFromManualEasyApply() {
 }
 
 function maybeAutoStartFromManualEasyApply(modal) {
-    if (!modal || autoApplyRunning) return;
+    if (!modal || autoApplyRunning || abbyApplyMode !== 'auto') return;
     if (!pendingManualEasyApplyAutoStartUntil || Date.now() > pendingManualEasyApplyAutoStartUntil) return;
     pendingManualEasyApplyAutoStartUntil = 0;
     currentHeading = getCurrentJobLabel();
@@ -2517,6 +2972,8 @@ function isPotentialEasyApplyTrigger(node) {
     const text = clean(node.innerText || node.textContent || node.getAttribute('aria-label') || node.getAttribute('aria-describedby') || '');
     const classes = String(node.className || '');
     const dataTest = String(node.getAttribute('data-test-button') || '');
+    // Ensure we don't match "All filters"
+    if (/all filters/i.test(text)) return false;
     return /easy apply/i.test(text)
         || /jobs-apply-button/i.test(classes)
         || /easy-apply/i.test(dataTest);
@@ -2535,6 +2992,7 @@ function findEasyApplyTriggerFromEvent(event) {
 }
 
 function handlePotentialEasyApplyClick(event) {
+    if (abbyApplyMode !== 'auto') return;
     const target = findEasyApplyTriggerFromEvent(event);
     if (!target) return;
     if (autoApplyRunning) return;
@@ -2544,8 +3002,12 @@ function handlePotentialEasyApplyClick(event) {
 
 function enforceEasyApplyModalFocus(modal) {
     if (!modal) return;
+    if (document.activeElement === modal || modal.contains(document.activeElement)) {
+        outsideModalBlockerActive = true;
+        return;
+    }
     modal.setAttribute('tabindex', '-1');
-    modal.focus();
+    modal.focus({ preventScroll: true });
     outsideModalBlockerActive = true;
 }
 
@@ -2573,9 +3035,30 @@ function runAutoApplyLoop() {
     enforceEasyApplyModalFocus(modal);
     const headingEl = findInShadow(modal, 'h3') || findInShadow(modal, 'h2') || modal.querySelector('h3') || modal.querySelector('h2');
     currentHeading = normalizeStepHeading(headingEl ? headingEl.innerText.trim() : currentHeading || 'General');
+
+    // Detect if stuck at same step for >5s
+    const now = Date.now();
+    if (currentHeading === lastStepHeading) {
+        if (stuckStepStartedAt === 0) {
+            stuckStepStartedAt = now;
+        }
+        if (now - stuckStepStartedAt > 5000) {
+            console.log('[EZ Apply] Job stuck at step for 5+ seconds, canceling and moving to next job');
+            markCurrentJobStuck();
+            autoApplyRunning = false;
+            modal.style.display = 'none';
+            setTimeout(() => advanceToNextEligibleJob(), 500);
+            return;
+        }
+    } else {
+        lastStepHeading = currentHeading;
+        stuckStepStartedAt = 0;
+    }
+
     setAutoApplyDataset('running', isHiddenStepHeading(currentHeading) ? 'Applying hidden step' : `Applying ${currentHeading}`, currentHeading);
 
-    chrome.storage.local.get(['savedAnswers'], async (res) => {
+    chrome.storage.local.get(['savedAnswers', 'savedRegexAnswers'], async (res) => {
+        cachedRegexAnswers = res.savedRegexAnswers || DEFAULT_REGEX_ANSWERS;
         const savedAnswers = res.savedAnswers || {};
         await scrollEasyApplyStep(modal);
         const fields = extractFormFields(modal);
@@ -2592,17 +3075,21 @@ function runAutoApplyLoop() {
 
         if (missing.length) {
             autoApplyRunning = false;
-            pendingResumeAutoApplyUntil = Date.now() + 30000;
+            pendingResumeAutoApplyUntil = Date.now() + 120000;
             switchView('step');
-            setAutoApplyDataset('blocked', formatApplyStatus(`Missing required answers: ${missing.slice(0, 3).join(', ')}`), currentHeading);
+            setAutoApplyDataset('blocked', formatApplyStatus(`Fill required fields then click Next to continue: ${missing.slice(0, 3).join(', ')}`), currentHeading);
+            // Auto resumes when user fills a required field (after 3s) or clicks Next (hookNextButton picks it up via pendingResumeAutoApplyUntil)
+            watchRequiredFieldsAndResumeAfterInput(modal, fields);
             return;
         }
 
-        const advanceButton = findAdvanceButton(modal);
+        // Wait for React validation to enable the Next/Submit button after filling fields
+        setAutoApplyDataset('running', formatApplyStatus(`Waiting for next step button…`), currentHeading);
+        const advanceButton = await waitForAdvanceButtonEnabled(modal, 5500);
         if (!advanceButton) {
             autoApplyRunning = false;
             switchView('step');
-            setAutoApplyDataset('blocked', formatApplyStatus('No Next, Review, or Submit button found.'), currentHeading);
+            setAutoApplyDataset('blocked', formatApplyStatus('No Next, Review, or Submit button found (or it stayed disabled).'), currentHeading);
             return;
         }
 
@@ -2613,7 +3100,7 @@ function runAutoApplyLoop() {
             autoLoopSignature = signature;
             autoLoopRepeats = 0;
         }
-        if (autoLoopRepeats >= 2) {
+        if (autoLoopRepeats >= 3) {
             autoApplyRunning = false;
             switchView('step');
             setAutoApplyDataset('blocked', formatApplyStatus('LinkedIn kept the same step open; stopping auto apply.'), currentHeading);
@@ -2634,11 +3121,81 @@ function runAutoApplyLoop() {
             return;
         }
 
+        const prevHeading = currentHeading;
+        const prevFieldSig = Array.from(modal.querySelectorAll('input:not([type=hidden]), select, textarea'))
+            .map(el => el.id || el.name || el.getAttribute('aria-label') || '').join('|');
+
         saveCurrentFields(async () => {
+            // Ensure button is visible before clicking
+            if (advanceButton.scrollIntoView) {
+                advanceButton.scrollIntoView({block: 'center', behavior: 'smooth'});
+                await wait(500);
+            }
+
+            // Log button state for debugging
+            console.log('[EZ Apply] Clicking advance button:', {
+                text: advanceButton.innerText || advanceButton.getAttribute('aria-label'),
+                disabled: advanceButton.disabled,
+                visible: advanceButton.offsetParent !== null
+            });
+
+            // Click the button
             await clickButton(advanceButton, 1);
-            await wait(getActionDelayMs('nextStep'));
+
+            // Wait a bit longer for the page to respond
+            await wait(800);
+
+            // Wait for step change
+            const changed = await waitForStepChange(modal, prevHeading, prevFieldSig, 6000);
+
+            if (!changed) {
+                // Step didn't change - button might not have worked
+                console.warn('[EZ Apply] Step did not change after clicking button');
+            }
+
             runAutoApplyLoop();
         });
+    });
+}
+
+// Helper: Monitor required field inputs and auto-resume after 3s when user fills one
+function watchRequiredFieldsAndResumeAfterInput(modal, fields) {
+    // Clear any previous listeners
+    requiredFieldInputListeners.forEach(({ input, handler, events }) => {
+        const eventList = events || ['input'];
+        eventList.forEach(evt => input.removeEventListener(evt, handler));
+    });
+    requiredFieldInputListeners = [];
+    clearTimeout(pendingResumeRequiredFieldsTimer);
+
+    const requiredInputs = fields
+        .filter(f => f.required)
+        .flatMap(f => f.input ? [f.input] : (f.radioGroup || []));
+
+    if (!requiredInputs.length) return;
+
+    const scheduleResume = () => {
+        clearTimeout(pendingResumeRequiredFieldsTimer);
+        pendingResumeRequiredFieldsTimer = setTimeout(() => {
+            if (autoApplyRunning) return;
+            const stillMissing = fields.some(f => f.required && !getFieldLiveValue(f));
+            if (!stillMissing && !!findEasyApplyModal()) {
+                setAutoApplyDataset('running', formatApplyStatus('Resuming after user input...'), currentHeading);
+                setTimeout(() => {
+                    if (!autoApplyRunning) {
+                        autoApplyRunning = true;
+                        runAutoApplyLoop();
+                    }
+                }, 500);
+            }
+        }, 3000);
+    };
+
+    requiredInputs.forEach(input => {
+        const handler = () => scheduleResume();
+        input.addEventListener('input', handler);
+        input.addEventListener('change', handler);
+        requiredFieldInputListeners.push({ input, handler, events: ['input', 'change'] });
     });
 }
 
@@ -2675,9 +3232,10 @@ function updateApplyStatsUI() {
 
 function checkUrlAndManageUI() {
     if (!chrome.runtime?.id) { clearInterval(modalPoller); clearInterval(urlChecker); clearInterval(jobFilterPoller); return; }
+
     chrome.storage.local.get(['settings', 'abbyParams'], (res) => {
         if (chrome.runtime.lastError) return;
-        const enabled = res.settings && res.settings.autopilotEnabled !== false;
+        const enabled = res.settings ? res.settings.autopilotEnabled !== false : false;
         const targetUrl = /linkedin\.com\/jobs\/(search|view)/.test(window.location.href);
         const ui = document.getElementById('abby-floating-ui');
         if (res.abbyParams) abbyParams = normalizeParams(res.abbyParams);
@@ -2685,7 +3243,7 @@ function checkUrlAndManageUI() {
         if (enabled && targetUrl) {
             injectFloatingUI();
             if (!modalPoller) modalPoller = setInterval(pollForModalLogic, 1000);
-            if (!jobFilterPoller) jobFilterPoller = setInterval(markBlockedJobs, 1000);
+            if (!jobFilterPoller) jobFilterPoller = setInterval(() => { markBlockedJobs(); addAppliedCheckmarks(); }, 1000);
             syncApplyAvailability();
             updateApplyStatsUI();
             
@@ -2742,6 +3300,7 @@ function pollForModalLogic() {
 
     if (modal) {
         markCurrentJobApplying();
+        if (activeView !== 'step') switchView('step');
         if (stepTab) {
             stepTab.disabled = false;
             stepTab.classList.remove('ea-tab-disabled');
@@ -2795,14 +3354,18 @@ function pollForModalLogic() {
         }
 
         currentModal = null;
+
+        // Don't reset while we're in the post-submit close+advance phase
+        if (autoApplyPostSubmit) return;
+
         let didUserHalt = false;
         if (autoApplyRunning && autoApplyStopRequested === false && !findApplyErrorMessage()) {
             didUserHalt = true; // The modal disappeared without setting completed/error
         }
-        
+
         resetAutoApplySession({ preserveStepHistory: shouldPreserveLastStep, message: didUserHalt ? 'Auto Apply halted by user.' : 'Ready to re-run Apply.' });
         if (didUserHalt) {
-             console.log('[Abby] Admin stopped due to user closing modal manually.');
+             console.log('[EZ Apply] Admin stopped due to user closing modal manually.');
         }
         
         // If modal was just closed and we were on the step tab, go back to apply tab
@@ -2829,7 +3392,8 @@ function pollForModalLogic() {
 function markBlockedJobs() {
     chrome.storage.local.get(['abbyParams'], (res) => {
         if (res.abbyParams) abbyParams = normalizeParams(res.abbyParams);
-        const keywords = abbyParams.ignore?.keywords || [];
+        const ignoreEnabled = abbyParams.ignore?.enabled !== false;
+        const keywords = (ignoreEnabled && abbyParams.ignore?.keywords) || [];
         const customRegex = compileCustomRegexList();
         const caseSensitive = false;
 
@@ -2837,13 +3401,19 @@ function markBlockedJobs() {
 
         jobCards.forEach(card => {
             const titleEl = card.querySelector('.job-card-list__title, .job-card-container__title, .artdeco-entity-lockup__title');
-            if (!titleEl && !card.textContent) return;
-            const rawText = titleEl ? titleEl.textContent : card.textContent;
-            const fullText = caseSensitive ? rawText : rawText.toLowerCase();
-            const isBlocked = keywords.some(k => {
+            const descEl = card.querySelector('.job-card-list__description, .job-card-container__description, .artdeco-entity-lockup__subtitle, .base-search-card__subtitle');
+
+            if (!titleEl && !descEl && !card.textContent) return;
+
+            const titleText = titleEl ? titleEl.textContent : '';
+            const descText = descEl ? descEl.textContent : '';
+            const combinedText = titleText + ' ' + descText;
+            const fullText = caseSensitive ? combinedText : combinedText.toLowerCase();
+
+            const isBlocked = ignoreEnabled && (keywords.some(k => {
                 const needle = caseSensitive ? String(k || '').trim() : String(k || '').trim().toLowerCase();
                 return needle && fullText.includes(needle);
-            }) || customRegex.some(rx => rx.test(rawText || ''));
+            }) || customRegex.some(rx => rx.test(combinedText || '')));
 
             card.querySelectorAll('[data-abby-skip-badge="true"]').forEach(node => node.remove());
 
@@ -2878,6 +3448,225 @@ function markBlockedJobs() {
                 }
             }
         });
+    });
+}
+
+function addAppliedCheckmarks() {
+    chrome.storage.local.get(['appliedJobsLog', 'skippedJobsLog'], (res) => {
+        const appliedJobs = res.appliedJobsLog || [];
+        const skippedJobs = res.skippedJobsLog || [];
+        const appliedIds = new Set(appliedJobs.map(j => j.jobId));
+        const skippedIds = new Set(skippedJobs.map(j => j.jobId));
+
+        const jobCards = document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container');
+        jobCards.forEach(card => {
+            const jobId = card.getAttribute('data-occludable-job-id') ||
+                         card.getAttribute('data-job-id') ||
+                         card.querySelector('a[href*="/jobs/view/"]')?.href.split('/view/')[1];
+
+            if (!jobId) return;
+
+            const isApplied = appliedIds.has(jobId);
+            const isSkipped = skippedIds.has(jobId);
+            const wasApplied = card.getAttribute('data-abby-applied') === 'true';
+            const wasSkipped = card.getAttribute('data-abby-skipped') === 'true';
+
+            // Only update if status changed
+            if (isApplied === wasApplied && isSkipped === wasSkipped) return;
+
+            card.setAttribute('data-abby-applied', isApplied ? 'true' : 'false');
+            card.setAttribute('data-abby-skipped', isSkipped ? 'true' : 'false');
+
+            // Remove if skipped or already applied via Easy Apply
+            if (isSkipped) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // Check for existing control buttons
+            let existingBtns = card.querySelector('[data-abby-controls="true"]');
+            if (existingBtns) {
+                const checkBtn = existingBtns.querySelector('[data-abby-checkmark="true"]');
+                const skipBtn = existingBtns.querySelector('[data-abby-skip-btn="true"]');
+                if (checkBtn) {
+                    checkBtn.innerHTML = isApplied ? '✓' : '☐';
+                    checkBtn.setAttribute('data-applied', isApplied ? 'true' : 'false');
+                }
+                applyCardStyles(card, isApplied);
+                return;
+            }
+
+            // Ensure card has position for absolute positioning
+            if (!card.style.position || card.style.position === 'static') {
+                card.style.position = 'relative';
+            }
+
+            // Create control buttons container
+            const controlsDiv = document.createElement('div');
+            controlsDiv.setAttribute('data-abby-controls', 'true');
+            controlsDiv.style.position = 'absolute';
+            controlsDiv.style.left = '8px';
+            controlsDiv.style.top = '50%';
+            controlsDiv.style.transform = 'translateY(-50%)';
+            controlsDiv.style.display = 'flex';
+            controlsDiv.style.gap = '4px';
+            controlsDiv.style.zIndex = '100';
+
+            // Create checkmark button on LEFT
+            const checkBtn = document.createElement('button');
+            checkBtn.setAttribute('data-abby-checkmark', 'true');
+            checkBtn.setAttribute('data-job-id', jobId);
+            checkBtn.setAttribute('data-applied', isApplied ? 'true' : 'false');
+            checkBtn.style.width = '32px';
+            checkBtn.style.height = '32px';
+            checkBtn.style.minWidth = '32px';
+            checkBtn.style.minHeight = '32px';
+            checkBtn.style.borderRadius = '6px';
+            checkBtn.style.cursor = 'pointer';
+            checkBtn.style.fontSize = '16px';
+            checkBtn.style.display = 'flex';
+            checkBtn.style.alignItems = 'center';
+            checkBtn.style.justifyContent = 'center';
+            checkBtn.style.padding = '0';
+            checkBtn.style.boxSizing = 'border-box';
+            checkBtn.style.transition = 'background-color 0.2s, color 0.2s, border-color 0.2s';
+            checkBtn.style.border = 'none';
+            checkBtn.title = isApplied ? 'Unmark as applied' : 'Mark as applied';
+            checkBtn.innerHTML = isApplied ? '✓' : '☐';
+
+            applyCheckmarkStyles(checkBtn, isApplied);
+
+            checkBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                toggleJobApplied(jobId, checkBtn, card);
+            });
+
+            // Create skip button on RIGHT
+            const skipBtn = document.createElement('button');
+            skipBtn.setAttribute('data-abby-skip-btn', 'true');
+            skipBtn.setAttribute('data-job-id', jobId);
+            skipBtn.style.width = '32px';
+            skipBtn.style.height = '32px';
+            skipBtn.style.minWidth = '32px';
+            skipBtn.style.minHeight = '32px';
+            skipBtn.style.borderRadius = '6px';
+            skipBtn.style.cursor = 'pointer';
+            skipBtn.style.fontSize = '16px';
+            skipBtn.style.display = 'flex';
+            skipBtn.style.alignItems = 'center';
+            skipBtn.style.justifyContent = 'center';
+            skipBtn.style.padding = '0';
+            skipBtn.style.boxSizing = 'border-box';
+            skipBtn.style.border = '2px solid #ddd';
+            skipBtn.style.background = '#f0f0f0';
+            skipBtn.style.color = '#999';
+            skipBtn.style.transition = 'background-color 0.2s, color 0.2s, border-color 0.2s';
+            skipBtn.title = 'Skip this job';
+            skipBtn.innerHTML = '✕';
+
+            skipBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                toggleJobSkipped(jobId, card);
+            });
+
+            controlsDiv.appendChild(checkBtn);
+            controlsDiv.appendChild(skipBtn);
+            card.appendChild(controlsDiv);
+
+            applyCardStyles(card, isApplied);
+        });
+    });
+}
+
+function applyCheckmarkStyles(checkBtn, isApplied) {
+    if (isApplied) {
+        checkBtn.style.backgroundColor = '#4CAF50';
+        checkBtn.style.color = '#fff';
+        checkBtn.style.border = '2px solid #4CAF50';
+        checkBtn.style.fontWeight = 'bold';
+    } else {
+        checkBtn.style.backgroundColor = '#f0f0f0';
+        checkBtn.style.color = '#999';
+        checkBtn.style.border = '2px solid #ddd';
+        checkBtn.style.fontWeight = 'normal';
+    }
+}
+
+function applyCardStyles(card, isApplied) {
+    if (isApplied) {
+        card.style.backgroundColor = 'rgba(76, 175, 80, 0.15)';
+    } else {
+        card.style.backgroundColor = '';
+    }
+}
+
+function toggleJobApplied(jobId, checkBtn, card) {
+    if (!jobId) return;
+
+    chrome.storage.local.get(['appliedJobsLog'], (res) => {
+        let log = res.appliedJobsLog || [];
+        const isCurrentlyApplied = log.some(j => j.jobId === jobId);
+        const newAppliedState = !isCurrentlyApplied;
+
+        if (isCurrentlyApplied) {
+            // Remove from applied
+            log = log.filter(j => j.jobId !== jobId);
+        } else {
+            // Add to applied
+            log.push({
+                jobId,
+                url: window.location.href,
+                timestamp: Date.now(),
+                appliedAt: new Date().toISOString()
+            });
+        }
+
+        // Update UI using helper functions
+        checkBtn.innerHTML = newAppliedState ? '✓' : '☐';
+        checkBtn.setAttribute('data-applied', newAppliedState ? 'true' : 'false');
+        checkBtn.title = newAppliedState ? 'Unmark as applied' : 'Mark as applied';
+        applyCheckmarkStyles(checkBtn, newAppliedState);
+
+        if (card) {
+            card.setAttribute('data-abby-applied', newAppliedState ? 'true' : 'false');
+            applyCardStyles(card, newAppliedState);
+        }
+
+        chrome.storage.local.set({ appliedJobsLog: log });
+        console.log('[EZ Apply] Job applied state toggled:', jobId);
+    });
+}
+
+function toggleJobSkipped(jobId, card) {
+    if (!jobId) return;
+
+    chrome.storage.local.get(['skippedJobsLog'], (res) => {
+        let log = res.skippedJobsLog || [];
+        const isCurrentlySkipped = log.some(j => j.jobId === jobId);
+
+        if (isCurrentlySkipped) {
+            // Remove from skipped
+            log = log.filter(j => j.jobId !== jobId);
+            card.style.display = '';
+        } else {
+            // Add to skipped
+            log.push({
+                jobId,
+                url: window.location.href,
+                timestamp: Date.now(),
+                skippedAt: new Date().toISOString()
+            });
+            card.style.display = 'none';
+        }
+
+        if (card) {
+            card.setAttribute('data-abby-skipped', !isCurrentlySkipped ? 'true' : 'false');
+        }
+
+        chrome.storage.local.set({ skippedJobsLog: log });
+        console.log('[EZ Apply] Job skipped state toggled:', jobId);
     });
 }
 
@@ -2920,7 +3709,7 @@ window.addEventListener('message', (event) => {
            // We are coming from a new search page that has abby_auto=1 set in the URL because the user initiated it
            urlObj.searchParams.delete('abby_auto');
            window.history.replaceState({}, '', urlObj.toString());
-           console.log("[Abby] New search page loaded, waiting for user click before auto applying.");
+           console.log("[EZ Apply] New search page loaded, waiting for user click before auto applying.");
            return;
         }
 
@@ -2958,8 +3747,36 @@ function seedCanonicalDefaults() {
     });
 }
 
+function updateSearchModeUI(mode) {
+    const btn1 = document.getElementById('ea-search-mode-1');
+    const btn2 = document.getElementById('ea-search-mode-2');
+    if (btn1 && btn2) {
+        btn1.classList.toggle('active', mode === '1');
+        btn2.classList.toggle('active', mode === '2');
+    }
+}
+
+function initFromStorage() {
+    if (!chrome.runtime?.id) return;
+    chrome.storage.local.get(['abbyApplyMode', 'abbyParams', 'abbyAutoStartApply', 'abbySearchMode'], (res) => {
+        if (res.abbyApplyMode) abbyApplyMode = res.abbyApplyMode;
+        if (res.abbyParams) abbyParams = normalizeParams(res.abbyParams);
+        if (res.abbySearchMode) updateSearchModeUI(res.abbySearchMode);
+        syncApplyAvailability();
+        if (res.abbyAutoStartApply) {
+            chrome.storage.local.remove(['abbyAutoStartApply']);
+            setTimeout(() => {
+                startAutoApply();
+            }, 1000);
+        }
+    });
+}
+
 urlChecker = setInterval(checkUrlAndManageUI, 1000);
-setTimeout(seedCanonicalDefaults, 1500); // run once after extension settles
+setTimeout(() => {
+    initFromStorage();
+    seedCanonicalDefaults();
+    loadRegexAnswers(); // cache regex answer patterns
+}, 2000);
 setAutoApplyDataset('idle', 'Ready.', '');
 refreshParams(false);
-

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Abby</title>
+  <title>EZ Apply</title>
   <style>
     * {
       box-sizing: border-box;
@@ -161,7 +161,7 @@
       top: 3px;
       background: #fff;
       border-radius: 50%;
-      transition: transform 0.2s;
+      transition: width 0.2s, height 0.2s, left 0.2s, top 0.2s, transform 0.2s;
     }
 
     input:checked+.slider {
@@ -169,6 +169,10 @@
     }
 
     input:checked+.slider::before {
+      width: 20px;
+      height: 20px;
+      left: 1px;
+      top: 2px;
       transform: translateX(18px);
     }
 
@@ -335,7 +339,7 @@
 <body>
   <div class="header">
     <span class="logo">⚡</span>
-    <span class="title">Abby <span class="menu-version" id="versionText">v1.1.20</span></span>
+    <span class="title">EZ Apply <span class="menu-version" id="versionText">v1.1.53</span></span>
     <div class="header-actions">
       <span class="theme-icon" id="themeIcon" aria-hidden="true">🌙</span>
       <label class="switch" title="Dark Theme">
@@ -348,7 +352,7 @@
   <div class="toggle-stack">
     <div class="toggle-row">
       <div class="toggle-cell">
-        <div class="toggle-cell-label">Enable Abby</div>
+        <div class="toggle-cell-label">Enable EZ Apply</div>
         <label class="switch">
           <input type="checkbox" id="autopilotToggle">
           <span class="slider"></span>

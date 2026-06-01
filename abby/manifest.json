@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Abby (easyapply)",
-    "version": "1.1.20",
+  "name": "EZ Apply",
+    "version": "1.1.53",
   "description": "Local MVP Chrome Extension for automating and autofilling LinkedIn Easy Apply workflows.",
   "permissions": [
     "storage",
@@ -15,7 +15,12 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Abby"
+    "default_title": "Abby",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "options_ui": {
     "page": "settings.html",
@@ -39,8 +44,8 @@
     }
   ],
   "icons": {
-    "16": "logo.png",
-    "48": "logo.png",
-    "128": "logo.png"
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }
