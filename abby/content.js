@@ -2743,11 +2743,49 @@ async function advanceToNextEligibleJob() {
     runAutoApplyLoop();
 }
 
+function uncheckFollowCheckboxes(modal) {
+    if (!modal) return;
+    const checkboxes = collectFromShadow(modal, 'input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        const label = checkbox.closest('label') || checkbox.nextElementSibling;
+        const text = label ? (label.textContent || '').toLowerCase() : '';
+        if (text.includes('follow') || text.includes('stay up to date') || text.includes('hear from')) {
+            if (checkbox.checked) {
+                checkbox.checked = false;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('[EZ Apply] Unchecked follow checkbox');
+            }
+        }
+    });
+}
+
+function removeFollowAnswersFromCache() {
+    chrome.storage.local.get(['savedAnswers'], (res) => {
+        let answers = res.savedAnswers || {};
+        let modified = false;
+        Object.keys(answers).forEach(key => {
+            const lower = key.toLowerCase();
+            if (lower.includes('follow') || lower.includes('stay up to date') || lower.includes('hear from')) {
+                delete answers[key];
+                modified = true;
+                console.log('[EZ Apply] Removed follow answer from cache:', key);
+            }
+        });
+        if (modified) {
+            chrome.storage.local.set({ savedAnswers: answers });
+        }
+    });
+}
+
 async function submitCurrentApplication(modal, advanceButton) {
     await scrollEasyApplyReview(modal);
     await wait(2000); // Wait 2s for page to fully load before interacting
     ensureConfirmCheckboxesChecked(modal);
     await saveCurrentFieldsAsync();
+
+    // Uncheck follow checkboxes before submitting
+    uncheckFollowCheckboxes(modal);
+    removeFollowAnswersFromCache();
 
     autoApplyPostSubmit = true; // guard: prevent pollForModalLogic from resetting during close+advance (set BEFORE click to prevent race)
     await clickButton(advanceButton, 1);
@@ -3501,13 +3539,12 @@ function addAppliedCheckmarks() {
                 card.style.position = 'relative';
             }
 
-            // Create control buttons container
+            // Create control buttons container (top-right, left of native X)
             const controlsDiv = document.createElement('div');
             controlsDiv.setAttribute('data-abby-controls', 'true');
             controlsDiv.style.position = 'absolute';
-            controlsDiv.style.left = '8px';
-            controlsDiv.style.top = '50%';
-            controlsDiv.style.transform = 'translateY(-50%)';
+            controlsDiv.style.right = '50px';
+            controlsDiv.style.top = '8px';
             controlsDiv.style.display = 'flex';
             controlsDiv.style.gap = '4px';
             controlsDiv.style.zIndex = '100';
