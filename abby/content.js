@@ -3496,7 +3496,7 @@ function addAppliedCheckmarks() {
         const appliedIds = new Set(appliedJobs.map(j => j.jobId));
         const skippedIds = new Set(skippedJobs.map(j => j.jobId));
 
-        const jobCards = document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container');
+        const jobCards = document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container, [data-job-id]');
         jobCards.forEach(card => {
             const jobId = card.getAttribute('data-occludable-job-id') ||
                          card.getAttribute('data-job-id') ||
@@ -3508,31 +3508,33 @@ function addAppliedCheckmarks() {
             const isSkipped = skippedIds.has(jobId);
             const wasApplied = card.getAttribute('data-abby-applied') === 'true';
             const wasSkipped = card.getAttribute('data-abby-skipped') === 'true';
+            const hasControls = !!card.querySelector('[data-abby-controls="true"]');
 
-            // Only update if status changed
-            if (isApplied === wasApplied && isSkipped === wasSkipped) return;
-
-            card.setAttribute('data-abby-applied', isApplied ? 'true' : 'false');
-            card.setAttribute('data-abby-skipped', isSkipped ? 'true' : 'false');
-
-            // Remove if skipped or already applied via Easy Apply
+            // Remove if skipped
             if (isSkipped) {
                 card.style.display = 'none';
                 return;
             }
 
-            // Check for existing control buttons
-            let existingBtns = card.querySelector('[data-abby-controls="true"]');
-            if (existingBtns) {
-                const checkBtn = existingBtns.querySelector('[data-abby-checkmark="true"]');
-                const skipBtn = existingBtns.querySelector('[data-abby-skip-btn="true"]');
+            // Check for existing control buttons - update if already has them
+            if (hasControls) {
+                // Only update if status changed
+                if (isApplied === wasApplied && isSkipped === wasSkipped) return;
+
+                const checkBtn = card.querySelector('[data-abby-checkmark="true"]');
                 if (checkBtn) {
                     checkBtn.innerHTML = isApplied ? '✓' : '☐';
                     checkBtn.setAttribute('data-applied', isApplied ? 'true' : 'false');
                 }
+                card.setAttribute('data-abby-applied', isApplied ? 'true' : 'false');
+                card.setAttribute('data-abby-skipped', isSkipped ? 'true' : 'false');
                 applyCardStyles(card, isApplied);
                 return;
             }
+
+            // Create controls if they don't exist yet
+            card.setAttribute('data-abby-applied', isApplied ? 'true' : 'false');
+            card.setAttribute('data-abby-skipped', isSkipped ? 'true' : 'false');
 
             // Ensure card has position for absolute positioning
             if (!card.style.position || card.style.position === 'static') {
