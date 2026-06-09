@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Abby Settings</title>
+    <title>EZ Apply Settings</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *,
@@ -104,6 +104,20 @@
         .btn-primary {
             background: linear-gradient(90deg, #A18CD1, #FBC2EB);
             color: #fff;
+        }
+
+        #export-data-btn, #import-data-btn {
+            background: rgba(255,255,255,0.08);
+            color: #cdd4f0;
+            border: 1px solid rgba(255,255,255,0.18);
+            padding: 7px 14px;
+            font-size: 12px;
+        }
+
+        .light-theme #export-data-btn, .light-theme #import-data-btn {
+            background: rgba(0,0,0,0.06);
+            color: #444;
+            border: 1px solid rgba(0,0,0,0.15);
         }
 
         .btn:hover {
@@ -423,7 +437,7 @@
             top: 3px;
             background: #fff;
             border-radius: 50%;
-            transition: transform 0.2s;
+            transition: width 0.2s, height 0.2s, left 0.2s, top 0.2s, transform 0.2s;
         }
 
         .switch input:checked + .slider {
@@ -431,6 +445,10 @@
         }
 
         .switch input:checked + .slider::before {
+            width: 20px;
+            height: 20px;
+            left: 1px;
+            top: 2px;
             transform: translateX(18px);
         }
 
@@ -618,8 +636,11 @@
 
     <div class="topbar">
         <span style="font-size:20px">⚡</span>
-        <h1>Abby Settings</h1>
+        <h1>EZ Apply Settings</h1>
         <div class="topbar-actions">
+            <button class="btn" id="export-data-btn" title="Download all EZ Apply data as a backup JSON file">Export Data</button>
+            <button class="btn" id="import-data-btn" title="Restore EZ Apply data from a backup JSON file">Import Data</button>
+            <input type="file" id="import-file-input" accept=".json" style="display:none">
             <button class="btn btn-primary" id="save-all-btn">Save All</button>
             <span id="save-status"></span>
         </div>
@@ -643,7 +664,7 @@
             <div id="pane-info" class="content-pane active">
                 <div id="settings-fields">
                     <div class="toggle-row">
-                        <label class="toggle-label" for="autopilot">Enable Abby</label>
+                        <label class="toggle-label" for="autopilot">Enable EZ Apply</label>
                         <label class="switch">
                             <input type="checkbox" id="autopilot">
                             <span class="slider"></span>
@@ -682,8 +703,14 @@
                             <label>Saved Search List</label>
                             <div class="search-list" id="settingsSearchList"></div>
                         </div>
-                        <div class="form-group">
-                            <label for="ignoreKeywords">Ignore Keywords</label>
+                        <div class="form-group" style="position: relative;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <label for="ignoreKeywords">Ignore Keywords</label>
+                                <label class="switch" title="Enable/disable ignore keywords feature" style="margin: 0;">
+                                    <input type="checkbox" id="ignoreFeatureToggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                             <textarea class="form-textarea" id="ignoreKeywords" placeholder="founding, machine learning"></textarea>
                         </div>
                         <div class="form-group" title="How many times to click 'Next' to get past the first page of LinkedIn if required. Default 2.">
@@ -706,7 +733,7 @@
                             <label for="limitPerMinute">Apply Limit Per Minute</label>
                             <input class="form-input" id="limitPerMinute" type="number" min="1" step="1">
                         </div>
-                        <div class="form-group" title="Hard limit for number of submits per hour. Pauses Abby automatically. Default 30.">
+                        <div class="form-group" title="Hard limit for number of submits per hour. Pauses EZ Apply automatically. Default 30.">
                             <label for="limitPerHour">Apply Limit Per Hour</label>
                             <input class="form-input" id="limitPerHour" type="number" min="1" step="1">
                         </div>

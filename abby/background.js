@@ -23,7 +23,7 @@ const DEFAULT_PARAMS = {
         rateLimits: { perMinute: 5, perHour: 30, perDay: 200 },
         burstRest: { every: 5, minSeconds: 5, maxSeconds: 10 }
     },
-    customRegex: []
+    customRegex: ['in office']
 };
 
 function mergeDeep(base, patch) {
@@ -232,6 +232,34 @@ async function runLinkedInSearchSetup(tabId, params) {
                         scroller.scrollTop = Math.round(scroller.scrollHeight * 0.5);
                         await wait(400);
                     }
+                    
+                    const selectFilterOption = async (searchText) => {
+                        const target = Array.from(modal.querySelectorAll('label, span, p')).find(el => clean(el.innerText || el.textContent || '') === clean(searchText));
+                        if (target) {
+                            const checkbox = target.closest('li, div, label')?.querySelector('input[type="checkbox"]');
+                            if (checkbox && !checkbox.checked) {
+                                checkbox.click();
+                                await wait(300);
+                            } else if (!checkbox) {
+                                target.click();
+                                await wait(300);
+                            }
+                        }
+                    };
+
+                    // Experience levels: Entry level, Associate, Mid-Senior level
+                    if (scroller) scroller.scrollTop = 200; await wait(300);
+                    await selectFilterOption('Entry level');
+                    await selectFilterOption('Associate');
+                    await selectFilterOption('Mid-Senior level');
+
+                    // Job type: Full-time
+                    if (scroller) scroller.scrollTop = 500; await wait(300);
+                    await selectFilterOption('Full-time');
+
+                    // Easy Apply: On
+                    if (scroller) scroller.scrollTop = scroller.scrollHeight * 0.7; await wait(300);
+
                     const toggleStartedAt = Date.now();
                     let easyApplyToggle = null;
                     while (Date.now() - toggleStartedAt < 6000) {
@@ -246,6 +274,7 @@ async function runLinkedInSearchSetup(tabId, params) {
                         clickToggle(easyApplyToggle);
                         await wait(600);
                     }
+                    
                     const showResultsButton = findShowResultsButton();
                     if (!showResultsButton) return { ok: false, error: 'Show results button not found in filters modal.' };
                     showResultsButton.click();
@@ -284,8 +313,13 @@ async function exportLogsCsv() {
     return { ok: true, skipped: true, reason: 'csv_export_disabled' };
 }
 
+const DEFAULT_REGEX_ANSWERS = [
+    { pattern: '*why do you want to work*', type: 'text', answer: '' },
+    { pattern: '*accomplishments*', type: 'text', answer: '' }
+];
+
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.get(['profiles', 'activeProfileId', 'profileData', 'settings', 'abbyParams', 'abbyApplyMode', 'abbyApplyStats'], (result) => {
+    chrome.storage.local.get(['profiles', 'activeProfileId', 'profileData', 'settings', 'abbyParams', 'abbyApplyMode', 'abbyApplyStats', 'savedRegexAnswers'], (result) => {
         const next = {};
 
         if (!result.profiles || !result.profiles.length) {
@@ -301,9 +335,23 @@ chrome.runtime.onInstalled.addListener(() => {
 
         if (!result.abbyParams) {
             next.abbyParams = DEFAULT_PARAMS;
+        } else {
+            // Merge any new default customRegex entries into existing stored params
+            const stored = result.abbyParams;
+            const existing = Array.isArray(stored.customRegex) ? stored.customRegex : [];
+            const merged = Array.from(new Set([...existing, ...DEFAULT_PARAMS.customRegex]));
+            if (merged.length !== existing.length) {
+                next.abbyParams = Object.assign({}, stored, { customRegex: merged });
+            }
         }
         if (!result.abbyApplyMode) next.abbyApplyMode = 'auto';
         if (!result.abbyApplyStats) next.abbyApplyStats = { auto: 0, manual: 0 };
+
+        // Merge new default regex answer patterns into existing (preserving user's custom answers)
+        const existingRegex = Array.isArray(result.savedRegexAnswers) ? result.savedRegexAnswers : [];
+        const existingPatterns = new Set(existingRegex.map(e => e.pattern));
+        const newEntries = DEFAULT_REGEX_ANSWERS.filter(e => !existingPatterns.has(e.pattern));
+        if (newEntries.length) next.savedRegexAnswers = [...existingRegex, ...newEntries];
 
         chrome.storage.local.set(next);
     });

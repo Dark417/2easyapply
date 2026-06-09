@@ -1,10 +1,10 @@
 let allProfiles = [];
 let activeProfileId = null;
-let globalSettings = { autopilotEnabled: true };
+let globalSettings = { autopilotEnabled: false };
 let abbyParams = {
     searches: ['California, United States'],
     selectedSearch: 'California, United States',
-    ignore: { caseSensitive: false, keywords: ['founding', 'machine learning'] },
+    ignore: { enabled: true, caseSensitive: false, keywords: ['founding', 'machine learning'] },
     linkedin: { filters: ['Easy Apply'], clickCount: 2, minClickDelaySeconds: 0.8 },
     auto: {
         delaysMs: { min: 300, max: 1200 },
@@ -70,7 +70,7 @@ function loadSearchConfig() {
 function initSettings() {
     chrome.storage.local.get(['profiles', 'activeProfileId', 'settings', 'savedAnswerGroups', 'savedAnswers', 'abbyParams', 'abbyTheme'], (res) => {
         if (res.abbyTheme === 'light') document.body.classList.add('light-theme');
-        globalSettings = res.settings || { autopilotEnabled: true };
+        globalSettings = res.settings || { autopilotEnabled: false };
         abbyParams = res.abbyParams || abbyParams;
 
         if (res.profiles && res.profiles.length > 0) {
@@ -105,6 +105,14 @@ function initSettings() {
         chrome.runtime.sendMessage({ type: 'abby:set-theme', theme: nextTheme });
     });
 
+    const ignoreFeatureToggle = document.getElementById('ignoreFeatureToggle');
+    if (ignoreFeatureToggle) {
+        ignoreFeatureToggle.addEventListener('change', function () {
+            if (abbyParams.ignore) abbyParams.ignore.enabled = this.checked;
+            chrome.runtime.sendMessage({ type: 'abby:update-params', params: abbyParams });
+        });
+    }
+
     document.querySelectorAll('.content-tab').forEach(button => {
         button.addEventListener('click', () => setContentPane(button.dataset.pane));
     });
@@ -126,6 +134,59 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) themeToggle.checked = changes.abbyTheme.newValue === 'dark';
     }
+});
+
+// ── Export / Import ────────────────────────────────────────
+const EXPORT_KEYS = [
+    'savedAnswers', 'savedAnswerGroups', 'savedRegexAnswers',
+    'abbyParams', 'abbyApplyMode', 'abbyApplyStats', 'abbyAppLogs',
+    'appliedJobsLog', 'settings', 'profiles', 'activeProfileId', 'profileData',
+    'abbyTheme'
+];
+
+document.getElementById('export-data-btn').addEventListener('click', () => {
+    chrome.storage.local.get(EXPORT_KEYS, (data) => {
+        const blob = new Blob([JSON.stringify({ _abbyBackup: true, _version: 1, _date: new Date().toISOString(), ...data }, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `abby-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        const el = document.getElementById('save-status');
+        el.textContent = 'Exported!';
+        setTimeout(() => { el.textContent = ''; }, 2000);
+    });
+});
+
+document.getElementById('import-data-btn').addEventListener('click', () => {
+    document.getElementById('import-file-input').click();
+});
+
+document.getElementById('import-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        try {
+            const data = JSON.parse(ev.target.result);
+            if (!data._abbyBackup) {
+                alert('This does not look like an Abby backup file.');
+                return;
+            }
+            const toRestore = {};
+            EXPORT_KEYS.forEach(k => { if (k in data) toRestore[k] = data[k]; });
+            chrome.storage.local.set(toRestore, () => {
+                const el = document.getElementById('save-status');
+                el.textContent = 'Imported! Reloading...';
+                setTimeout(() => location.reload(), 800);
+            });
+        } catch (err) {
+            alert('Failed to parse backup file: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
 });
 
 function setContentPane(name) {
@@ -200,6 +261,7 @@ function loadActiveProfile() {
 function renderSearchConfig() {
     document.getElementById('searchText').value = abbyParams.selectedSearch || '';
     document.getElementById('ignoreKeywords').value = ((abbyParams.ignore && abbyParams.ignore.keywords) || []).join(', ');
+    document.getElementById('ignoreFeatureToggle').checked = abbyParams.ignore?.enabled !== false;
     document.getElementById('clickCount').value = abbyParams.linkedin?.clickCount || 2;
     document.getElementById('minClickDelaySeconds').value = abbyParams.linkedin?.minClickDelaySeconds || 0.8;
     document.getElementById('delayMinMs').value = abbyParams.auto?.delaysMs?.min || 300;
@@ -285,6 +347,7 @@ function gatherSearchConfig() {
         searches,
         selectedSearch: typedSearch || searches[0] || '',
         ignore: {
+            enabled: document.getElementById('ignoreFeatureToggle').checked,
             caseSensitive: false,
             keywords: parseLines(document.getElementById('ignoreKeywords').value)
         },

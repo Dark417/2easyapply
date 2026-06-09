@@ -17,8 +17,8 @@
   --abby-surface: rgba(255, 255, 255, 0.09);
   --abby-surface-strong: rgba(255, 255, 255, 0.14);
   --abby-table-hover: rgba(255, 255, 255, 0.06);
-  --abby-input-bg: rgba(255, 255, 255, 0.08);
-  --abby-input-border: rgba(212, 221, 255, 0.28);
+  --abby-input-bg: rgba(255, 255, 255, 0.12);
+  --abby-input-border: rgba(212, 221, 255, 0.45);
   --abby-input-text: #f5f7fb;
   --abby-placeholder: #8d96af;
   --abby-success: #4bbf73;
@@ -506,6 +506,8 @@
 #abby-floating-ui #ea-apply-status {
   color: var(--abby-input-text) !important;
   -webkit-text-fill-color: var(--abby-input-text) !important;
+  background: var(--abby-input-bg) !important;
+  border: 1px solid var(--abby-input-border) !important;
 }
 
 #abby-floating-ui select.abby-val-input {
@@ -698,6 +700,38 @@ textarea.abby-val-input {
   opacity: 0.85;
 }
 
+.ea-mode-radio-group {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ea-mode-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--abby-border);
+  background: var(--abby-surface);
+  color: var(--abby-text-dim);
+  text-align: center;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.ea-mode-btn:hover {
+  background: var(--abby-surface-strong);
+  border-color: var(--abby-accent-soft);
+}
+
+.ea-mode-btn.active {
+  background: var(--abby-accent-soft);
+  border-color: var(--abby-accent);
+  color: var(--abby-accent);
+}
+
 .ea-btn-stop {
   background: linear-gradient(90deg, #c2575b, #e27d60);
 }
@@ -834,6 +868,32 @@ textarea.abby-val-input {
   text-align: center;
   padding: 16px 0;
   margin: 0;
+}
+
+/* ── Resize handle ───────────────────────────────────────── */
+.ea-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: linear-gradient(90deg, transparent 0%, rgba(212, 188, 255, 0.2) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  user-select: none;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+#abby-floating-ui:hover .ea-resize-handle {
+  opacity: 1;
+}
+
+.ea-resize-handle:active,
+.ea-resize-handle.resizing {
+  opacity: 1;
+  background: linear-gradient(90deg, transparent 0%, rgba(212, 188, 255, 0.4) 50%, transparent 100%);
 }
 
 /* ── Drag handle ─────────────────────────────────────────── */

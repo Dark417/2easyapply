@@ -1854,9 +1854,9 @@ function hookNextButton(modal) {
             hookedBtns.add(btn);
             btn.addEventListener('click', () => {
                 saveCurrentFields();
-                if (abbyApplyMode === 'auto' && !autoApplyRunning && pendingResumeAutoApplyUntil && Date.now() <= pendingResumeAutoApplyUntil) {
+                if (abbyApplyMode === 'auto' && !autoApplyRunning && !autoApplyStopRequested && pendingResumeAutoApplyUntil && Date.now() <= pendingResumeAutoApplyUntil) {
                     setTimeout(() => {
-                        if (autoApplyRunning) return;
+                        if (autoApplyRunning || autoApplyStopRequested) return;
                         const liveModal = findEasyApplyModal();
                         if (!liveModal) return;
                         pendingResumeAutoApplyUntil = 0;
@@ -3054,7 +3054,7 @@ function releaseEasyApplyModalFocus() {
 }
 
 function runAutoApplyLoop() {
-    if (!autoApplyRunning || !chrome.runtime?.id) return;
+    if (!autoApplyRunning || !chrome.runtime?.id || autoApplyStopRequested) return;
     const applyError = findApplyErrorMessage();
     if (applyError) {
         autoApplyRunning = false;
@@ -3215,12 +3215,12 @@ function watchRequiredFieldsAndResumeAfterInput(modal, fields) {
     const scheduleResume = () => {
         clearTimeout(pendingResumeRequiredFieldsTimer);
         pendingResumeRequiredFieldsTimer = setTimeout(() => {
-            if (autoApplyRunning) return;
+            if (autoApplyRunning || autoApplyStopRequested) return;
             const stillMissing = fields.some(f => f.required && !getFieldLiveValue(f));
             if (!stillMissing && !!findEasyApplyModal()) {
                 setAutoApplyDataset('running', formatApplyStatus('Resuming after user input...'), currentHeading);
                 setTimeout(() => {
-                    if (!autoApplyRunning) {
+                    if (!autoApplyRunning && !autoApplyStopRequested) {
                         autoApplyRunning = true;
                         runAutoApplyLoop();
                     }
@@ -3327,11 +3327,12 @@ function checkUrlAndManageUI() {
 
 function pollForModalLogic() {
     if (!chrome.runtime?.id) return;
+    if (autoApplyStopRequested) return;
     const modal = findEasyApplyModal();
     const statusText = document.getElementById('ea-current-action');
     const wrap = document.getElementById('ea-fields-wrap');
     const stepTab = document.getElementById('ea-tab-step');
-    
+
     highlightCurrentJobCard();
     syncAppliedJobCardVisuals();
     syncApplyAvailability();
@@ -3496,7 +3497,7 @@ function addAppliedCheckmarks() {
         const appliedIds = new Set(appliedJobs.map(j => j.jobId));
         const skippedIds = new Set(skippedJobs.map(j => j.jobId));
 
-        const jobCards = document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container, [data-job-id]');
+        const jobCards = document.querySelectorAll('li[data-occludable-job-id], .jobs-search-results__list-item, .job-card-container');
         jobCards.forEach(card => {
             const jobId = card.getAttribute('data-occludable-job-id') ||
                          card.getAttribute('data-job-id') ||
