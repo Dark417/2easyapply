@@ -5,6 +5,21 @@
 params
 *.env
 .env*
+# Local-only extension secrets (account password) — loaded by background.js into chrome.storage
+eve/secrets.local.json
+eve/secrets.local.json
+secrets.local.json
+
+# PII — never publish (the remote is a public repo)
+# Personal knowledge base: name, phone, home address, email, salary, employment history
+info/
+# Resume / cover letter PDFs (source copies and the packaged artifacts the engines attach)
+cv/
+eve/artifacts/
+abby/artifacts/
+*.pdf
+# Scratch/working dumps that routinely contain application content
+tmp/
 
 # Generated logs / dumps
 app-log.csv

@@ -1,10 +1,10 @@
-# Abby — Regex Question Mapping Reference
+# Eve — Regex Question Mapping Reference
 
-This document lists all canonical question mappings implemented in `abby/content.js` → `CANONICAL_QUESTIONS[]`.
+This document lists all canonical question mappings implemented in `eve/content.js` → `CANONICAL_QUESTIONS[]`.
 
 **How to read this table:**
 - **Step** — which step in the LinkedIn Easy Apply window this question appears under
-- **Target** — the short canonical label Abby displays (what you see in Abby's panel)
+- **Target** — the short canonical label Eve displays (what you see in Eve's panel)
 - **Variants** — example phrasings that appear in the original Easy Apply form
 - **Regex** — the actual pattern used in `content.js` to match and normalize
 - **Answer Type** — the kind of value expected: `Y/N`, `Text`, `Date`, `URL`, `Select`
@@ -79,19 +79,19 @@ This document lists all canonical question mappings implemented in `abby/content
 | `Text` | Free-form text input or textarea |
 | `Select` | Dropdown with multiple options (not just Yes/No) |
 | `URL` | A URL string (LinkedIn, GitHub, portfolio link, etc.) |
-| `Date` | A date field — Abby auto-fills with today's date dynamically |
+| `Date` | A date field — Eve auto-fills with today's date dynamically |
 
 ---
 
 ## Notes
 
-- **SKIP_HEADINGS**: Steps whose heading matches `/mark this job as a top choice/i` are silently skipped and not shown in Abby step history.
+- **SKIP_HEADINGS**: Steps whose heading matches `/mark this job as a top choice/i` are silently skipped and not shown in Eve step history.
 - **SKIP_TYPES**: Input types `file, hidden, submit, button, reset, image, search` are always excluded from the field table.
 - **SKIP_LABELS**: Labels containing `deselect, upload, remove, delete, choose file, browse` are excluded.
 - **Ignored fields rule**: ignored labels (for now includes `Mark ... top choice` and Resume-step `Resume`) are never shown, never saved, and never rendered in Settings sections.
-- For canonical keys (Work Authorization, Sponsorship, Salary, etc.), Abby saves one shared answer reused across ALL companies and ALL steps.
+- For canonical keys (Work Authorization, Sponsorship, Salary, etc.), Eve saves one shared answer reused across ALL companies and ALL steps.
 - Canonical regex matching is step-agnostic, so these shared mappings still apply if LinkedIn renders the question under `Voluntary self identification` or another step heading.
-- For shorthand like `regex: *salary*`, Abby adds a contains-match regex such as `/salary/i`, displays the question as `Salary`, and always reuses the same stored Abby value for later matches.
-- For non-canonical fields (Company, City, etc.), Abby uses a composite key `[Step Heading] Label` to keep them distinct per step.
+- For shorthand like `regex: *salary*`, Eve adds a contains-match regex such as `/salary/i`, displays the question as `Salary`, and always reuses the same stored Eve value for later matches.
+- For non-canonical fields (Company, City, etc.), Eve uses a composite key `[Step Heading] Label` to keep them distinct per step.
 - Location prompts are dynamic canonical by city so each city gets its own saved key, for example `Located in San Francisco`, `Located in San Jose`.
-- If the Easy Apply modal is closed mid-flow, Abby keeps the last recorded Step snapshot visible for review, but resets the Apply tab state so clicking `Apply` starts a fresh run again.
+- If the Easy Apply modal is closed mid-flow, Eve keeps the last recorded Step snapshot visible for review, but resets the Apply tab state so clicking `Apply` starts a fresh run again.

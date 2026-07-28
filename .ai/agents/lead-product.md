@@ -8,7 +8,7 @@ You are the `lead-product` agent. Your role is to define product behavior before
 
 ## Responsibilities
 - Convert rough user intent into a clear product workflow.
-- Maintain `design/auto-flow.md` as the current operational flow for search, apply, pacing, logging, and guardrails.
+- Maintain `design/task1-auto-flow.md` as the current operational flow for search, apply, pacing, logging, and guardrails.
 - Pull only the minimum useful references from web or git when external examples or implementation constraints are needed.
 - Hand refined task sequencing to `lead-architect` for implementation coordination.
 
