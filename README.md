@@ -1,113 +1,118 @@
-# 2easyapply — Eve
+# Eve
 
-Chrome extension that fills and submits job applications across the major application platforms,
-using a shared, regex-driven answer bank.
+A Chrome extension that applies to jobs for you.
+
+Eve sits on the job page you are already looking at, fills the whole application from your own
+answer bank, and submits it when — and only when — every required field is genuinely complete. You
+start it, walk away, and come back to a list of submitted applications.
 
 > "A ship in harbor is safe, but that is not what ships are built for." — John A. Shedd, *Salt from My Attic* (1928)
 
-## Branch Rule
-- Always use the `main` branch.
-- Do not use `master`.
+---
 
-## Download And Install
-1. Clone the repo:
-   - `git clone git@github.com:Dark417/2easyapply.git`
-2. Go into the project:
-   - `cd 2easyapply`
-3. Make sure you are on `main`:
-   - `git checkout main`
-4. Open the Chrome extensions page:
-   - `chrome://extensions/`
-5. Enable **Developer mode** (top-right).
-6. Click **Load unpacked**.
-7. Select the extension folder:
-   - `<your-cloned-repo>/eve`
-8. Pin Eve from the Chrome toolbar to manage, enable, and configure it.
+## What it looks like
 
-## Supported platforms
+**Search and shortlist on LinkedIn** — filter by how recently a job was posted, drop companies and
+titles you never want to see, and run the search loop.
 
-Each platform is an independent content script — one engine per template, no shared runtime — so a
-change to one can never break another. They all read the same answer bank.
+![Eve's search panel on LinkedIn](docs/screenshots/linkedin-search-panel.png)
 
-| Platform | Injected on | Engine |
-|---|---|---|
-| LinkedIn Easy Apply | `*.linkedin.com` | `eve/content.js` |
-| Workday | `*.myworkdayjobs.com`, `*.myworkdaysite.com` | `eve/workday.js` |
-| Greenhouse | `job-boards.greenhouse.io`, `my.greenhouse.io`, embedding hosts | `eve/greenhouse.js` |
-| Ashby | `*.ashbyhq.com` (also as a cross-origin embed) | `eve/greenhouse.js` |
-| Indeed Smart Apply | `smartapply.indeed.com` | `eve/indeed.js` |
-| SmartRecruiters | `jobs.smartrecruiters.com` | `eve/smartrecruiters.js` |
+**Fill and submit an application** — the panel reports what it filled and what it submitted.
 
-On a supported page a floating Eve panel appears with **Apply** (fill the whole application) and an
-**Info** tab showing what the engine can see. LinkedIn additionally has the search-and-loop flow
-driven from the toolbar popup.
+![Eve filling and submitting an Ashby application](docs/screenshots/ashby-submitted.png)
 
-## How it fills a form
+---
 
-1. **Resume and cover letter** are attached from the packaged artifacts where the form has a slot.
-2. **Text fields** are filled one at a time — click the field, type, click away onto empty space,
-   pause — because several platforms only commit and validate a value on blur.
-3. **Typeahead fields** (Location, country, work-authorization status) are never just typed into:
-   Eve types the search term, waits for the suggestion list, and **clicks** a suggestion. Typing
-   alone leaves the widget uncommitted and the field submits empty.
-4. **Choice controls** (dropdowns, radios, segmented Yes/No buttons, checkboxes) are answered from
-   the question bank, one selection at a time with a deliberate pause and a click away between
-   them. A dropdown with a single real option, or a lone unmatched checkbox, is treated as an
-   acknowledgement and selected.
-5. **Completeness gate** — Eve submits only when every required control is verifiably filled and no
-   CAPTCHA is present. Otherwise it holds and reports exactly what is missing. CAPTCHAs are never
-   touched.
+## Supported sites
 
-## The answer bank
+| Site | What Eve does there |
+|---|---|
+| **LinkedIn** | Search, shortlist, and run Easy Apply end to end |
+| **Workday** | Account creation/sign-in, the whole multi-step application, and submit |
+| **Greenhouse** | Fill and submit, including forms embedded in a company's own careers page |
+| **Ashby** | Fill and submit, including cross-origin embedded forms |
+| **Indeed** | The Smart Apply flow, step by step, through to submit |
+| **SmartRecruiters** | Fill everything; you review Experience/Education and submit |
 
-`DEFAULT_GH_QUESTIONS` (`eve/greenhouse.js`) and `DEFAULT_APPLICATION_QUESTIONS` /
-`DEFAULT_VOLUNTARY_DISCLOSURES` (`eve/workday.js`) hold the shared bank; `eve/indeed.js` receives a
-verbatim splice of the Greenhouse bank via `node tools/sync-indeed-bank.js`.
+Each site is handled by its own independent engine, so a change made for one platform can never
+break another. They all draw on the same answer bank.
 
-Each entry is a topic:
+---
 
-```js
-{
-    topic: 'sponsorship',
-    patterns: [/(require|need)[\s\S]{0,30}sponsorship/i, /sponsor an immigration case/i],
-    exclude: /please explain/i,          // stops a broad entry stealing a specific question
-    optionCandidates: [/^\s*h-?1b\b/i, /^\s*yes\b/i],   // ORDERED precedence, first hit wins
-    choose: 'yes',                       // affirmative/negative for plain Yes/No controls
-    text: 'Yes, H1b transfer.'           // answer for a free-text control
-}
-```
+## Main functions
 
-Rules that keep it maintainable:
+**Search and shortlist (LinkedIn).**
+Posted-within slider down to the hour, ignore-keywords for companies and titles you never want to
+see, saved locations, and a choice between driving LinkedIn's own filters or searching directly.
+Jobs you have already seen or dismissed stay dismissed.
 
-- **Patterns match the shape, never the sentence.** Company names, city names and example lists in
-  a question are incidental and must not appear in a pattern.
-- **First match wins**, so specific topics are ordered before broad ones; `exclude` resolves the
-  rest.
-- **`optionCandidates` is ordered precedence** — each candidate is a full pass over the option
-  list, and the first candidate with any hit selects. This is how one topic answers correctly
-  whether the control offers `Yes/No`, `C2: Proficient`, or `Native or Bilingual`.
-- **Answers are reasoned for the applicant**, not string-matched to the option text.
+**Fill an application.**
+One click fills the entire form: resume and cover letter, identity fields, location, and every
+question Eve recognises. Anything it cannot answer is listed by name so you can fill it in or teach
+it the answer.
 
-Users can add their own entries at runtime from the Settings page; those are merged over the
-shipped bank at fill time.
+**Submit when complete — never blind.**
+Eve submits only after verifying every required control is actually filled. If something is
+missing, it holds and tells you exactly what. It never touches a CAPTCHA.
 
-## Settings
+**An answer bank you own.**
+Answers are stored as topics matched by pattern, not by exact question text, so one entry answers
+the same question however a company words it. You can add your own from the settings page.
 
-The full Settings page holds profile values, saved answers, pacing, ignore keywords, and an
-**Applied Jobs** log — every submission across platforms in reverse-chronological order.
+**Applied-jobs log.**
+Every submission across every platform, in one list, newest first.
 
-## Development
+**Pacing you control.**
+Click counts, delays and rate limits are configurable, so an automated run does not look like a
+bot and does not get your account limited.
 
-- Extension source lives under `eve/`. It is a standalone extension; there is no local server.
-- Every change round: bump `eve/manifest.json`, reload the extension, and verify the browser is
-  serving the new code (a version bump alone proves nothing).
-- Bank changes must keep both suites green:
-  - `node tools/gh-bank-test.js` — Greenhouse/Ashby bank
-  - `node tools/bank-test.js` — Workday bank
-  Both **extract the real arrays from source** and replay the matching rule; never retype a regex
-  into a test, and never write regexes through a shell heredoc (`\b` becomes a 0x08 backspace).
-- Per-platform behaviour, DOM notes and live-confirmed selectors are documented in `design/`.
+---
 
-## Notes
-- UI state, saved answers and the applied-jobs log are persisted in Chrome local extension storage.
-- Local-only secrets (`eve/secrets.local.json`) are gitignored and never shipped.
+## How it is designed
+
+**One engine per site, no shared runtime.** Every platform's flow is isolated. This is the reason
+Eve can support six very different application systems without regressions leaking between them.
+
+**A shared answer bank, matched semantically.** A question is matched by its *shape*, never its
+literal wording — a company name, a city, or an example list inside a question is treated as
+incidental. When a question offers options, Eve picks by ordered preference over the options that
+actually exist, so a single stored answer works whether the site offers Yes/No buttons, a dropdown,
+a radio group, or a searchable list.
+
+**Answers are reasoned for you, not string-matched.** Eve chooses the option that best fits your
+real situation. It will not claim something untrue — for example, when a form offers "I'm based in
+this city" versus "I'm open to relocating", it takes the relocation option.
+
+**It behaves like a person, not a script.** Fields are filled one at a time: click the field, type,
+click away, pause. Choices are made one at a time with the same rhythm. Typeahead fields are typed
+into *and then a real suggestion is clicked*, because typing alone leaves those fields empty on
+submit. Several application platforms only validate on blur, and filling them at machine speed
+leaves genuinely-filled fields marked as errors.
+
+**Nothing is assumed to have worked.** An attachment counts only when the page shows the filename;
+a selection counts only when the control reports the value; the application is submitted only after
+the completeness check passes.
+
+---
+
+## Install
+
+1. `git clone git@github.com:Dark417/2easyapply.git`
+2. `cd 2easyapply` (stay on `main`; there is no `master`)
+3. Open `chrome://extensions/` and enable **Developer mode**
+4. **Load unpacked** → select the `eve` folder
+5. Pin Eve to the toolbar
+
+Open a supported job page and the Eve panel appears. The toolbar popup holds the global toggle and
+search setup; the settings page holds your profile, saved answers, pacing and the applied-jobs log.
+
+Your data — profile, answers, and the applied-jobs log — stays in Chrome's local extension storage
+on your machine.
+
+---
+
+## Repository
+
+- `eve/` — the extension
+- `design/` — how each platform's flow works and what has been confirmed live
+- `tools/` — answer-bank tests and development helpers

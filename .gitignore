@@ -10,7 +10,17 @@ eve/secrets.local.json
 eve/secrets.local.json
 secrets.local.json
 
+# Legacy / local-only extension copy — kept on disk, never published
+abby/
+abby.crx
+abby.pem
+ez-apply-*.zip
+bash.exe.stackdump
+scripts
+
 # PII — never publish (the remote is a public repo)
+# Old LinkedIn step screenshots (they show contact info)
+src/
 # Personal knowledge base: name, phone, home address, email, salary, employment history
 info/
 # Resume / cover letter PDFs (source copies and the packaged artifacts the engines attach)
