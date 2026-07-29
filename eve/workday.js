@@ -569,6 +569,10 @@
             exclude: /unrestricted/i,
             search: 'h1',
             optionCandidates: [
+                // "Can work for any employer / Can work for current employer / Seeking work
+                // authorization" (user, 2026-07-27): an H-1B holder can work for their CURRENT
+                // employer only - never "any employer", never "seeking".
+                /can work for (my )?current employer/i,
                 /(temporary work visa|h-?1b)[\s\S]{0,80}(transfer|sponsor)/i,
                 /\bh-?1b\b/i,
                 /authorized[\s\S]{0,80}sponsor[\s\S]{0,40}(later|future)/i
@@ -1474,13 +1478,21 @@
                 /within \d+ miles of (one of )?(our|the) hub/i,
                 /reside within \d+ miles/i,
                 /(at the time of hire|will you be) located within \d+ miles/i,
-                /within \d+ miles of the (hub|office) (advertised|listed)/i
-            ],
+                /within \d+ miles of the (hub|office) (advertised|listed)/i,
+                // "Please select which <Company> hub you are currently based out of:" (user,
+                // 2026-07-27) - a hub list with relocate / won't-relocate options at the end.
+                /which[\s\S]{0,30}hub[\s\S]{0,40}(are you )?(currently )?based (out )?of/i,
+                /which hub[\s\S]{0,40}(you|are you)/i
+                        ],
             optionCandidates: [
                 /not in (one of )?(the )?hub locations?[\s\S]{0,30}\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
                 /\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
-                /(?<!un)able to relocate/i
-            ],
+                /(?<!un)able to relocate/i,
+                // Both the WILLING and the NOT-WILLING option contain "willing to relocate", so
+                // the affirmative candidates are anchored at the start of the option text.
+                /^\s*willing to relocate/i,
+                /^\s*(yes|i am|i'm)[\s\S]{0,20}willing to relocate/i
+                        ],
             optionLabel: 'N/A - I am not in one of the hub locations but I AM able to relocate',
             text: 'I am not currently in one of the hub locations, but I am able to relocate.'
         },
@@ -1544,8 +1556,13 @@
                 // office 3 days per week...currently based in the listed location..." (#12).
                 /tied to the office location/i,
                 /hybrid work model[\s\S]{0,100}office[\s\S]{0,30}\d+[\s-]?days?/i,
-                /currently based in the listed location[\s\S]{0,60}(able to )?work in person/i
-            ],
+                /currently based in the listed location[\s\S]{0,60}(able to )?work in person/i,
+                // "…join us in the office every Tuesday and Wednesday…" (user, 2026-07-27):
+                // named weekdays instead of a day count.
+                /join (us )?in the office/i,
+                /in-?office (time|days?)/i,
+                /in the office every [a-z]+day/i
+                        ],
             choose: 'yes',
             // The last two fallback candidates carry a negative lookahead for "based in" so a
             // plain-Yes-shaped option can NEVER be picked when it also asserts current residency in

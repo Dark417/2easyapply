@@ -268,6 +268,20 @@
             choose: 'no'
         },
         {
+            // "Are you a U.S. Citizen or Green Card holder?" (Promise/Ashby, 2026-07-28) — a
+            // simpler citizenship/green-card question, distinct from the "US Person" ITAR-style
+            // definition above (no "lawful permanent resident"/"asylum"/"refugee" wording). Same
+            // answer for the same reason: the applicant is on an H-1B, not a citizen or green-card
+            // holder. Ordered so it never collides with plain work-authorization (stays Yes) or
+            // visa-sponsorship (stays Yes) topics — this one is specifically citizen-or-green-card.
+            topic: 'us-citizen-or-green-card',
+            patterns: [
+                /are you a u\.?s\.? citizen or green card holder/i,
+                /\bu\.?s\.? citizen\b[\s\S]{0,20}\bor\b[\s\S]{0,20}green card holder/i
+            ],
+            choose: 'no'
+        },
+        {
             // User override 2026-07-26: unrestricted right/work authorization -> Yes.
             // Ordered BEFORE the broader work-authorization topic.
             topic: 'unrestricted-right-to-work',
@@ -363,6 +377,10 @@
             optionCandidates: [
                 /(temporary work visa|h-?1-?b)[\s\S]{0,80}(transfer|sponsor)/i,
                 /work authorization requires[\s\S]{0,60}(renewal|sponsorship)/i,
+                // "U.S. Work Authorization Status: Can work for any employer / Can work for current
+                // employer / Seeking work authorization" (user, 2026-07-27) — an H-1B holder can
+                // work for their CURRENT employer only. Never "any employer", never "seeking".
+                /can work for (my )?current employer/i,
                 /\bh-?1-?b\b/i,
                 /authoriz(ed|ation)[\s\S]{0,80}sponsor[\s\S]{0,40}(later|future|now or in the future)/i
             ],
@@ -536,7 +554,12 @@
                 // office 3 days per week...currently based in the listed location..." (#12).
                 /tied to the office location/i,
                 /hybrid work model[\s\S]{0,100}office[\s\S]{0,30}\d+[\s-]?days?/i,
-                /currently based in the listed location[\s\S]{0,60}(able to )?work in person/i
+                /currently based in the listed location[\s\S]{0,60}(able to )?work in person/i,
+                // "Are you able to work in person at the <Company> office location listed in the job
+                // description at least four times per week?" (Promise/Ashby, 2026-07-28) — same
+                // shape as the "days per week" patterns above but worded as "times per week".
+                /\b(willing|able|comfortable|prepared|can you)\b[\s\S]{0,160}\b(office|on-?site)\b[\s\S]{0,100}\btimes? per week\b/i,
+                /work in person[\s\S]{0,60}office location[\s\S]{0,60}(times|days) per week/i
             ],
             choose: 'yes',
             // The last two fallback candidates carry a negative lookahead for "based in" so a
@@ -632,12 +655,21 @@
                 /within \d+ miles of (one of )?(our|the) hub/i,
                 /reside within \d+ miles/i,
                 /(at the time of hire|will you be) located within \d+ miles/i,
-                /within \d+ miles of the (hub|office) (advertised|listed)/i
+                /within \d+ miles of the (hub|office) (advertised|listed)/i,
+                // "Please select which <Company> hub you are currently based out of:" (user,
+                // 2026-07-27) — a hub list with relocate / won't-relocate options at the end.
+                /which[\s\S]{0,30}hub[\s\S]{0,40}(are you )?(currently )?based (out )?of/i,
+                /which hub[\s\S]{0,40}(you|are you)/i
             ],
+            // Ordered precedence. Both the WILLING and the NOT-WILLING option contain the words
+            // "willing to relocate", so the affirmative candidates are anchored at the start of the
+            // option text and the negative one can never win.
             optionCandidates: [
                 /not in (one of )?(the )?hub locations?[\s\S]{0,30}\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
                 /\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
-                /(?<!un)able to relocate/i
+                /^\s*willing to relocate/i,
+                /^\s*(yes|i am|i'm)[\s\S]{0,20}willing to relocate/i,
+                /(?<!not )(?<!un)able to relocate/i
             ],
             optionLabel: 'N/A - I am not in one of the hub locations but I AM able to relocate',
             text: 'I am not currently in one of the hub locations, but I am able to relocate.'
@@ -657,6 +689,11 @@
                 /work(ing)? (from|out of|at) (our|the)[\s\S]{0,60}office/i,
                 /\d+\s*days?\s*\/\s*week/i,
                 /(work|come) (on-?site|in the office)/i,
+                // "Are you able to join us in the office every Tuesday and Wednesday as part of our
+                // hybrid model?" (user, 2026-07-27) — named weekdays instead of a day count.
+                /join (us )?in the office/i,
+                /in-?office (time|days?)/i,
+                /in the office every [a-z]+day/i,
                 /commut(e|ing) to/i,
                 // "Do you live within commuting distance to one of our hubs (NY, SF, DC, BOS or
                 // London)?" (user, 2026-07-27) — the hub list is incidental, so match the shape:
@@ -1224,9 +1261,16 @@
         },
         {
             topic: 'sexual-orientation',
-            patterns: [/how would you describe your sexual orientation/i, /\bsexual orientation\b/i],
-            optionMatch: /^\s*heterosexual\s*$/i,
-            optionLabel: 'Heterosexual'
+            patterns: [
+                /how would you describe your sexual orientation/i,
+                // "How do you identify your sexual orientation? Please select all that apply." (Promise/Ashby, 2026-07-28)
+                /how do you identify your sexual orientation/i,
+                /\bsexual orientation\b/i
+            ],
+            // Word-boundary, not end-anchored: covers plain "Heterosexual" AND "Heterosexual / straight"
+            // (confirmed live 2026-07-28) without matching unrelated options.
+            optionMatch: /\bheterosexual\b/i,
+            optionLabel: 'Heterosexual / straight'
         },
         {
             topic: 'transgender',
@@ -1315,6 +1359,18 @@
             optionMatch: /^\s*no\b[\s\S]{0,20}(do not have a disability|not have)/i,
             optionLabel: "No, I don't have a disability",
             text: "No, I don't have a disability"
+        },
+        {
+            // "What is your current age?" (Promise/Ashby, 2026-07-28) — a VOLUNTARY EEO age-bracket
+            // disclosure (Under 30 / 30-39 / 40-49 / 50-59 / 60 or older / I prefer not to answer),
+            // distinct from the "age-minimum" Yes/No eligibility gate below. No real age fact is
+            // established in info/myworkdayjobs, and this class of voluntary self-ID question always
+            // has a legitimate decline option — same convention as gender/veteran/disability/hispanic
+            // when asked to disclose rather than confirm eligibility: decline rather than guess.
+            topic: 'age-bracket-voluntary',
+            patterns: [/what is your current age/i, /^current age$/i, /age bracket/i, /select your age range/i],
+            optionMatch: /prefer not to answer/i,
+            optionLabel: 'I prefer not to answer'
         },
         // US sanctions / export-control screen (xAI/Databricks style) — Chinese national in the US
         // on H-1B: for the Yes/No variant the answer is No.

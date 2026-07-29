@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Eve",
-  "version": "1.1.265",
+  "version": "1.1.268",
   "description": "Local MVP Chrome Extension for automating and autofilling LinkedIn Easy Apply and Workday application workflows.",
   "permissions": [
     "storage",

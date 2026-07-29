@@ -820,6 +820,24 @@ routes(PROUD_ONE, 'proudest-professional-one-sentence');
 const proudOneText = pick(PROUD_ONE).text.replace(/J\.P\./g, 'JP');
 assert(/AI agent system/.test(proudOneText) && /\.$/.test(proudOneText.trim()) && !/\.\s+\S/.test(proudOneText.trim()), 'the proudest-professional answer is the AI-agent project in one sentence');
 
+console.log('\n=== Screenshots: hub list / named-weekday office / work-auth radios (2026-07-27) ===');
+const HUB_LIST = 'Please select which Taskrabbit hub you are currently based out of:';
+routes(HUB_LIST, 'hub-location-radius');
+const HUB_LIST_OPTIONS = ['Greater San Francisco Bay Area', 'Greater New York City Area', 'Greater London Area', 'Willing to relocate to one of the above areas', 'Not willing to relocate to any of these areas'];
+const hubListPick = (() => { for (const c of pick(HUB_LIST).optionCandidates) { const i = HUB_LIST_OPTIONS.findIndex(t => c.test(t)); if (i >= 0) return i; } return -1; })();
+assert(HUB_LIST_OPTIONS[hubListPick] === 'Willing to relocate to one of the above areas', `hub list takes the willing-to-relocate option (got ${HUB_LIST_OPTIONS[hubListPick]})`);
+assert(!/^Not willing/.test(HUB_LIST_OPTIONS[hubListPick]), 'the NOT-willing option, which contains the same words, is never selected');
+assert(!/Greater/.test(HUB_LIST_OPTIONS[hubListPick]), 'a hub city is never claimed as the current base');
+
+const WEEKDAY_OFFICE = 'Our team leverages in-office time to maximize creative collaboration and team synergy. Are you able to join us in the office every Tuesday and Wednesday as part of our hybrid model?';
+assert(pick(WEEKDAY_OFFICE) && pick(WEEKDAY_OFFICE).choose === 'yes', 'named-weekday in-office question -> Yes');
+
+const AUTH_RADIOS = 'U.S. Work Authorization Status';
+routes(AUTH_RADIOS, 'work-auth-status-select');
+const AUTH_RADIO_OPTIONS = ['Can work for any employer', 'Can work for current employer', 'Seeking work authorization'];
+const authRadioPick = (() => { for (const c of pick(AUTH_RADIOS).optionCandidates) { const i = AUTH_RADIO_OPTIONS.findIndex(t => c.test(t)); if (i >= 0) return i; } return -1; })();
+assert(AUTH_RADIO_OPTIONS[authRadioPick] === 'Can work for current employer', `work-auth radios take the current-employer option (got ${AUTH_RADIO_OPTIONS[authRadioPick]})`);
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);
