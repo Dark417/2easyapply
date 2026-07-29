@@ -417,12 +417,12 @@ routes(POSITION_YOE, 'years-of-relevant-experience-position');
 const positionYoe = BANK.find(e => e.topic === 'years-of-relevant-experience-position');
 assert(positionYoe.optionMatch.test('4 - 6 YoE'), 'position-specific YOE picks 4 - 6 YoE');
 assert(!positionYoe.optionMatch.test('5 to 7 Years of Experience'), 'position-specific YOE rejects the generic 5-to-7 band');
-const yoe = BANK.find(e => e.topic === 'years-of-relevant-experience');
-assert(yoe.optionMatch.test('5 to 7 Years of Experience'), 'YOE picks 5 to 7');
-assert(yoe.optionMatch.test('5+ years'), 'YOE picks 5+');
-assert(!yoe.optionMatch.test('Up to 5 Years of Experience'), 'YOE rejects Up to 5');
-assert(!yoe.optionMatch.test('2 to 4 Years of Experience'), 'YOE rejects 2 to 4');
-assert(!yoe.optionMatch.test('1 to 5 Years'), 'YOE rejects 1 to 5 (ceiling)');
+// 5 years of experience -> the band that CONTAINS 5, by ordered precedence over the real option list.
+assert(optPick('years-of-relevant-experience', ['Up to 5 Years of Experience', '2 to 4 Years of Experience', '5 to 7 Years of Experience']) === '5 to 7 Years of Experience', 'YOE picks 5 to 7 over Up to 5');
+assert(optPick('years-of-relevant-experience', ['Less than 1 year', '1 to 3 years', '5+ years']) === '5+ years', 'YOE picks 5+');
+assert(optPick('years-of-relevant-experience', ['Less than 1 year', '1 to 3 years', '4 to 7 years', '8 or more years']) === '4 to 7 years', 'YOE picks the 4-to-7 band, which contains 5');
+assert(optPick('years-of-relevant-experience', ['0-2 years', '3-5 years', '6-10 years']) === '3-5 years', 'YOE takes the band ending at 5 rather than overstating with 6-10');
+assert(optPick('years-of-relevant-experience', ['1 to 3 years', '2 to 4 years']) === '(none)', 'YOE picks nothing when no band contains 5, rather than overstating');
 // relocation/hybrid: the "I can" phrasing counts as affirmative.
 assert(optPick('relocation-hybrid', ['I can work 3 days a week in the NYC office', 'I cannot work 3 days a week in an office']) === 'I can work 3 days a week in the NYC office', 'hybrid -> I can option');
 const relo = BANK.find(e => e.topic === 'relocation-hybrid');
@@ -881,6 +881,25 @@ const preferredPhone = textFillDecision('Preferred phone number', false);
 assert(preferredPhone.kind === 'profile' && preferredPhone.value === '(571) 376-1882', '"Preferred phone number" fills the phone');
 const preferredFirst = textFillDecision('Preferred First Name', false);
 assert(preferredFirst.kind === 'profile' && preferredFirst.value === 'Xiaoxiao', 'the phone pattern does not steal Preferred First Name');
+
+console.log('\n=== Education level, GPA, relocation assistance (2026-07-27) ===');
+const EDU_LEVEL = 'What is your highest completed level of education?';
+routes(EDU_LEVEL, 'degree');
+assert(optPick('degree', ['High School', "Associate's Degree", "Bachelor's Degree", "Master's Degree"]) === "Master's Degree", 'highest level of education -> Master\'s Degree');
+
+// relocation ASSISTANCE is a different question from willingness to relocate: the applicant
+// relocates on their own and asks the company for nothing.
+const RELO_ASSIST = 'If you are not currently based in the SF Bay Area, will you require relocation assistance?';
+routes(RELO_ASSIST, 'relocation-assistance');
+assert(pick(RELO_ASSIST).choose === 'no', 'relocation assistance -> No');
+routes('Will you need assistance with relocation?', 'relocation-assistance');
+assert(pick('Are you willing to relocate?') && pick('Are you willing to relocate?').choose === 'yes', 'willingness to relocate is still Yes');
+
+const GPA = "Please provide your GPA for each degree you've obtained.";
+routes(GPA, 'gpa');
+assert(pick(GPA).text === '3.65', 'GPA -> 3.65');
+assert(pick(GPA).requiredOnly === true, 'GPA is only filled when the field is required');
+assert(/entry\.requiredOnly && !isRequiredInput\(input\)/.test(src), 'greenhouse.js skips requiredOnly answers on optional fields');
 
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);

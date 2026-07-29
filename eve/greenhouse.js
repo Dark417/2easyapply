@@ -197,7 +197,16 @@
             topic: 'degree',
             // "Degree Type" as a CHECKBOX list (Ashby screenshot 2026-07-27:
             // Undergraduate/Bachelors | Master's | PhD | MBA) is the same question as the dropdown.
-            patterns: [/^degree$/i, /^degree (type|level)$/i, /highest (level of )?degree/i],
+            patterns: [
+                /^degree$/i,
+                /^degree (type|level)$/i,
+                /highest (level of )?degree/i,
+                // "What is your highest completed level of education?" (user, 2026-07-27) — the same
+                // question phrased around education rather than the word "degree".
+                /highest (completed )?level of education/i,
+                /highest education( level)?/i,
+                /level of education (you have )?(completed|obtained)/i
+            ],
             optionCandidates: [/^master['’]?s( degree)?$/i, /^master/i],
             optionLabel: 'Master’s Degree'
         },
@@ -212,6 +221,18 @@
             optionMatch: /^\s*texas\s*$/i,
             optionLabel: 'Texas',
             text: 'Texas'
+        },
+        {
+            // GPA (user, 2026-07-27): 3.65, but "only fill when required" — `requiredOnly` means the
+            // answer is used only when the control is actually marked required, so an optional GPA
+            // box is left blank rather than volunteering a number nobody asked for.
+            topic: 'gpa',
+            patterns: [
+                /\bgpa\b/i,
+                /grade point average/i
+            ],
+            requiredOnly: true,
+            text: '3.65'
         },
         {
             topic: 'mailing-address',
@@ -263,6 +284,21 @@
             // to the office three days per week?", user 2026-07-27) is about ABILITY, not residency
             // — it belongs to the office-attendance affirmative and must never be answered No here.
             exclude: /\bif you are (based|located)|are you able to|can you (commute|work)|commute to the office/i,
+            choose: 'no'
+        },
+        {
+            // "If you are not currently based in the SF Bay Area, will you require relocation
+            // ASSISTANCE?" -> No (user, 2026-07-27). Distinct from every willing-to-relocate topic:
+            // the applicant relocates at their own arrangement and asks the company for nothing.
+            // Matched by the loose "relocat… assist…" shape (either word order), which is what gives
+            // the widest coverage across wordings; ordered FIRST so no residency or willingness
+            // topic can claim it.
+            topic: 'relocation-assistance',
+            patterns: [
+                /relocat\w*[\s\S]{0,40}assist/i,
+                /assist\w*[\s\S]{0,40}relocat/i,
+                /(require|need|request)[\s\S]{0,30}relocation (support|help|package|benefits?)/i
+            ],
             choose: 'no'
         },
         {
@@ -1100,8 +1136,20 @@
             topic: 'years-of-relevant-experience',
             patterns: [/how many years of[\s\S]{0,40}experience/i, /years of (relevant|professional|work)[\s\S]{0,30}experience/i],
             exclude: /programming languages|most proficient|with each|for this position/i,
-            optionMatch: /^(?!.*\b(?:up\s+to|under|less\s+than|fewer\s+than|below|at\s+most)\b)\D*5\b/i,
-            optionLabel: 'band starting at 5',
+            // 5 years of experience, so the answer is the band that CONTAINS 5. Ordered precedence:
+            // an explicit 5/5+ band first, then any "<low> to <high>" band whose low ≤ 5 and high ≥ 5
+            // ("4 to 7 years", user 2026-07-27 — the old single-digit matcher found no 5 in it and
+            // left the required dropdown empty), then an open-ended 4+/5+ band. Never "less than",
+            // never "1 to 3", never "8 or more".
+            optionCandidates: [
+                /^(?!.*\b(?:up\s+to|under|less\s+than|fewer\s+than|below|at\s+most)\b)\D*5\b/i,
+                /\b[1-5]\s*(?:to|-|–|—)\s*(?:[6-9]|1\d)\b/i,
+                /\b[4-5]\s*\+/i,
+                // Last resort: a band that ENDS at 5 ("3-5 years"). True, but it sits at the top edge,
+                // so it only wins when no band contains 5 with room above it.
+                /\b[1-4]\s*(?:to|-|–|—)\s*5\b/i
+            ],
+            optionLabel: 'the band containing 5 years',
             // Free-text/number version of the same question ("How many years of experience do you
             // have in software engineering?" -> 5; user, 2026-07-27).
             text: '5'
@@ -2429,6 +2477,10 @@
                     }
                     const entry = matchBankEntry(bank, label);
                     seen.push({ question: label, control: isEssayControl ? 'textarea' : 'text', topic: entry ? entry.topic : '' });
+                    // `requiredOnly` topics (GPA) answer only when the control is actually required —
+                    // an optional box is left blank rather than volunteering the number (user,
+                    // 2026-07-27).
+                    if (entry && entry.requiredOnly && !isRequiredInput(input)) continue;
                     if (entry && entry.text != null) {
                         await fillTextField(input, entry.text);
                         filled.push(`${label} [${entry.topic}]`);

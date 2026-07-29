@@ -386,6 +386,18 @@
             choose: 'yes'
         },
         {
+            // GPA (user, 2026-07-27): 3.65, but "only fill when required" — `requiredOnly` means the
+            // answer is used only when the control is actually marked required, so an optional GPA
+            // box is left blank rather than volunteering a number nobody asked for.
+            topic: 'gpa',
+            patterns: [
+                /\bgpa\b/i,
+                /grade point average/i
+            ],
+            requiredOnly: true,
+            text: '3.65'
+        },
+        {
             topic: 'country-of-residence',
             patterns: [
                 /what is your country of residence/i,
@@ -423,6 +435,21 @@
             ],
             optionLabel: 'C2: Proficient',
             text: 'C2 (Proficient / Native Speaker)'
+        },
+        {
+            // "If you are not currently based in the SF Bay Area, will you require relocation
+            // ASSISTANCE?" -> No (user, 2026-07-27). Distinct from every willing-to-relocate topic:
+            // the applicant relocates at their own arrangement and asks the company for nothing.
+            // Matched by the loose "relocat… assist…" shape (either word order), which is what gives
+            // the widest coverage across wordings; ordered FIRST so no residency or willingness
+            // topic can claim it.
+            topic: 'relocation-assistance',
+            patterns: [
+                /relocat\w*[\s\S]{0,40}assist/i,
+                /assist\w*[\s\S]{0,40}relocat/i,
+                /(require|need|request)[\s\S]{0,30}relocation (support|help|package|benefits?)/i
+            ],
+            choose: 'no'
         },
         {
             topic: 'based-in-ny-or-sf',
@@ -1426,6 +1453,21 @@
             choose: 'yes'
         },
         {
+            // "What is your highest completed level of education?" asked as an application
+            // QUESTION (user, 2026-07-27, mirrored from greenhouse.js) - distinct from the
+            // education step's own Degree picker, which fillEducationEntry() handles.
+            topic: 'highest-education-level',
+            patterns: [
+                /highest (completed )?level of education/i,
+                /highest education( level)?/i,
+                /level of education (you have )?(completed|obtained)/i,
+                /highest (level of )?degree/i
+            ],
+            optionCandidates: [/^master['’]?s( degree)?$/i, /^master/i],
+            optionLabel: 'Master’s Degree',
+            text: "Master's Degree"
+        },
+        {
             // "How many years of relevant work experience do you have?" — a BANDED dropdown whose
             // band wording differs per tenant. User's answer (2026-07-25): the band that STARTS AT 5
             // ("5 to 7 Years of Experience" on Bank of America / GHR). Factual note: professional
@@ -1447,8 +1489,16 @@
             // Never steal the "top 3 programming languages … length of experience with each" free
             // text, or a per-technology "years of experience with X" question.
             exclude: /programming languages|platforms|most proficient|with each|for this position/i,
-            optionMatch: /^(?!.*\b(?:up\s+to|under|less\s+than|fewer\s+than|below|at\s+most)\b)\D*5\b/i,
-            optionLabel: '5 to 7 Years of Experience',
+            // 5 years of experience, so the answer is the band that CONTAINS 5 (user, 2026-07-27):
+                        // an explicit 5/5+ band first, then a band whose low <= 5 and high >= 6 ("4 to 7
+                        // years"), then an open-ended 4+/5+, and only as a last resort a band ending at 5.
+                        optionCandidates: [
+                            /^(?!.*\b(?:up\s+to|under|less\s+than|fewer\s+than|below|at\s+most)\b)\D*5\b/i,
+                            /\b[1-5]\s*(?:to|-|–|—)\s*(?:[6-9]|1\d)\b/i,
+                            /\b[4-5]\s*\+/i,
+                            /\b[1-4]\s*(?:to|-|–|—)\s*5\b/i
+                        ],
+                        optionLabel: 'the band containing 5 years',            optionLabel: '5 to 7 Years of Experience',
             // Free-text/number version of the same question (user, 2026-07-27).
             text: '5'
         },
@@ -3345,6 +3395,10 @@
                 // nothing in the chain matches, leave it for the typed-primary fallback below (which the
                 // chain's broad globs make rare). Still exclude "Partial List (First N Entries)" / "All".
                 const headers = /partial list|first\s*\d+\s*entries|^all$|^recent$|^suggested/i;
+        // schoolNotListed -> try the tenant's own "Other" option BEFORE the real name (user,
+        // 2026-07-27): for the undergrad entry the picker offers unrelated near-matches for the
+        // real name, and "Other" is both the honest answer and the one the user picks by hand.
+        if (education.schoolNotListed && await selectSchoolOther(input, name, context)) return;
                 const option = await waitForPrecedenceOption(candidates, 4000, context, { fallbackFirst: false, excludeRe: headers });
                 if (option) {
                     await clickPickerChoice(option, 'Selecting Field of Study', context);
@@ -3434,9 +3488,14 @@
     async function selectSchoolOther(input, schoolName, context) {
         if (!actionsAllowed(context)) return false;
         await clickButton(input, 'Opening School or University', context);
-        // Clear any leftover search text so the full option list (including "Other") is shown.
+        // TYPE "other" rather than clearing the box: some tenants only reveal options as you
+        // type, and the exact-match regex below still guarantees the real "Other" entry is the
+        // one picked, never a school whose name happens to contain the word.
         await performDelayedAction(() => {
-            setComboboxSearchValue(input, '');
+            setComboboxSearchValue(input, 'other');
+            const key = { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 };
+            input.dispatchEvent(new KeyboardEvent('keydown', key));
+            input.dispatchEvent(new KeyboardEvent('keyup', key));
             return true;
         }, 'Looking for an Other school option', context);
         await WAIT(PICKER_SEARCH_SETTLE_MS);
