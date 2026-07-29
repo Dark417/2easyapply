@@ -761,6 +761,65 @@ assert(!/if \(isRequiredInput\(input\)\) \{\n\s+const single = await selectShell
 assert(/a dropdown with exactly one\n\s+\/\/ real option is an ACKNOWLEDGEMENT/.test(src), 'a one-option dropdown is selected outright, required or not');
 assert(/A LONE checkbox with no bank match is an acknowledgement/.test(src), 'a lone unmatched checkbox is ticked as an acknowledgement');
 
+console.log('\n=== Live Crusoe/Ashby round (2026-07-27) ===');
+// Consent radios that live INSIDE the Phone Number field entry: the question text Eve now
+// derives is the intro paragraph, and the options come from their wrapping <label>s.
+const SMS_INTRO = 'Check Yes or No to indicate your agreement to receive text message updates from Crusoe regarding your job application. Frequency may vary. Message and data rates may apply. Reply STOP to opt out of future messaging. View our privacy policy here: Privacy Policy';
+routes(SMS_INTRO, 'consent-sms-contact');
+const SMS_OPTIONS = ['Yes - I consent to receiving text messages', 'No - I do not consent to receiving text messages'];
+assert(SMS_OPTIONS.find(t => pick(SMS_INTRO).optionMatch.test(t)) === 'No - I do not consent to receiving text messages', 'texting consent picks the long-form No option');
+assert(pick('Phone Number') === null, 'the host field label of the Crusoe consent radios matches nothing');
+assert(/input\.closest\('label'\)/.test(src), 'option text is read from a wrapping <label> (id-less radios)');
+assert(/function radioGroupIntroText\(/.test(src), 'a radio group nested in another field derives its question from the intro text');
+assert(/const ACKNOWLEDGEMENT_OPTION =/.test(src), 'an acknowledgement radio option is always selected');
+
+// Profile fields that were missed on live forms.
+const legalNameDecision = textFillDecision('First and Last Legal Name', false);
+assert(legalNameDecision.kind === 'profile' && legalNameDecision.value === 'Xiaoxiao Lei', '"First and Last Legal Name" fills the full legal name');
+const legalNameDecision2 = textFillDecision('Legal First and Last Name', false);
+assert(legalNameDecision2.kind === 'profile' && legalNameDecision2.value === 'Xiaoxiao Lei', 'the reversed word order fills the same value');
+const zipDecision = textFillDecision('Zip Code', false);
+assert(zipDecision.kind === 'profile' && zipDecision.value === '75023', 'Zip Code fills 75023');
+
+// Hub-radius question: never a city, never the unable-to-relocate option.
+const HUB = 'We are a flexible remote-first company, but we do require employees to reside within 50 miles of the hub advertised on the job posting for this role. At the time of hire, will you be located within 50 miles of one of our hubs? If so, please select which location.';
+routes(HUB, 'hub-location-radius');
+const HUB_OPTIONS = ['Los Angeles, CA', 'New York, NY', 'San Francisco, CA', 'Seattle, WA', 'N/A - I am not in one of the hub locations and am unable to relocate', 'N/A - I am not in one of the hub locations but I AM able to relocate'];
+const hubPick = (() => { for (const c of pick(HUB).optionCandidates) { const i = HUB_OPTIONS.findIndex(t => c.test(t)); if (i >= 0) return i; } return -1; })();
+assert(HUB_OPTIONS[hubPick] === 'N/A - I am not in one of the hub locations but I AM able to relocate', `hub question takes the able-to-relocate option (got ${HUB_OPTIONS[hubPick]})`);
+
+// Work-authorization STATUS list (never the any-employer/citizen option).
+const AUTH_COUNTRY = 'Are you currently authorized to work in the country outlined for this job (e.g. H-1B status)?';
+routes(AUTH_COUNTRY, 'work-auth-status-select');
+const AUTH_COUNTRY_OPTIONS = ['I am authorized to work for any employer in the country outlined in this role (ie: citizen, permanent resident, etc.)', 'My current work authorization requires a renewal or sponsorship now or in the future (ie: H1-B, OPT, TN, etc.)', "My status to work in the country in this role's location is unknown"];
+const authPick = (() => { for (const c of pick(AUTH_COUNTRY).optionCandidates) { const i = AUTH_COUNTRY_OPTIONS.findIndex(t => c.test(t)); if (i >= 0) return i; } return -1; })();
+assert(/requires a renewal or sponsorship/.test(AUTH_COUNTRY_OPTIONS[authPick]), 'the status list takes the renewal/sponsorship option, never the any-employer one');
+routes('Are you legally authorized to work in the country in which the position is located?', 'work-authorization');
+
+// How-heard: LinkedIn when offered, otherwise the first real option.
+routes('How did you find us?', 'how-heard');
+const HOW_HEARD = pick('How did you hear about Mixpanel as an Employer?');
+const withLinkedIn = ['LinkedIn', 'Social Media (Twitter, Facebook, etc.)', 'Glassdoor', 'Indeed'];
+const withoutLinkedIn = ['Select...', 'Job board', 'Referral'];
+const firstHit = (entry, opts) => { for (const c of entry.optionCandidates) { const i = opts.findIndex(t => c.test(t)); if (i >= 0) return opts[i]; } return null; };
+assert(firstHit(HOW_HEARD, withLinkedIn) === 'LinkedIn', 'how-heard prefers LinkedIn');
+assert(firstHit(HOW_HEARD, withoutLinkedIn) === 'Job board', 'how-heard otherwise takes the first real option, skipping the placeholder');
+
+// Standing rule: 'do you have N years of experience' is always Yes.
+const STACK_YEARS = 'Do you have three or more years of production-level experience with our tech stack? Back end: Node.js, Typescript, MongoDB, OpenAPI, RabbitMQ, Elasticsearch Front end: React, Next.js, Tailwind Infrastructure: AWS, Kubernetes, Docker, Terraform, Kibana';
+// The stack list in this one also trips the cloud/containers experience topic — either way the
+// answer is Yes, which is what the standing rule requires.
+assert(pick(STACK_YEARS).choose === 'yes', 'a years-of-experience threshold question is always Yes');
+routes('Do you have 5+ years of experience with distributed systems?', 'years-of-experience-threshold');
+assert(pick(STACK_YEARS).choose === 'yes', 'a years-of-experience threshold question is always Yes');
+routes('How many years of relevant work experience do you have?', 'years-of-relevant-experience');
+
+// One-sentence proudest-professional answer.
+const PROUD_ONE = 'In one sentence, what are you most proud of professionally?';
+routes(PROUD_ONE, 'proudest-professional-one-sentence');
+const proudOneText = pick(PROUD_ONE).text.replace(/J\.P\./g, 'JP');
+assert(/AI agent system/.test(proudOneText) && /\.$/.test(proudOneText.trim()) && !/\.\s+\S/.test(proudOneText.trim()), 'the proudest-professional answer is the AI-agent project in one sentence');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);

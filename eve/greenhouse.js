@@ -120,6 +120,7 @@
         state: 'Texas',
         country: 'United States',
         mailingAddress: '1721 Walters Dr, Dallas, TX 75023',
+        zip: '75023',
         // LinkedIn WITHOUT the https:// scheme (user, 2026-07-26); GitHub stays a full URL.
         linkedin: 'www.linkedin.com/in/xiaoxiaolei/',
         github: 'https://github.com/Dark417',
@@ -149,9 +150,10 @@
         { label: /^last name/i, value: GH_PROFILE.lastName },
         { label: /full (legal )?name/i, value: GH_PROFILE.fullName },
         { label: /^legal name$/i, value: GH_PROFILE.fullName },
-        // "Legal First and Last Name" (user, 2026-07-27) — a labeled variant of the same legal-name
-        // field, alongside the entries above.
-        { label: /^legal first and last name$/i, value: GH_PROFILE.fullName },
+        // "Legal First and Last Name" / "First and Last Legal Name" (user, 2026-07-27) — the word
+        // order varies by form, so match the shape rather than one anchored spelling. The anchored
+        // version missed the second wording and left the field empty on a live application.
+        { label: /^(legal\s+)?first (and|&) last (legal\s+)?name$/i, value: GH_PROFILE.fullName },
         // Ashby's single "Name" system field (label is exactly "Name") takes the full name.
         { label: /^(full )?name$/i, value: GH_PROFILE.fullName },
         { label: /^e-?mail/i, value: GH_PROFILE.email },
@@ -177,7 +179,9 @@
         { label: /location \(city|your location|^city\b/i, value: `${GH_PROFILE.city}, TX` },
         { label: /^address$/i, value: GH_PROFILE.mailingAddress },
         { label: /^state\b|province/i, value: GH_PROFILE.state },
-        { label: /^country\b/i, value: GH_PROFILE.country }
+        { label: /^country\b/i, value: GH_PROFILE.country },
+        // Zip / postal code (user, 2026-07-27) — the Dallas home zip.
+        { label: /^zip\b|^postal\b|zip ?code|postal code/i, value: GH_PROFILE.zip }
     ];
 
     // ── Question bank (regex topics, seeded from info/myworkdayjobs [QUESTION BANK]) ──────────
@@ -416,16 +420,28 @@
                 // A country/qualifier can sit between "your current" and the noun ("your current
                 // U.S. work authorization status?", Ashby screenshot 2026-07-27).
                 /what is your (current )?[\s\S]{0,20}(work authorization|visa|immigration) status/i,
-                /(current )?(u\.?s\.? )?work authorization status/i
+                /(current )?(u\.?s\.? )?work authorization status/i,
+                // "Are you currently authorized to work in the country outlined for this job (e.g.
+                // H-1B status)?" (user, 2026-07-27) — phrased as a yes/no question but answered with
+                // a STATUS list, so it belongs here rather than with the plain work-authorization
+                // topic. Ordered before it, which this entry already is.
+                /authorized to work in the country outlined/i,
+                /(are you )?(currently )?authorized to work in the country[\s\S]{0,80}(h-?1-?b|visa|status)/i
             ],
-            exclude: /unrestricted/i,
+            // The plainly-worded "are you LEGALLY authorized to work…" question is a Yes/No handled
+            // by the work-authorization topic below — never steal it.
+            exclude: /unrestricted|legally authorized/i,
             // Searchable version of this picker (Ashby typeahead): typing "h1" is what surfaces the
             // "H-1B Visa" option — see fillTypeaheadCombo().
             search: 'h1',
+            // Ordered precedence. NEVER the "authorized to work for ANY employer (citizen,
+            // permanent resident)" option — that would be false — and never the "status unknown"
+            // option. Note real forms write H-1B as "H1-B" too, hence the flexible hyphens.
             optionCandidates: [
-                /(temporary work visa|h-?1b)[\s\S]{0,80}(transfer|sponsor)/i,
-                /\bh-?1b\b/i,
-                /authorized[\s\S]{0,80}sponsor[\s\S]{0,40}(later|future)/i
+                /(temporary work visa|h-?1-?b)[\s\S]{0,80}(transfer|sponsor)/i,
+                /work authorization requires[\s\S]{0,60}(renewal|sponsorship)/i,
+                /\bh-?1-?b\b/i,
+                /authoriz(ed|ation)[\s\S]{0,80}sponsor[\s\S]{0,40}(later|future|now or in the future)/i
             ],
             optionLabel: 'On a temporary work visa (H-1B) - employer sponsors a transfer'
         },
@@ -681,6 +697,29 @@
             choose: 'yes'
         },
         {
+            // "…we do require employees to reside within 50 miles of the hub advertised on the job
+            // posting. At the time of hire, will you be located within 50 miles of one of our hubs?
+            // If so, please select which location." (user, 2026-07-27) with a city list plus two
+            // N/A options. The applicant lives in Dallas, so naming a hub city would be false: take
+            // the "not in a hub location BUT able to relocate" option. Ordered precedence, and the
+            // "unable to relocate" option is explicitly rejected — note it contains the substring
+            // "able to relocate", which is why the candidates below anchor on "am able" / "but".
+            topic: 'hub-location-radius',
+            patterns: [
+                /within \d+ miles of (one of )?(our|the) hub/i,
+                /reside within \d+ miles/i,
+                /(at the time of hire|will you be) located within \d+ miles/i,
+                /within \d+ miles of the (hub|office) (advertised|listed)/i
+            ],
+            optionCandidates: [
+                /not in (one of )?(the )?hub locations?[\s\S]{0,30}\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
+                /\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
+                /(?<!un)able to relocate/i
+            ],
+            optionLabel: 'N/A - I am not in one of the hub locations but I AM able to relocate',
+            text: 'I am not currently in one of the hub locations, but I am able to relocate.'
+        },
+        {
             // Relocation / hybrid office attendance: ALWAYS the affirmative option (user standing
             // rule 2026-07-26). "I can work N days a week in the <city> office" counts as Yes.
             topic: 'relocation-hybrid',
@@ -841,9 +880,21 @@
             // "How did you hear about this job?" — free text on Greenhouse (Databricks 2026-07-15)
             // -> LinkedIn; on a dropdown, prefer a LinkedIn option.
             topic: 'how-heard',
-            patterns: [/how did you (hear|learn) about/i, /where did you (hear|learn) about/i],
+            patterns: [
+                /how did you (hear|learn) about/i,
+                /where did you (hear|learn) about/i,
+                // "How did you find us?" (user, 2026-07-27) — same question, different verb.
+                /how did you (find|discover|come across) (us|this (role|job|position|opening))/i,
+                /where did you (find|see) (this|the) (role|job|position|opening)/i
+            ],
             text: 'LinkedIn',
-            optionMatch: /linked ?in/i,
+            // LinkedIn when the list offers it, otherwise the FIRST real option (user, 2026-07-27)
+            // — this question never disqualifies anyone, so an unanswered required dropdown is the
+            // only bad outcome. The fallback skips placeholder entries like "Select…".
+            optionCandidates: [
+                /linked ?in/i,
+                /^(?!\s*(select|choose|please select|pick one|--|—|\.{3}|…)).+/i
+            ],
             optionLabel: 'LinkedIn'
         },
         {
@@ -928,6 +979,22 @@
                 /minimum of 3 years of experience[\s\S]{0,30}not including internships/i,
                 /at least 3 years of (professional )?experience[\s\S]{0,30}(excluding|not including) internships/i
             ],
+            choose: 'yes'
+        },
+        {
+            // STANDING RULE (user, 2026-07-27): "do you have N (or more) years of … experience …?"
+            // is ALWAYS Yes, whatever technology or stack the question lists — the answer does not
+            // depend on the list. Ordered AFTER the specific years-band pickers (which choose a
+            // range from a dropdown) and after the technology-specific Yes topics, so it only
+            // catches the plain yes/no form. `exclude` keeps it away from "how many years…"
+            // questions, which need a number or a band, not Yes.
+            topic: 'years-of-experience-threshold',
+            patterns: [
+                /do you have[\s\S]{0,60}\d+\+?\s*(or more\s*)?years?[\s\S]{0,80}experience/i,
+                /do you have[\s\S]{0,40}(three|four|five|six|seven|eight|nine|ten)\s*(\+|or more)?\s*years?[\s\S]{0,80}experience/i,
+                /(have|possess)[\s\S]{0,40}(at least|minimum of)\s*\d+\s*years?[\s\S]{0,60}experience/i
+            ],
+            exclude: /how many years|years of relevant work experience do you have\?|please (specify|indicate|enter)/i,
             choose: 'yes'
         },
         {
@@ -1110,6 +1177,20 @@
             text: 'In five years I see myself as a senior engineer who has grown alongside one product for years - owning reliable systems end to end, keeping them healthy in production, and being accountable for how they behave for the people who depend on them. I want to keep deepening my AI and platform engineering skills, mentor newer engineers, and help shape technical direction as the team and product scale.'
         },
         {
+            // "In one sentence, what are you most proud of professionally?" (user, 2026-07-27) —
+            // answered with the AI-agent project, in ONE sentence as asked. Ordered BEFORE
+            // proud-work-essay so the length-constrained version wins when the form asks for one
+            // sentence; the longer pipeline answer still serves the open-ended prompt.
+            topic: 'proudest-professional-one-sentence',
+            patterns: [
+                /in one sentence[\s\S]{0,60}most proud/i,
+                /(what are you|what're you) most proud of professionally/i,
+                /most proud of professionally/i,
+                /one sentence[\s\S]{0,40}proud/i
+            ],
+            text: 'I am most proud of the AI agent system I built at J.P. Morgan that automates financial-data validation between vendor emails and our internal platform, replacing hours of manual comparison with explainable, exception-based review.'
+        },
+        {
             // "What exceptional work have you done?" -> [ESSAYS] proud_work_pipeline.
             topic: 'proud-work-essay',
             patterns: [/what exceptional work/i, /(project|piece of work)[\s\S]{0,30}(most )?proud/i],
@@ -1220,9 +1301,16 @@
         },
         {
             topic: 'sexual-orientation',
-            patterns: [/how would you describe your sexual orientation/i, /\bsexual orientation\b/i],
-            optionMatch: /^\s*heterosexual\s*$/i,
-            optionLabel: 'Heterosexual'
+            patterns: [
+                /how would you describe your sexual orientation/i,
+                // "How do you identify your sexual orientation? Please select all that apply." (Promise/Ashby, 2026-07-28)
+                /how do you identify your sexual orientation/i,
+                /\bsexual orientation\b/i
+            ],
+            // Word-boundary, not end-anchored: covers plain "Heterosexual" AND "Heterosexual / straight"
+            // (confirmed live 2026-07-28) without matching unrelated options.
+            optionMatch: /\bheterosexual\b/i,
+            optionLabel: 'Heterosexual / straight'
         },
         {
             topic: 'transgender',
@@ -1311,6 +1399,18 @@
             optionMatch: /^\s*no\b[\s\S]{0,20}(do not have a disability|not have)/i,
             optionLabel: "No, I don't have a disability",
             text: "No, I don't have a disability"
+        },
+        {
+            // "What is your current age?" (Promise/Ashby, 2026-07-28) — a VOLUNTARY EEO age-bracket
+            // disclosure (Under 30 / 30-39 / 40-49 / 50-59 / 60 or older / I prefer not to answer),
+            // distinct from the "age-minimum" Yes/No eligibility gate below. No real age fact is
+            // established in info/myworkdayjobs, and this class of voluntary self-ID question always
+            // has a legitimate decline option — same convention as gender/veteran/disability/hispanic
+            // when asked to disclose rather than confirm eligibility: decline rather than guess.
+            topic: 'age-bracket-voluntary',
+            patterns: [/what is your current age/i, /^current age$/i, /age bracket/i, /select your age range/i],
+            optionMatch: /prefer not to answer/i,
+            optionLabel: 'I prefer not to answer'
         },
         // US sanctions / export-control screen (xAI/Databricks style) — Chinese national in the US
         // on H-1B: for the Yes/No variant the answer is No.
@@ -1494,6 +1594,16 @@
         }
         const aria = clean(input.getAttribute('aria-label'));
         if (aria) return aria;
+        // A WRAPPING <label> is the option text for id-less radios/checkboxes — Ashby's
+        // texting-consent radios are `<label><input type=radio value=given><span>Yes - I consent
+        // …</span></label>` with no id at all (confirmed live 2026-07-27, Crusoe). Without this the
+        // lookup fell through to the enclosing field entry and every option came back as the
+        // HOST field's label ("Phone Number"), so no option could ever match.
+        const wrapping = input.closest('label');
+        if (wrapping) {
+            const own = clean(wrapping.textContent);
+            if (own) return own;
+        }
         // Ashby's typeahead control (location) carries NO id/aria-label at all — its label targets
         // the field path instead — so the enclosing field entry is the only label source.
         const wrap = input.closest('.input-wrapper, .field-wrapper, .select__container, fieldset, [class*="fieldEntry"], .ashby-application-form-field-entry');
@@ -1515,6 +1625,23 @@
         const first = container?.querySelector('label');
         if (first && first.htmlFor !== radios[0].id) return clean(first.textContent);
         return labelForInput(radios[0]);
+    }
+    // The question text for a radio group that is a SECONDARY control inside another field's entry
+    // (Ashby puts its texting-consent radios inside the Phone Number entry, confirmed live
+    // 2026-07-27 on Crusoe). radioGroupLabel() then returns the HOST field's label ("Phone
+    // Number"), which matches nothing in the bank. Climb from the radios to the smallest ancestor
+    // whose text says something beyond the option labels themselves, and use that.
+    function radioGroupIntroText(radios, optionLabels) {
+        const entry = radios[0].closest('[class*="fieldEntry"], .ashby-application-form-field-entry, fieldset, form') || document.body;
+        const strip = text => clean(optionLabels.reduce((acc, label) => (label ? acc.split(label).join(' ') : acc), text));
+        let node = radios[0].parentElement;
+        while (node && node !== entry && !radios.every(radio => node.contains(radio))) node = node.parentElement;
+        while (node && node !== entry) {
+            const intro = strip(clean(node.innerText));
+            if (intro.length > 15) return intro;
+            node = node.parentElement;
+        }
+        return strip(clean(entry.innerText));
     }
     function checkboxGroups(form) {
         const groups = new Map();
@@ -1801,6 +1928,9 @@
     // Singleton-required rule (user, 2026-07-26): a REQUIRED dropdown with exactly ONE real option
     // (placeholders excluded) is selected outright — no bank match needed (usually "Acknowledge").
     const OPTION_PLACEHOLDER = /^(select|choose|please select|pick one|--|—|\.{3}|…)/i;
+    // An option that is an acknowledgement rather than a real choice is always taken, bank match or
+    // not (user, 2026-07-27) — same reasoning as the single-option dropdown / lone checkbox rule.
+    const ACKNOWLEDGEMENT_OPTION = /\b(acknowledge|acknowledgement|i agree|i have read|i understand|i certify|i confirm|i consent to (the|these) terms)\b/i;
     function pickSingletonIndex(texts) {
         const real = texts.map((text, index) => ({ text, index })).filter(o => o.text && !OPTION_PLACEHOLDER.test(o.text));
         return real.length === 1 ? real[0].index : -1;
@@ -2371,17 +2501,35 @@
                     if (radios.some(radio => processed.has(radio))) continue;
                     radios.forEach(radio => processed.add(radio));
                     if (radios.some(radio => radio.checked)) continue;
-                    const groupLabel = radioGroupLabel(radios);
-                    const entry = matchBankEntry(bank, groupLabel);
+                    const optionLabels = radios.map(radio => labelForInput(radio) || clean(radio.value));
+                    // Two shots at the question text: the group's own label, and — when that turns
+                    // out to be the label of the field the group is nested inside — the text that
+                    // actually introduces the radios.
+                    const ownLabel = radioGroupLabel(radios);
+                    let groupLabel = ownLabel;
+                    let entry = matchBankEntry(bank, groupLabel);
+                    if (!entry) {
+                        const intro = radioGroupIntroText(radios, optionLabels);
+                        const introEntry = intro && intro !== ownLabel ? matchBankEntry(bank, intro) : null;
+                        if (introEntry) { groupLabel = intro; entry = introEntry; }
+                    }
                     seen.push({ question: groupLabel, control: 'radio', topic: entry ? entry.topic : '' });
                     const picker = entry ? chooserPicker(entry) : null;
                     if (!picker) {
+                        // Standing rule (user, 2026-07-27): a round check button whose option text
+                        // is an acknowledgement is always selected, bank match or not.
+                        const ackIndex = optionLabels.findIndex(label => ACKNOWLEDGEMENT_OPTION.test(label));
+                        if (ackIndex >= 0) {
+                            realClick(radios[ackIndex]);
+                            await afterSelection();
+                            filled.push(`${groupLabel} → ${optionLabels[ackIndex]} (acknowledgement)`);
+                            continue;
+                        }
                         const required = TEMPLATE !== 'gh'
                             || radios.some(radio => radio.required || radio.getAttribute('aria-required') === 'true');
                         rememberUnanswered(groupLabel, required);
                         continue;
                     }
-                    const optionLabels = radios.map(radio => labelForInput(radio) || clean(radio.value));
                     const index = picker(optionLabels);
                     if (index < 0) { failures.push(`${groupLabel}: no radio matched (${optionLabels.slice(0, 4).join(' | ')}).`); continue; }
                     realClick(radios[index]);

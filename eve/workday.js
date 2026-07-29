@@ -1384,6 +1384,20 @@
             choose: 'yes'
         },
         {
+            // STANDING RULE (user, 2026-07-27, mirrored from greenhouse.js): "do you have N (or
+            // more) years of ... experience ...?" is ALWAYS Yes, whatever stack the question
+            // lists. Ordered after the specific years-band pickers; `exclude` keeps it away from
+            // "how many years" questions, which need a number or a band rather than Yes.
+            topic: 'years-of-experience-threshold',
+            patterns: [
+                /do you have[\s\S]{0,60}\d+\+?\s*(or more\s*)?years?[\s\S]{0,80}experience/i,
+                /do you have[\s\S]{0,40}(three|four|five|six|seven|eight|nine|ten)\s*(\+|or more)?\s*years?[\s\S]{0,80}experience/i,
+                /(have|possess)[\s\S]{0,40}(at least|minimum of)\s*\d+\s*years?[\s\S]{0,60}experience/i
+            ],
+            exclude: /how many years|years of relevant work experience do you have\?|please (specify|indicate|enter)/i,
+            choose: 'yes'
+        },
+        {
             // "How many years of relevant work experience do you have?" — a BANDED dropdown whose
             // band wording differs per tenant. User's answer (2026-07-25): the band that STARTS AT 5
             // ("5 to 7 Years of Experience" on Bank of America / GHR). Factual note: professional
@@ -1447,6 +1461,40 @@
             ],
             optionMatch: /^open to relocating to nyc$/i,
             optionLabel: 'Open to relocating to NYC'
+        },
+        {
+            // "…reside within 50 miles of the hub advertised on the job posting… will you be
+            // located within 50 miles of one of our hubs?" with a city list plus two N/A options
+            // (user, 2026-07-27, mirrored from greenhouse.js). Naming a hub city would be false —
+            // take the "not in a hub location BUT able to relocate" option. Ordered BEFORE the
+            // office/relocation topics, whose broader patterns would otherwise steal it. Note the
+            // rejected option contains the substring "able to relocate", hence the anchors.
+            topic: 'hub-location-radius',
+            patterns: [
+                /within \d+ miles of (one of )?(our|the) hub/i,
+                /reside within \d+ miles/i,
+                /(at the time of hire|will you be) located within \d+ miles/i,
+                /within \d+ miles of the (hub|office) (advertised|listed)/i
+            ],
+            optionCandidates: [
+                /not in (one of )?(the )?hub locations?[\s\S]{0,30}\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
+                /\bbut\b[\s\S]{0,20}\bam able to relocate\b/i,
+                /(?<!un)able to relocate/i
+            ],
+            optionLabel: 'N/A - I am not in one of the hub locations but I AM able to relocate',
+            text: 'I am not currently in one of the hub locations, but I am able to relocate.'
+        },
+        {
+            // "In one sentence, what are you most proud of professionally?" (user, 2026-07-27,
+            // mirrored from greenhouse.js) — the AI-agent project, in one sentence as asked.
+            topic: 'proudest-professional-one-sentence',
+            patterns: [
+                /in one sentence[\s\S]{0,60}most proud/i,
+                /(what are you|what're you) most proud of professionally/i,
+                /most proud of professionally/i,
+                /one sentence[\s\S]{0,40}proud/i
+            ],
+            text: 'I am most proud of the AI agent system I built at J.P. Morgan that automates financial-data validation between vendor emails and our internal platform, replacing hours of manual comparison with explainable, exception-based review.'
         },
         {
             // Harvey screenshots (user, 2026-07-27, mirrored from greenhouse.js): three related
