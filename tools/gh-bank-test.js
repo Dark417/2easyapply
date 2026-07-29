@@ -866,6 +866,22 @@ assert(/schema-constrained|human-review|validation/i.test(aiSystemsText), 'the A
 assert(/not trained foundation models from scratch/i.test(aiSystemsText), 'the AI-systems answer is honest about not training models from scratch');
 routes('Please describe your AI experience.', 'ai-experience-essay');
 
+console.log('\n=== Conditional commute vs residency (2026-07-27) ===');
+// A CONDITIONAL commute question is about ability, not residency: it must never inherit the
+// honest No from the are-you-based-there topic.
+const CONDITIONAL_COMMUTE = 'If you are based in San Francisco, Salt Lake City, or New York City, are you able to commute to the office three days per week?';
+assert(pick(CONDITIONAL_COMMUTE) && pick(CONDITIONAL_COMMUTE).choose === 'yes', 'conditional commute question -> Yes');
+assert(pick(CONDITIONAL_COMMUTE).topic !== 'based-in-ny-or-sf', 'the conditional commute question is not answered by the residency topic');
+const LOCATION_REQUIREMENTS = 'Are you able to meet the location requirements of the position as stated in the job description?';
+assert(pick(LOCATION_REQUIREMENTS) && pick(LOCATION_REQUIREMENTS).choose === 'yes', 'meeting the location requirements -> Yes');
+// The genuine residency question keeps its honest No.
+routes('Are you currently based in New York or San Francisco?', 'based-in-ny-or-sf');
+assert(pick('Are you currently based in New York or San Francisco?').choose === 'no', 'a plain are-you-based-there question is still answered No');
+const preferredPhone = textFillDecision('Preferred phone number', false);
+assert(preferredPhone.kind === 'profile' && preferredPhone.value === '(571) 376-1882', '"Preferred phone number" fills the phone');
+const preferredFirst = textFillDecision('Preferred First Name', false);
+assert(preferredFirst.kind === 'profile' && preferredFirst.value === 'Xiaoxiao', 'the phone pattern does not steal Preferred First Name');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);

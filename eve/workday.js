@@ -431,6 +431,10 @@
                 /(currently )?(based|located|residing) in (new york|nyc)[\s\S]{0,40}(or|and)[\s\S]{0,30}san francisco/i,
                 /(currently )?(based|located|residing) in san francisco[\s\S]{0,40}(or|and)[\s\S]{0,30}(new york|nyc)/i
             ],
+            // A CONDITIONAL question ("IF you are based in SF, SLC or NYC, are you able to commute
+            // to the office three days per week?", user 2026-07-27) is about ABILITY, not
+            // residency - it belongs to the office-attendance affirmative, never No here.
+            exclude: /\bif you are (based|located)|are you able to|can you (commute|work)|commute to the office/i,
             choose: 'no'
         },
         {
@@ -1587,7 +1591,15 @@
                 // "Are you willing to work from the required location?" (user, 2026-07-27) -
                 // the posting's own location, whatever it is; the standing affirmative applies.
                 /willing to work (from|at|in) the (required|specified|posted|listed|advertised) location/i,
-                /work from the (required|specified|posted|listed) location/i
+                /work from the (required|specified|posted|listed) location/i,
+                // "Are you able to meet the location requirements of the position as stated in
+                // the job description?" and the conditional "IF you are based in <cities>, are
+                // you able to commute to the office N days per week?" (user, 2026-07-27) - both
+                // are ability questions, so the standing affirmative applies.
+                /meet the location requirements/i,
+                /location requirements? of the (position|role|job)/i,
+                /if you are (based|located) in[\s\S]{0,80}(able to|can you)[\s\S]{0,40}(commute|work|come)/i,
+                /able to commute to the office/i
                         ],
             choose: 'yes',
             // The last two fallback candidates carry a negative lookahead for "based in" so a

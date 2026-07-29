@@ -157,7 +157,9 @@
         // Ashby's single "Name" system field (label is exactly "Name") takes the full name.
         { label: /^(full )?name$/i, value: GH_PROFILE.fullName },
         { label: /^e-?mail/i, value: GH_PROFILE.email },
-        { label: /^phone/i, value: GH_PROFILE.phone },
+        // "Preferred phone number" (user, 2026-07-27) is the same phone field — match the noun
+        // wherever it sits in the label, not just at the start.
+        { label: /^phone|phone number|mobile( number)?$|cell( phone)?$/i, value: GH_PROFILE.phone },
         { label: /linked ?in/i, value: GH_PROFILE.linkedin },
         { label: /github|git hub/i, value: GH_PROFILE.github },
         // ANCHORED + shortLabelOnly (v1.1.191): the old loose /website|portfolio/ matched the word
@@ -257,6 +259,10 @@
                 /(currently )?(based|located|residing) in (new york|nyc)[\s\S]{0,40}(or|and)[\s\S]{0,30}san francisco/i,
                 /(currently )?(based|located|residing) in san francisco[\s\S]{0,40}(or|and)[\s\S]{0,30}(new york|nyc)/i
             ],
+            // A CONDITIONAL question ("IF you are based in SF, SLC or NYC, are you able to commute
+            // to the office three days per week?", user 2026-07-27) is about ABILITY, not residency
+            // — it belongs to the office-attendance affirmative and must never be answered No here.
+            exclude: /\bif you are (based|located)|are you able to|can you (commute|work)|commute to the office/i,
             choose: 'no'
         },
         {
@@ -775,6 +781,14 @@
                 // posting's own location, whatever it is; the standing affirmative applies.
                 /willing to work (from|at|in) the (required|specified|posted|listed|advertised) location/i,
                 /work from the (required|specified|posted|listed) location/i,
+                // "Are you able to meet the location requirements of the position as stated in the
+                // job description?" and the conditional "IF you are based in <cities>, are you able
+                // to commute to the office N days per week?" (user, 2026-07-27) — both are ability
+                // questions, so the standing affirmative applies.
+                /meet the location requirements/i,
+                /location requirements? of the (position|role|job)/i,
+                /if you are (based|located) in[\s\S]{0,80}(able to|can you)[\s\S]{0,40}(commute|work|come)/i,
+                /able to commute to the office/i,
                 /commut(e|ing) to/i,
                 // "Do you live within commuting distance to one of our hubs (NY, SF, DC, BOS or
                 // London)?" (user, 2026-07-27) — the hub list is incidental, so match the shape:
