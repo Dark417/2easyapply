@@ -1105,9 +1105,13 @@
                 /describe how you use[\s\S]{0,80}ai tools/i,
                 /how (do|have) you use[\s\S]{0,60}(ai|artificial intelligence)/i,
                 /(ai tools|coding agents)[\s\S]{0,100}(helpful|work|workflow)/i,
-                /concrete example[\s\S]{0,100}ai[\s\S]{0,50}helpful/i
+                /concrete example[\s\S]{0,100}ai[\s\S]{0,50}helpful/i,
+                // "What AI tools are you currently using today and how are you using them?" (user,
+                // 2026-07-27) — the same question, asked as what + how.
+                /what ai tools[\s\S]{0,60}(using|use)/i,
+                /which ai (tools|assistants)[\s\S]{0,40}(do you )?use/i
             ],
-            text: "I use Claude, Codex, and GitHub Copilot extensively in both my professional and personal work. At work, I use Copilot's agent mode in VS Code to refine business requirements, turn them into stories and specifications, and generate implementation code. One especially helpful use is having AI agents operate integration tests as if I were testing the workflows myself, which saves me substantial time while still letting me review the results. Outside work, I use Claude Code and Codex to build and enhance personal projects, automate workflows, study complex topics, and develop and refine plans for my career, exercise, and nutrition."
+            text: "I use Claude, Codex, and GitHub Copilot extensively in both my professional and personal work. At work, I use Copilot's agent mode in VS Code to refine business requirements, turn them into stories and specifications, and generate implementation code. One especially helpful use is having AI agents operate integration tests as if I were testing the workflows myself, which saves me substantial time while still letting me review the results. Outside work, I use Claude Code and Codex to build and enhance personal projects, automate my own workflows, study topics in depth, and develop career, exercise, and nutrition plans that I keep feeding updates into so the model can analyse my progress and propose the next actions."
         },
         {
             topic: 'recent-build-essay',
@@ -1287,6 +1291,22 @@
             choose: 'yes'
         },
         {
+            // "This is an AI systems engineering role — we want someone who builds reliable
+            // production systems around modern foundation models, not someone who trains models from
+            // scratch. What AI systems have you built?" (user, 2026-07-27). Answered from the
+            // applicant's real work: the JPMC agent system and the Eve extension — both are systems
+            // BUILT AROUND foundation models, which is exactly what the question asks for. Ordered
+            // before ai-experience-essay so this narrower "what have you built" framing wins.
+            topic: 'ai-systems-built-essay',
+            patterns: [
+                /what ai systems have you built/i,
+                /(ai|agentic) systems[\s\S]{0,40}(have you )?built/i,
+                /(built|shipped)[\s\S]{0,40}(production )?systems? (around|on top of|with)[\s\S]{0,40}(foundation|language) models?/i,
+                /ai systems engineering role[\s\S]{0,200}what[\s\S]{0,40}built/i
+            ],
+            text: 'At J.P. Morgan I built an AI agent system that automates financial-data validation between vendor emails and our internal platform: it classifies incoming emails, routes them by financial instrument type, extracts structured data, normalises it, retrieves the matching internal records, and runs sequential and parallel comparison agents, built on Google ADK and FastAPI with Azure OpenAI and AWS Bedrock. Making it reliable was the real work — schema-constrained outputs, explicit validation rules, traceable comparison results, and a human-review step for uncertain cases — and we evaluated it against manually reviewed examples before trusting it, which moved the team from manual comparison to exception-based review. I also build and run Eve, a Chrome extension that fills and submits job applications end to end across six application platforms, where the engineering problem is the same: deterministic matching and verification around the model, never assuming an action succeeded until the page confirms it. I have not trained foundation models from scratch; my experience is in building dependable production systems around them.'
+        },
+        {
             topic: 'ai-experience-essay',
             patterns: [
                 /describe your ai experience/i,
@@ -1424,7 +1444,9 @@
             // text, or a per-technology "years of experience with X" question.
             exclude: /programming languages|platforms|most proficient|with each|for this position/i,
             optionMatch: /^(?!.*\b(?:up\s+to|under|less\s+than|fewer\s+than|below|at\s+most)\b)\D*5\b/i,
-            optionLabel: '5 to 7 Years of Experience'
+            optionLabel: '5 to 7 Years of Experience',
+            // Free-text/number version of the same question (user, 2026-07-27).
+            text: '5'
         },
         {
             // "Which level best reflects your experience and the role you are looking to step
@@ -1561,7 +1583,11 @@
                 // named weekdays instead of a day count.
                 /join (us )?in the office/i,
                 /in-?office (time|days?)/i,
-                /in the office every [a-z]+day/i
+                /in the office every [a-z]+day/i,
+                // "Are you willing to work from the required location?" (user, 2026-07-27) -
+                // the posting's own location, whatever it is; the standing affirmative applies.
+                /willing to work (from|at|in) the (required|specified|posted|listed|advertised) location/i,
+                /work from the (required|specified|posted|listed) location/i
                         ],
             choose: 'yes',
             // The last two fallback candidates carry a negative lookahead for "based in" so a

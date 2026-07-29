@@ -838,6 +838,34 @@ const AUTH_RADIO_OPTIONS = ['Can work for any employer', 'Can work for current e
 const authRadioPick = (() => { for (const c of pick(AUTH_RADIOS).optionCandidates) { const i = AUTH_RADIO_OPTIONS.findIndex(t => c.test(t)); if (i >= 0) return i; } return -1; })();
 assert(AUTH_RADIO_OPTIONS[authRadioPick] === 'Can work for current employer', `work-auth radios take the current-employer option (got ${AUTH_RADIO_OPTIONS[authRadioPick]})`);
 
+console.log('\n=== Screenshots: veteran branch / required location / AI systems (2026-07-27) ===');
+const VET_BRANCH = 'Veteran Branch of Service';
+const VET_OPTIONS = ['I am not a Veteran', 'Air Force', 'Army', 'Coast Guard', 'Marines', 'Navy', 'Other', 'Prefer not to say', "I don't wish to answer"];
+const vetBranchEntry = pick(VET_BRANCH);
+const vetPick = (() => { const cands = vetBranchEntry.optionCandidates || [vetBranchEntry.optionMatch]; for (const c of cands) { const i = VET_OPTIONS.findIndex(t => c.test(t)); if (i >= 0) return i; } return -1; })();
+assert(VET_OPTIONS[vetPick] === 'I am not a Veteran', `branch-of-service list takes "I am not a Veteran" (got ${VET_OPTIONS[vetPick]})`);
+assert(!/prefer not|wish to answer/i.test(VET_OPTIONS[vetPick]), 'the branch list never declines to answer');
+
+const REQUIRED_LOCATION = 'Are you willing to work from the required location?';
+assert(pick(REQUIRED_LOCATION) && pick(REQUIRED_LOCATION).choose === 'yes', 'willing to work from the required location -> Yes');
+
+const AI_TOOLS_WHAT = 'What AI tools are you currently using today and how are you using them?';
+routes(AI_TOOLS_WHAT, 'ai-tools-usage-essay');
+assert(/Claude, Codex, and GitHub Copilot/.test(pick(AI_TOOLS_WHAT).text), 'the AI-tools answer names the tools actually used');
+assert(/integration tests/.test(pick(AI_TOOLS_WHAT).text), 'the AI-tools answer keeps the concrete integration-test example');
+
+const YEARS_SWE = 'How many years of experience do you have in software engineering?';
+routes(YEARS_SWE, 'years-of-relevant-experience');
+assert(pick(YEARS_SWE).text === '5', 'a free-text years-of-experience field is answered with 5');
+
+const AI_SYSTEMS = 'This is an AI systems engineering role — we want someone who builds reliable production systems around modern foundation models, not someone who trains models from scratch. What AI systems have you built?';
+routes(AI_SYSTEMS, 'ai-systems-built-essay');
+const aiSystemsText = pick(AI_SYSTEMS).text;
+assert(/Google ADK|Azure OpenAI|AWS Bedrock/.test(aiSystemsText), 'the AI-systems answer names the real stack');
+assert(/schema-constrained|human-review|validation/i.test(aiSystemsText), 'the AI-systems answer speaks to reliability, which is what the question asks');
+assert(/not trained foundation models from scratch/i.test(aiSystemsText), 'the AI-systems answer is honest about not training models from scratch');
+routes('Please describe your AI experience.', 'ai-experience-essay');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);
