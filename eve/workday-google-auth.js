@@ -2,7 +2,12 @@
 // This script does nothing unless the OAuth request is returning to myworkday.com
 // and only requests basic OpenID identity scopes.
 (function () {
-    const WORKDAY_GOOGLE_ACCOUNT = 'xiaoxiaoleijobapp@gmail.com';
+    // Set `email` in the gitignored eve/profile.local.json (background.js stores it as eveProfile).
+    let WORKDAY_GOOGLE_ACCOUNT = '';
+    chrome.storage.local.get(['eveProfile'], stored => {
+        const email = stored && stored.eveProfile && stored.eveProfile.email;
+        if (email) WORKDAY_GOOGLE_ACCOUNT = email;
+    });
     const SESSION_KEY = 'eveWorkdayAutoApplySession';
     const ACTION_DELAY_MS = 2000;
     const ALLOWED_SCOPES = new Set(['openid', 'email', 'profile']);

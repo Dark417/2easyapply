@@ -37,18 +37,23 @@ const DEFAULT_PARAMS = {
     customRegex: ['in office']
 };
 
+// Filled from profile.local.json at startup (see loadLocalProfile) — whatever PDFs this
+// installation points at. Falls back to the packaged defaults below when absent.
+let CONFIGURED_ARTIFACTS = null;
+// Fallback names only — real installations point at their own PDFs from profile.local.json,
+// and a size of 0 means "accept whatever is packaged" (the PDF magic bytes are still checked).
 const WORKDAY_ARTIFACTS = Object.freeze({
     resume: Object.freeze({
-        path: 'artifacts/Xiaoxiao_Lei_RESUME.pdf',
-        name: 'Xiaoxiao_Lei_RESUME.pdf',
+        path: 'artifacts/resume.pdf',
+        name: 'resume.pdf',
         type: 'application/pdf',
-        size: 106737
+        size: 0
     }),
     coverLetter: Object.freeze({
-        path: 'artifacts/Xiaoxiao_Lei_Cover_Letter.pdf',
-        name: 'Xiaoxiao_Lei_Cover_Letter.pdf',
+        path: 'artifacts/cover-letter.pdf',
+        name: 'cover-letter.pdf',
         type: 'application/pdf',
-        size: 46123
+        size: 0
     })
 });
 
@@ -89,12 +94,14 @@ function isArtifactTabSender(sender) {
 
 async function getWorkdayArtifact(artifactId, sender) {
     if (!isArtifactTabSender(sender)) throw new Error('Packaged artifact access denied.');
-    const artifact = WORKDAY_ARTIFACTS[artifactId];
+    // A profile-configured artifact wins over the built-in default, so a new installation serves
+    // ITS OWN resume/cover letter without touching the code.
+    const artifact = (CONFIGURED_ARTIFACTS && CONFIGURED_ARTIFACTS[artifactId]) || WORKDAY_ARTIFACTS[artifactId];
     if (!artifact) throw new Error('Unknown Workday artifact.');
     const response = await fetch(chrome.runtime.getURL(artifact.path));
-    if (!response.ok) throw new Error('Packaged Workday artifact is unavailable.');
+    if (!response.ok) throw new Error('Packaged Workday artifact is unavailable — check the artifacts entry in profile.local.json.');
     const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength !== artifact.size) throw new Error('Packaged Workday artifact size mismatch.');
+    if (artifact.size && bytes.byteLength !== artifact.size) throw new Error('Packaged Workday artifact size mismatch.');
     if (bytes.length < 5 || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
         throw new Error('Packaged Workday artifact is not a valid PDF.');
     }
@@ -576,9 +583,50 @@ async function loadLocalSecrets() {
         }
     } catch { /* no local secrets file present — fine */ }
 }
-chrome.runtime.onInstalled.addListener(() => { loadLocalSecrets(); });
-chrome.runtime.onStartup.addListener(() => { loadLocalSecrets(); });
+
+// Load the applicant's own identity from a gitignored `profile.local.json` (copy
+// `profile.example.json` and fill it in) into extension storage as `eveProfile`, so every engine
+// answers with THIS installation's details instead of the values checked into the repository.
+// Missing file = no-op: the engines fall back to their placeholder defaults and say so.
+//
+// Artifact metadata (resume / cover letter) is DERIVED here rather than hardcoded: whatever PDFs
+// the profile points at are fetched once and their real name/size recorded, so a new user just
+// drops their own files into eve/artifacts/ and names them in the profile.
+async function loadLocalProfile() {
+    try {
+        const res = await fetch(chrome.runtime.getURL('profile.local.json'));
+        if (!res.ok) return;
+        const profile = await res.json();
+        if (profile && typeof profile.identity === 'object') {
+            await storageSet({ eveProfile: profile.identity });
+        }
+        const paths = (profile && typeof profile.artifacts === 'object') ? profile.artifacts : {};
+        const resolved = {};
+        for (const [artifactId, path] of Object.entries(paths)) {
+            if (typeof path !== 'string' || !path) continue;
+            try {
+                const file = await fetch(chrome.runtime.getURL(path));
+                if (!file.ok) continue;
+                const bytes = new Uint8Array(await file.arrayBuffer());
+                if (!bytes.byteLength) continue;
+                resolved[artifactId] = {
+                    path,
+                    name: path.split('/').pop(),
+                    type: 'application/pdf',
+                    size: bytes.byteLength
+                };
+            } catch { /* artifact named but not packaged — skip it */ }
+        }
+        if (Object.keys(resolved).length) {
+            CONFIGURED_ARTIFACTS = Object.freeze(resolved);
+            await storageSet({ eveArtifacts: resolved });
+        }
+    } catch { /* no local profile file present — fine */ }
+}
+chrome.runtime.onInstalled.addListener(() => { loadLocalSecrets(); loadLocalProfile(); });
+chrome.runtime.onStartup.addListener(() => { loadLocalSecrets(); loadLocalProfile(); });
 loadLocalSecrets();
+loadLocalProfile();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {

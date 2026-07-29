@@ -7,6 +7,9 @@ params
 .env*
 # Local-only extension secrets (account password) — loaded by background.js into chrome.storage
 eve/secrets.local.json
+# This installation's own identity (copy eve/profile.example.json)
+eve/profile.local.json
+profile.local.json
 eve/secrets.local.json
 secrets.local.json
 
@@ -21,8 +24,6 @@ scripts
 # PII — never publish (the remote is a public repo)
 # Old LinkedIn step screenshots (they show contact info)
 src/
-# Personal knowledge base: name, phone, home address, email, salary, employment history
-info/
 # Resume / cover letter PDFs (source copies and the packaged artifacts the engines attach)
 cv/
 eve/artifacts/

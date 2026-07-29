@@ -99,15 +99,45 @@ the completeness check passes.
 
 1. `git clone git@github.com:Dark417/2easyapply.git`
 2. `cd 2easyapply` (stay on `main`; there is no `master`)
-3. Open `chrome://extensions/` and enable **Developer mode**
-4. **Load unpacked** → select the `eve` folder
-5. Pin Eve to the toolbar
+3. **Make it yours** — see *Set up your profile* below. Skip this and Eve applies with placeholder
+   details (`Jane Doe`, `you@example.com`).
+4. Open `chrome://extensions/` and enable **Developer mode**
+5. **Load unpacked** → select the `eve` folder
+6. Pin Eve to the toolbar
 
 Open a supported job page and the Eve panel appears. The toolbar popup holds the global toggle and
-search setup; the settings page holds your profile, saved answers, pacing and the applied-jobs log.
+search setup; the settings page holds saved answers, pacing and the applied-jobs log.
 
-Your data — profile, answers, and the applied-jobs log — stays in Chrome's local extension storage
-on your machine.
+## Set up your profile
+
+Eve ships with **no personal data**. Two local files, both gitignored, make it yours:
+
+1. **Identity** — copy the template and fill it in:
+   ```
+   cp eve/profile.example.json eve/profile.local.json
+   ```
+   Name, email, phone, city/state/zip, LinkedIn, GitHub, current employer and title, school. Every
+   engine reads these at fill time, so one file covers all six platforms.
+
+2. **Documents** — drop your PDFs in `eve/artifacts/` and point the same file at them:
+   ```json
+   "artifacts": {
+     "resume": "artifacts/my-resume.pdf",
+     "coverLetter": "artifacts/my-cover-letter.pdf"
+   }
+   ```
+   Filenames and sizes are read from the files themselves — nothing to hardcode.
+
+3. **Answers** — the shipped question bank answers hundreds of questions, but the *content* answers
+   (essays, salary expectation, sponsorship and demographic answers) reflect the author. Edit them
+   in `eve/greenhouse.js` / `eve/workday.js`, or override them from the Settings page, which is
+   stored per-installation.
+
+Reload the extension after editing either file. Your data stays in Chrome's local extension storage
+on your machine; nothing is sent anywhere.
+
+`info/myworkdayjobs` is the author's own knowledge base — the long-form source behind the shipped
+answers. It is published as a worked example of the format, not as a file you need.
 
 ---
 

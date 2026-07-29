@@ -111,7 +111,7 @@ assert(pick(ACCENTURE_PROJECT).choose === 'yes', 'Accenture current-employer pro
 
 console.log('\n=== Stratolaunch Systems Engineer (live inventory 2026-07-26) ===');
 routes('Complete current mailing address', 'mailing-address');
-assert(pick('Complete current mailing address').text === '1721 Walters Dr, Dallas, TX 75023', 'mailing address uses Dallas override');
+assert(pick('Complete current mailing address').profileKey === 'mailingAddress', 'mailing address comes from the profile, not a literal in source');
 const STRATO_CITIZENSHIP = 'Certain U.S. government contracts supported by our company prohibit employment of individuals who hold citizenship (including dual citizenship) in specific countries designated by the U.S. Department of State. Please indicate whether you currently hold citizenship (including dual citizenship) in any of the following countries:';
 routes(STRATO_CITIZENSHIP, 'restricted-country-citizenship');
 routes('A government contract prohibits employment based on citizenship in listed countries. Please indicate whether you hold citizenship in any listed country.', 'restricted-country-citizenship');
@@ -293,9 +293,16 @@ function extractFreezeObject(name) {
   }
   return eval(`(${src.slice(open, end + 1)})`);
 }
-const GH_PROFILE = extractFreezeObject('GH_PROFILE');
+// Placeholder defaults from source, overlaid with this checkout's profile (profile.local.json
+// when present, otherwise the committed example) — exactly what the engine does at run time.
+const GH_PROFILE_DEFAULTS = extractFreezeObject('GH_PROFILE_DEFAULTS');
+const profilePath = ['profile.local.json', 'profile.example.json']
+  .map(f => path.join(__dirname, '..', 'eve', f))
+  .find(f => fs.existsSync(f));
+const PROFILE_IDENTITY = profilePath ? (JSON.parse(fs.readFileSync(profilePath, 'utf8')).identity || {}) : {};
+const GH_PROFILE = { ...GH_PROFILE_DEFAULTS, ...PROFILE_IDENTITY };
 const FIELDS = (() => {
-  const start = src.indexOf('const GH_PROFILE_FIELDS = [');
+  const start = src.indexOf('return [', src.indexOf('function buildGH_PROFILE_FIELDS('));
   const open = src.indexOf('[', start);
   let depth = 0, end = -1;
   for (let j = open; j < src.length; j++) {
@@ -469,7 +476,7 @@ routes(CAPE_HYBRID, 'relocation-hybrid');
 assert(optPick('relocation-hybrid', ['I can work 3 days a week in the New York office', 'I can work 3 days a week in the Arlington office', 'I cannot work 3 days a week in an office']) === 'I can work 3 days a week in the New York office', 'Cape hybrid radios -> first CAN option (New York)');
 
 console.log('\n=== LinkedIn value format + engine source markers ===');
-assert(GH_PROFILE.linkedin === 'www.linkedin.com/in/xiaoxiaolei/', 'linkedin value is scheme-less (user 2026-07-26)');
+assert(!/^https?:\/\//.test(GH_PROFILE.linkedin), 'linkedin value is scheme-less (user 2026-07-26)');
 assert(!/https?:\/\//.test(GH_PROFILE.linkedin), 'linkedin value contains no https://');
 assert(/^https:\/\//.test(GH_PROFILE.github), 'github stays a full URL');
 assert(/function chooserPicker\(/.test(src) && /optionCandidates/.test(src), 'ordered-candidate picker shipped');
@@ -754,7 +761,7 @@ assert(!BANK.find(e => e.topic === 'office-attendance-requirement').optionCandid
 // Pairs 8/9: identity profile fields (Legal First and Last Name / Current or Most Recent Employer).
 assert(matchProfileField('Legal First and Last Name')?.value === 'Xiaoxiao Lei', 'Legal First and Last Name -> Xiaoxiao Lei');
 assert(matchProfileField('Current or Most Recent Employer')?.value === GH_PROFILE.currentCompany, 'Current or Most Recent Employer -> the canonical J.P. Morgan Chase & Co. value');
-assert(GH_PROFILE.currentCompany === 'J.P. Morgan Chase & Co.', 'currentCompany keeps its single canonical spelling (no second "JPMorgan" value introduced)');
+assert(typeof GH_PROFILE.currentCompany === 'string' && GH_PROFILE.currentCompany.length > 0, 'currentCompany has a single canonical value from the profile');
 
 console.log('\n=== Single-option acknowledgement rule (user, 2026-07-27) ===');
 assert(!/if \(isRequiredInput\(input\)\) \{\n\s+const single = await selectShellOption/.test(src), 'the singleton dropdown rule no longer waits for a required marker');
@@ -906,7 +913,7 @@ const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);
 assert(dupes.length === 0, `no duplicate topics (${topics.length} gh topics)${dupes.length ? ' dupes=' + dupes : ''}`);
 assert(BANK.every(e => Array.isArray(e.patterns) && e.patterns.length), 'every entry has patterns');
-assert(BANK.every(e => e.choose || e.text != null || e.optionMatch || e.optionCandidates || e.checkAll || e.check), 'every entry has an answer (choose/text/optionMatch/optionCandidates/checkAll/check)');
+assert(BANK.every(e => e.choose || e.text != null || e.optionMatch || e.optionCandidates || e.checkAll || e.check || e.profileKey), 'every entry has an answer (choose/text/optionMatch/optionCandidates/checkAll/check/profileKey)');
 
 console.log(`\nTOTAL ${pass}/${pass + fail} assertions passed${fail ? ` — ${fail} FAILURES` : ''}`);
 process.exit(fail ? 1 : 0);

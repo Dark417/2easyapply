@@ -100,33 +100,46 @@
     const GH_SELECTION_SETTLE_MS = 500;
     const SALARY_EXPECTATION = '160000';
     const MAX_ARTIFACT_BYTES = 5 * 1024 * 1024;
-    const ARTIFACT_METADATA = Object.freeze({
-        resume: Object.freeze({ name: 'Xiaoxiao_Lei_RESUME.pdf', size: 106737 }),
-        coverLetter: Object.freeze({ name: 'Xiaoxiao_Lei_Cover_Letter.pdf', size: 46123 })
-    });
+    // Which packaged documents this engine may request. Their real filenames and sizes live in
+    // eve/profile.local.json (see eve/profile.example.json) and are resolved by background.js.
+    const ARTIFACT_IDS = ['resume', 'coverLetter'];
 
     // Identity / profile values from info/myworkdayjobs [CONTACT]/[LINKS]/[EXPERIENCE].
     // LOCATION OVERRIDE (user, 2026-07-26): Dallas everywhere — the location autocomplete types
     // "Dallas" and takes the FIRST suggestion; plain city/state inputs get Dallas / Texas.
-    const GH_PROFILE = Object.freeze({
-        firstName: 'Xiaoxiao',
-        lastName: 'Lei',
-        fullName: 'Xiaoxiao Lei',
-        preferredName: 'Xiaoxiao',
-        email: 'xiaoxiaoleijobapp@gmail.com',
-        phone: '(571) 376-1882',
-        locationSearch: 'Dallas',
-        city: 'Dallas',
-        state: 'Texas',
-        country: 'United States',
-        mailingAddress: '1721 Walters Dr, Dallas, TX 75023',
-        zip: '75023',
-        // LinkedIn WITHOUT the https:// scheme (user, 2026-07-26); GitHub stays a full URL.
-        linkedin: 'www.linkedin.com/in/xiaoxiaolei/',
-        github: 'https://github.com/Dark417',
-        currentCompany: 'J.P. Morgan Chase & Co.',
-        currentTitle: 'Associate Software Engineer'
+    // PLACEHOLDER identity. The real values live in the gitignored eve/profile.local.json
+    // (copy eve/profile.example.json and fill it in); background.js loads that file into
+    // extension storage as `eveProfile` and GH_PROFILE is merged from it at fill time, so a
+    // fresh clone answers with ITS OWN details rather than the author's.
+    const GH_PROFILE_DEFAULTS = Object.freeze({
+        firstName: "Jane",
+        lastName: "Doe",
+        fullName: "Jane Doe",
+        preferredName: "Jane",
+        email: "you@example.com",
+        phone: "(555) 555-0100",
+        locationSearch: "Dallas",
+        city: "Dallas",
+        state: "Texas",
+        country: "United States",
+        mailingAddress: "1 Example St, Dallas, TX 75001",
+        zip: "75001",
+        linkedin: "www.linkedin.com/in/your-handle/",
+        github: "https://github.com/your-handle",
+        currentCompany: "Your Current Employer",
+        currentTitle: "Your Current Title",
     });
+    let GH_PROFILE = { ...GH_PROFILE_DEFAULTS };
+    async function loadRuntimeProfile() {
+        try {
+            const stored = await storageGet(['eveProfile']);
+            const identity = stored && stored.eveProfile;
+            if (identity && typeof identity === 'object') GH_PROFILE = { ...GH_PROFILE_DEFAULTS, ...identity };
+        } catch { /* no stored profile — placeholders stand */ }
+        // Label-driven fields capture profile values, so rebuild them from whatever is current.
+        GH_PROFILE_FIELDS = buildGH_PROFILE_FIELDS();
+        return GH_PROFILE;
+    }
 
     // Education entries in DOM order (most recent/highest first — matches info/myworkdayjobs
     // [EDUCATION] and the Workday DEFAULT_MY_EXPERIENCE order). Used by MyGreenhouse's repeated
@@ -144,7 +157,8 @@
 
     // Label-driven identity fields (plain text inputs). First matching entry wins; a field that
     // already holds a value is skipped (Greenhouse pages are often partially browser-filled).
-    const GH_PROFILE_FIELDS = [
+    function buildGH_PROFILE_FIELDS() {
+        return [
         { label: /preferred (first )?name/i, value: GH_PROFILE.preferredName },
         { label: /^first name/i, value: GH_PROFILE.firstName },
         { label: /^last name/i, value: GH_PROFILE.lastName },
@@ -184,7 +198,9 @@
         { label: /^country\b/i, value: GH_PROFILE.country },
         // Zip / postal code (user, 2026-07-27) — the Dallas home zip.
         { label: /^zip\b|^postal\b|zip ?code|postal code/i, value: GH_PROFILE.zip }
-    ];
+        ];
+    }
+    let GH_PROFILE_FIELDS = buildGH_PROFILE_FIELDS();
 
     // ── Question bank (regex topics, seeded from info/myworkdayjobs [QUESTION BANK]) ──────────
     // Same first-match-wins contract as Workday's DEFAULT_APPLICATION_QUESTIONS: `patterns` match
@@ -237,7 +253,7 @@
         {
             topic: 'mailing-address',
             patterns: [/complete current mailing address/i, /^mailing address$/i],
-            text: '1721 Walters Dr, Dallas, TX 75023'
+            profileKey: 'mailingAddress'   // resolved from the runtime profile
         },
         {
             topic: 'current-location-north-america',
@@ -2093,21 +2109,23 @@
         return bytes;
     }
     async function packagedArtifactFile(artifactId) {
-        const expected = ARTIFACT_METADATA[artifactId];
-        if (!expected) throw new Error('Unsupported packaged document.');
+        // The name/size of the packaged PDFs comes from whatever this installation configured
+        // (eve/profile.local.json -> background.js), so only the artifact ID is validated here;
+        // the bytes themselves are checked below.
+        if (!ARTIFACT_IDS.includes(artifactId)) throw new Error('Unsupported packaged document.');
         const response = await sendRuntimeMessage({ type: MSG('get-workday-artifact'), artifactId });
         const artifact = response.artifact || {};
-        if (artifact.name !== expected.name || artifact.type !== 'application/pdf' || Number(artifact.size) !== expected.size) {
+        if (artifact.type !== 'application/pdf' || !artifact.name) {
             throw new Error('The packaged document metadata is invalid.');
         }
         if (!artifact.dataBase64 || artifact.size <= 0 || artifact.size > MAX_ARTIFACT_BYTES) {
             throw new Error('The packaged PDF is empty, oversized, or unreadable.');
         }
         const bytes = base64ToBytes(artifact.dataBase64);
-        if (bytes.byteLength !== expected.size || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
+        if (bytes.byteLength !== Number(artifact.size) || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
             throw new Error('The packaged PDF contents failed validation.');
         }
-        return new File([bytes], expected.name, { type: 'application/pdf', lastModified: 0 });
+        return new File([bytes], artifact.name, { type: 'application/pdf', lastModified: 0 });
     }
 
     // File-upload blocks (gh): .file-upload contains the section label (Resume/CV or Cover
@@ -2418,6 +2436,7 @@
                 (required ? unansweredRequired : unansweredOptional).push(label);
             };
             const seen = [];
+            await loadRuntimeProfile();   // this installation's identity, not the placeholders
             const bank = await ghQuestionBank();
 
             // Steps 1–4 run in ROUNDS: answering one question can conditionally reveal another
@@ -2481,8 +2500,11 @@
                     // an optional box is left blank rather than volunteering the number (user,
                     // 2026-07-27).
                     if (entry && entry.requiredOnly && !isRequiredInput(input)) continue;
-                    if (entry && entry.text != null) {
-                        await fillTextField(input, entry.text);
+                    // A `profileKey` answer comes from this installation's own profile, never a
+                    // value baked into the source.
+                    const bankedText = entry && entry.profileKey ? (GH_PROFILE[entry.profileKey] || '') : (entry ? entry.text : null);
+                    if (entry && bankedText) {
+                        await fillTextField(input, bankedText);
                         filled.push(`${label} [${entry.topic}]`);
                     } else if (entry && entry.choose) {
                         // A Yes/No topic landing on a free-text control: start with the word.

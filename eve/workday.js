@@ -9,7 +9,7 @@
     const WORKDAY_INFO_KEY = 'workdaySavedAnswers';
     const LEGACY_WORKDAY_RESUME_KEY = 'workdayResumeFile';
     const POSITION_KEY = 'eve_workday_panel_pos';
-    const TARGET_GOOGLE_ACCOUNT = 'xiaoxiaoleijobapp@gmail.com';
+    const TARGET_GOOGLE_ACCOUNT = '';   // set `email` in eve/profile.local.json
     // No general delay in the Workday job flow (user, 2026-07-18): act immediately; the picker code
     // already polls/waits for options to render before selecting. The ONLY deliberate wait is for the
     // long search-result pickers (Field of Study / a searchable School list), which need ~0.5s for
@@ -26,29 +26,57 @@
     // Mirrored in info/myworkdayjobs [Salary/Compensation expectations]; keep the two in step.
     const SALARY_EXPECTATION = '160000';
     const MAX_RESUME_BYTES = 5 * 1024 * 1024;
-    const ARTIFACT_METADATA = Object.freeze({
-        resume: Object.freeze({ name: 'Xiaoxiao_Lei_RESUME.pdf', size: 106737 }),
-        coverLetter: Object.freeze({ name: 'Xiaoxiao_Lei_Cover_Letter.pdf', size: 46123 })
-    });
+    // Which packaged documents this engine may request. Their real filenames and sizes live in
+    // eve/profile.local.json (see eve/profile.example.json) and are resolved by background.js.
+    const ARTIFACT_IDS = ['resume', 'coverLetter'];
+    // The identity below is a PLACEHOLDER. Real values come from the gitignored
+    // eve/profile.local.json (copy eve/profile.example.json), which background.js loads into
+    // storage as `eveProfile`; applyRuntimeProfile() merges it over these defaults so a fresh
+    // clone applies as ITS OWN user.
     const DEFAULT_MY_INFORMATION = Object.freeze({
         sourceDetail: '', // no default source: How Did You Hear About Us is first-option-always
         country: 'United States of America',
-        firstName: 'Xiaoxiao',
-        lastName: 'Lei',
+        firstName: 'Jane',
+        lastName: 'Doe',
         preferredName: false,
-        addressLine1: '1721 Walters Dr',
-        city: 'Plano',
+        addressLine1: '1 Example St',
+        city: 'Dallas',
         state: 'Texas',
-        postalCode: '75023',
+        postalCode: '75001',
         phoneType: 'Mobile',
         countryPhoneCode: 'United States of America (+1)',
-        phoneNumber: '(571) 376-1882',
+        phoneNumber: '(555) 555-0100',
         phoneExtension: ''
     });
     // My Experience (step after My Information): work experience, education, required language,
     // and cover letter.
     // Skills are intentionally SKIPPED per user request (too many). Data-driven from the
     // [EXPERIENCE]/[EDUCATION] answer bank; workdaySavedAnswers.myExperience overrides these defaults.
+    let RUNTIME_PROFILE = {};
+    let GOOGLE_ACCOUNT = TARGET_GOOGLE_ACCOUNT;
+    async function applyRuntimeProfile() {
+        try {
+            const stored = await new Promise(resolve => chrome.storage.local.get(['eveProfile'], resolve));
+            const identity = stored && stored.eveProfile;
+            if (!identity || typeof identity !== 'object') return RUNTIME_PROFILE;
+            RUNTIME_PROFILE = identity;
+            if (identity.email) GOOGLE_ACCOUNT = identity.email;
+        } catch { /* no stored profile — placeholders stand */ }
+        return RUNTIME_PROFILE;
+    }
+    // My Information values, profile first and packaged default second.
+    function profileMyInformation() {
+        const p = RUNTIME_PROFILE || {};
+        return Object.assign({}, DEFAULT_MY_INFORMATION, {
+            firstName: p.firstName || DEFAULT_MY_INFORMATION.firstName,
+            lastName: p.lastName || DEFAULT_MY_INFORMATION.lastName,
+            addressLine1: p.addressLine1 || DEFAULT_MY_INFORMATION.addressLine1,
+            city: p.addressCity || p.city || DEFAULT_MY_INFORMATION.city,
+            state: p.state || DEFAULT_MY_INFORMATION.state,
+            postalCode: p.zip || DEFAULT_MY_INFORMATION.postalCode,
+            phoneNumber: p.phone || DEFAULT_MY_INFORMATION.phoneNumber
+        });
+    }
     const FILL_SKILLS = false; // user opted out of filling the Skills section on My Experience
     const DEFAULT_MY_EXPERIENCE = Object.freeze({
         workExperiences: Object.freeze([
@@ -2126,10 +2154,10 @@
             return context.mode === 'manual' ? manualFillResult(message, false) : pause(message);
         }
         await markLoginPending();
-        if (!await clickAuthButton(google, `Signing in with Google as ${TARGET_GOOGLE_ACCOUNT}`, context)) {
+        if (!await clickAuthButton(google, `Signing in with Google as ${GOOGLE_ACCOUNT}`, context)) {
             return { ok: false, state: 'stopped' };
         }
-        setStatus(`Signing in with Google as ${TARGET_GOOGLE_ACCOUNT}…`, 'running');
+        setStatus(`Signing in with Google as ${GOOGLE_ACCOUNT}…`, 'running');
         return { ok: true, state: 'authenticating' };
     }
 
@@ -2823,20 +2851,24 @@
         const result = await storageGet([WORKDAY_INFO_KEY, 'savedAnswers', 'profileData']);
         const stored = result[WORKDAY_INFO_KEY] || {};
         const fallbackRecords = [result.profileData || {}, result.savedAnswers || {}];
+        // This installation's own identity (eve/profile.local.json) sits under the saved answers
+        // and over the packaged placeholders.
+        await applyRuntimeProfile();
+        const DEFAULTS = profileMyInformation();
         const fallbacks = {
-            sourceDetail: pickStoredValue(fallbackRecords, ['How Did You Hear About Us?', 'How did you learn about this role?']) || DEFAULT_MY_INFORMATION.sourceDetail,
-            country: pickStoredValue(fallbackRecords, ['Country']) || DEFAULT_MY_INFORMATION.country,
-            firstName: pickStoredValue(fallbackRecords, ['First Name', 'firstName']) || DEFAULT_MY_INFORMATION.firstName,
-            lastName: pickStoredValue(fallbackRecords, ['Last Name', 'lastName']) || DEFAULT_MY_INFORMATION.lastName,
-            preferredName: DEFAULT_MY_INFORMATION.preferredName,
-            addressLine1: pickStoredValue(fallbackRecords, ['Address Line 1', 'addressLine1', 'Street Address']) || DEFAULT_MY_INFORMATION.addressLine1,
-            city: pickStoredValue(fallbackRecords, ['City']) || DEFAULT_MY_INFORMATION.city,
-            state: pickStoredValue(fallbackRecords, ['State', 'Region']) || DEFAULT_MY_INFORMATION.state,
-            postalCode: pickStoredValue(fallbackRecords, ['Postal Code', 'postalCode', 'Zip Code']) || DEFAULT_MY_INFORMATION.postalCode,
-            phoneType: pickStoredValue(fallbackRecords, ['Phone Device Type', 'phoneType']) || DEFAULT_MY_INFORMATION.phoneType,
-            countryPhoneCode: pickStoredValue(fallbackRecords, ['Country Phone Code', 'countryPhoneCode']) || DEFAULT_MY_INFORMATION.countryPhoneCode,
-            phoneNumber: pickStoredValue(fallbackRecords, ['Phone Number', 'phoneNumber']) || DEFAULT_MY_INFORMATION.phoneNumber,
-            phoneExtension: pickStoredValue(fallbackRecords, ['Phone Extension', 'phoneExtension']) || DEFAULT_MY_INFORMATION.phoneExtension
+            sourceDetail: pickStoredValue(fallbackRecords, ['How Did You Hear About Us?', 'How did you learn about this role?']) || DEFAULTS.sourceDetail,
+            country: pickStoredValue(fallbackRecords, ['Country']) || DEFAULTS.country,
+            firstName: pickStoredValue(fallbackRecords, ['First Name', 'firstName']) || DEFAULTS.firstName,
+            lastName: pickStoredValue(fallbackRecords, ['Last Name', 'lastName']) || DEFAULTS.lastName,
+            preferredName: DEFAULTS.preferredName,
+            addressLine1: pickStoredValue(fallbackRecords, ['Address Line 1', 'addressLine1', 'Street Address']) || DEFAULTS.addressLine1,
+            city: pickStoredValue(fallbackRecords, ['City']) || DEFAULTS.city,
+            state: pickStoredValue(fallbackRecords, ['State', 'Region']) || DEFAULTS.state,
+            postalCode: pickStoredValue(fallbackRecords, ['Postal Code', 'postalCode', 'Zip Code']) || DEFAULTS.postalCode,
+            phoneType: pickStoredValue(fallbackRecords, ['Phone Device Type', 'phoneType']) || DEFAULTS.phoneType,
+            countryPhoneCode: pickStoredValue(fallbackRecords, ['Country Phone Code', 'countryPhoneCode']) || DEFAULTS.countryPhoneCode,
+            phoneNumber: pickStoredValue(fallbackRecords, ['Phone Number', 'phoneNumber']) || DEFAULTS.phoneNumber,
+            phoneExtension: pickStoredValue(fallbackRecords, ['Phone Extension', 'phoneExtension']) || DEFAULTS.phoneExtension
         };
         const merged = { ...fallbacks };
         for (const [key, value] of Object.entries(stored)) {
@@ -4579,7 +4611,7 @@
             || /email/i.test(getLabel(input))
             || /email/i.test(input.getAttribute('data-automation-id') || ''));
         if (emailInput && !clean(emailInput.value)) {
-            await performDelayedAction(() => setNativeValue(emailInput, TARGET_GOOGLE_ACCOUNT), 'Filling account email', context);
+            await performDelayedAction(() => setNativeValue(emailInput, GOOGLE_ACCOUNT), 'Filling account email', context);
         }
     }
 
@@ -4700,8 +4732,10 @@
     }
 
     async function packagedArtifactFile(artifactId) {
-        const expected = ARTIFACT_METADATA[artifactId];
-        if (!expected) throw new Error('Unsupported packaged document.');
+        // The name/size of the packaged PDFs comes from whatever this installation configured
+        // (eve/profile.local.json -> background.js), so only the artifact ID is validated here;
+        // the bytes themselves are checked below.
+        if (!ARTIFACT_IDS.includes(artifactId)) throw new Error('Unsupported packaged document.');
         const response = await sendRuntimeMessage({ type: 'eve:get-workday-artifact', artifactId });
         const artifact = response.artifact || {};
         if (artifact.name !== expected.name || artifact.type !== 'application/pdf' || Number(artifact.size) !== expected.size) {
@@ -4711,10 +4745,10 @@
             throw new Error('The packaged PDF is empty, oversized, or unreadable.');
         }
         const bytes = base64ToBytes(artifact.dataBase64);
-        if (bytes.byteLength !== expected.size || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
+        if (bytes.byteLength !== Number(artifact.size) || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
             throw new Error('The packaged PDF contents failed validation.');
         }
-        return new File([bytes], expected.name, { type: 'application/pdf', lastModified: 0 });
+        return new File([bytes], artifact.name, { type: 'application/pdf', lastModified: 0 });
     }
 
     function waitForResumeUpload(timeoutMs = 45000) {
@@ -5133,7 +5167,7 @@
                     );
                 }
                 if (google) {
-                    if (!await clickButton(google, `Signing in with Google as ${TARGET_GOOGLE_ACCOUNT}`)) return { ok: false, state: 'stopped' };
+                    if (!await clickButton(google, `Signing in with Google as ${GOOGLE_ACCOUNT}`)) return { ok: false, state: 'stopped' };
                     return { ok: true, state: 'authenticating' };
                 }
 
@@ -5342,7 +5376,7 @@
           </div>
           <div id="ea-body-apply" class="ea-body">
             <p id="ea-apply-status">${esc(bulletize(statusMessage))}</p>
-            <p class="ea-dim">Isolated Workday flow. Account: ${esc(TARGET_GOOGLE_ACCOUNT)} (Google or email/password per tenant)</p>
+            <p class="ea-dim">Isolated Workday flow. Account: ${esc(GOOGLE_ACCOUNT)} (Google or email/password per tenant)</p>
             <div class="ea-auto-toggle-row">
               <div>
                 <label class="ea-mini-label" for="ea-workday-auto-toggle">Auto Apply</label>

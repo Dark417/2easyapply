@@ -1,0 +1,32 @@
+{
+  "$schema": "profile.example.json",
+  "identity": {
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "fullName": "Jane Doe",
+    "preferredName": "Jane",
+    "email": "you@example.com",
+    "phone": "(555) 555-0100",
+    "locationSearch": "Dallas",
+    "city": "Dallas",
+    "state": "Texas",
+    "country": "United States",
+    "mailingAddress": "1 Example St, Dallas, TX 75001",
+    "addressLine1": "1 Example St",
+    "addressCity": "Dallas",
+    "zip": "75001",
+    "linkedin": "www.linkedin.com/in/your-handle/",
+    "github": "https://github.com/your-handle",
+    "website": "https://github.com/your-handle",
+    "currentCompany": "Your Current Employer",
+    "currentTitle": "Your Current Title",
+    "school": "Your University",
+    "graduationDate": "01/01/2020",
+    "graduationYear": "2020",
+    "gpa": "3.50"
+  },
+  "artifacts": {
+    "resume": "artifacts/Your_Resume.pdf",
+    "coverLetter": "artifacts/Your_Cover_Letter.pdf"
+  }
+}

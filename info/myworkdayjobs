@@ -1,0 +1,2880 @@
+# info — application answer key for Xiaoxiao Lei
+
+# CV sources parsed and visually verified 2026-07-16:
+
+# - cv/Xiaoxiao_Lei_RESUME.pdf
+
+# - cv/Xiaoxiao Lei Cover Letter.pdf
+
+# CV-derived sections below replace older resume history. Non-CV application answers remain separately maintained.
+
+# Sections: [CONTACT] [WORK AUTH] [EXPERIENCE] [EDUCATION] [SKILLS] [CERTS] [LINKS]
+
+# [OPEN QUESTIONS] at the bottom collects fields no answer exists for yet — user fills these in manually.
+
+[CONTACT]
+Full name: Xiaoxiao Lei
+First name: Xiaoxiao
+Last name: Lei
+Email: xiaoxiaoleijobapp@gmail.com
+Phone: +1-571-376-1882
+Location: Dallas, TX, United States
+State of residence: Texas
+Remote US states able to work in: CA, WA, TX
+LinkedIn: https://www.linkedin.com/in/xiaoxiaolei/
+Github: https://github.com/Dark417
+
+[WORK AUTH]
+
+# Standard H1B situation. Use these verbatim where the form asks.
+
+Are you legally authorized to work in the US?: Yes
+Will you now or in the future require sponsorship for employment visa status?: Yes
+Current visa status: H-1B
+Details: I am on an H-1B visa. I am authorized to work only for my current employer.
+I will require visa sponsorship (transfer) for future employment.
+
+[EXPERIENCE]
+Current title: Associate Software Engineer
+Current employer: J.P. Morgan Chase & Co.
+Current employment location: Dallas, TX, United States
+Current employment dates: Apr 2022 – Present
+Total years of professional software engineering experience: 4+ years (since Apr 2022)
+
+- J.P. Morgan Chase & Co. — Associate Software Engineer — Dallas, TX — Apr 2022 to Present
+  - Co-built an end-to-end AWS data pipeline for a financial instrument platform. It ingests
+    30,000+ offering instruments per day from third-party vendor APIs, transforms 170+ attributes
+    into the persistence layer, and serves downstream consumer applications.
+  - Built the transformation and data-quality layer using PySpark on AWS Glue; normalized vendor
+    records into validated domain objects, enforced a consistent data model, persisted canonical
+    records to Aurora PostgreSQL, and published enriched events through SNS.
+  - Co-developed a Financial Data Enrichment Service using Spring Boot on ECS. It enables users to
+    preview, correct, and query edited records before downstream consumption and exposes GraphQL
+    and REST APIs. Used GitHub Copilot to accelerate implementation and tests, reducing recent
+    feature delivery cycle time by approximately 70%.
+  - Developed a Spring Boot Document Broker Service for domain objects and document search, upload,
+    and download backed by MongoDB; redesigned permission resolution as an extensible multi-parameter
+    access-control flow and added MongoDB-backed audit logging.
+  - Strengthened production reliability by building an AWS Lambda utility that injects 30+ record
+    types on demand for end-to-end tests, reducing debugging time by 80%. Provides production support
+    with Datadog and AWS CloudWatch, cross-service tracing, root-cause analysis, and remediation.
+  - Owns infrastructure delivery for an AI agent governance platform: repeatable multi-environment
+    AWS resources through Terraform IaC, containerized ECS deployments, and CI/CD with Jenkins, Jib,
+    and Spinnaker.
+  - Built a Google ADK-based financial-instrument reconciliation agent system using FastAPI, Azure
+    OpenAI, and AWS Bedrock. It identified 95% of known discrepancies in manually reviewed test
+    emails and was projected to save approximately 1.5 hours of manual review per banker each day.
+  - Delivered end-to-end development of a React admin portal for an internal fundraising platform,
+    translating Figma designs and complex authorization rules into permission-management workflows;
+    built reusable monorepo UI components and integrated GraphQL/REST APIs for financial and entity
+    record access.
+
+- Startup cofounder — 2017 — cofounded a three-person startup building a WeChat chatbot that let
+  customers make appointments (user, 2026-07-26). Not on the CV; use for founder/early-stage/
+  smallest-company questions, never as a formal employment entry unless the user says so.
+
+- Graphen Inc. — Software Engineer Intern — New York, NY — May 2021 to Sep 2021
+  - Developed a data-processing service and UI that integrated a multimodal video-understanding
+    model and visualized outputs using Python, Flask, and React.
+  - Co-authored the paper MultiModal Language Modelling on Knowledge Graphs (doi.org/10.1145/3474085.3479220).
+  # Workday free-text fields (e.g. Role Description) reject the characters < > [ ] " { } \ — do NOT
+  # use quotes/brackets/braces/backslashes in descriptions. The adapter also strips them at fill
+  # time via sanitizeWorkdayText(), but keep stored text clean too.
+
+[EDUCATION]
+
+- State University of New York at Buffalo — Buffalo, NY, USA
+  Master of Science in Computer Science and Engineering — Jan 2020 to Feb 2022
+- Beijing International Studies University — Beijing, China
+  Bachelor of Arts, English Language and Literature — Sep 2010 to Jul 2014
+  # SCHOOL NOT ON THE LIST -> USE "OTHER" (user, 2026-07-25). Beijing International Studies
+  # University is usually NOT in a tenant's school list. Order: (1) exact/precedence match on the
+  # real name; (2) the tenant's own "Other" option ("Other", "Other (not listed)", "School not
+  # listed", "Not listed") — an honest tenant-provided answer, not a fabrication; (3) only pause if
+  # there is no "Other" either. NEVER fall back to the FIRST option — that would attach a real
+  # school never attended. If choosing Other reveals a free-text school-name box, type the real
+  # name into it. Handled by setEntrySchool() + selectSchoolOther() in eve/workday.js.
+  #
+  # FIELD OF STUDY SEARCH (user, 2026-07-25): type a SHORT term, press Enter, wait 0.5s for results,
+  # then select by precedence. Grad (Buffalo) types "Computer" (precedence Computer Science >
+  # Computer*Science > Computer*Engineer*); undergrad (Beijing) types "English" (English Literature >
+  # English > English*). The 0.5s is PICKER_SEARCH_SETTLE_MS — the one deliberate delay in the flow
+  # (ACTION_DELAY_MS stays 0); do not add a second wait. The short term is derived as the shortest
+  # literal stem of the candidate list.
+  #
+  # NOTE: the School control SHAPE VARIES BY TENANT — free text on BlackRock (below), a searchable
+  # multiselect on Bank of America / GHR (education-<n>--school, uxi selectinput), so the code
+  # detects the shape via isSearchPickerControl() rather than assuming either.
+  # Workday My Experience (BlackRock tenant, confirmed via CDP 2026-07-16): "School or University"
+  # is a FREE-TEXT field (education-<n>--schoolName) — just type the name; no "Other" picker needed.
+  # Degree is a listbox button (education-<n>--degree): pick "Bachelor of Arts" (or closest match).
+  # Field of Study = "select with precedence" picker (type to search, then select+click). '*' is a
+  # wildcard ANYWHERE. Precedence in order; first candidate that matches an option wins; if none
+  # match, pick the first option in the list.
+  #   Undergrad (Beijing) major: English Literature > English > English*
+  #   Grad (Buffalo) major:      Computer Science > Computer*Science > Computer*Engineer*
+  # Degree = "select one" listbox. Master's target must AVOID "MBA/Business Administration" and pick
+  # "Post Graduate Degree" (options seen: Master of Business Administration (MBA), Post Graduate
+  # Degree, Undergraduate Degree). Bachelor -> "Undergraduate Degree".
+  # Degree matching (user, 2026-07-18) — tenants label options with a code prefix, e.g. Disney:
+  #   Master (SUNY Buffalo MS) -> "M. - Masters degree" (match "*Masters Degree*"); NEVER MBA
+  #     ("M.B.A. - Master of Business Administration") or MFA ("M.F.A. - Master of Fine Arts").
+  #   Bachelor (Beijing BA) -> prefer "Bachelor of Arts"; if absent, "B.S. - Bachelor of Science"
+  #     (match "*Bachelor of Science*"); NEVER "B.F.A. - Bachelor of Fine Arts".
+  # Degree = MS (user, 2026-07-20): a master's is "MS". On dropdowns that list CODES (Salesforce:
+  #   MS, MAS, MBA, JD, MD, PhD) pick "MS" FIRST — degreeSpec() now tries MS/M.S./MSc before the
+  #   full "Master of Science", and excludes MAS (Master of Advanced Study) as well as MBA/MFA.
+  #   "Go fast": native <select> degree lists are set directly (no popup/scroll poll).
+  # Handled by degreeSpec() + setEntryDegree() in eve/workday.js (native-select + listbox paths).
+
+[SKILLS]
+Languages: Java, Python, SQL, JavaScript, TypeScript, HTML, CSS
+Frameworks: Spring Boot, React, FastAPI, GraphQL, RESTful APIs, Kafka
+Database: MySQL, PostgreSQL, NoSQL, MongoDB, Liquibase, Databricks
+Cloud & DevOps: AWS EC2, S3, ECS, EKS, Lambda, Glue, SNS/SQS, Aurora, DynamoDB, CloudWatch, Terraform, GCP, Docker, Kubernetes, Jenkins
+Observability: Datadog, Splunk, Grafana
+Generative AI & Agents: Google Agent Development Kit (ADK), AWS Bedrock, agent orchestration, prompt engineering, GitHub Claude Code, Codex, Copilot, Spec Driven Development, LangChain, RAG
+
+[LANGUAGES]
+# user, 2026-07-27: the My Experience step sometimes renders Languages as REQUIRED. When it does,
+# fill TWO entries — English and Chinese (Mandarin). Never fill this section when it is absent or
+# optional. Match by the regexes below, never by a tenant's exact wording.
+Workday My Experience Languages section — fill only when the section is present/required.
+Two entries; "Add Another" is clicked automatically to create the second one:
+- Entry 1: English            — Fluent: Yes — Native: Yes — Level: C2 / Proficient / Native or Bilingual
+- Entry 2: Chinese (Mandarin) — Fluent: Yes — Native: Yes — Level: C2 / Proficient / Native or Bilingual
+(user, 2026-07-27: "native" is ticked on BOTH languages wherever the tenant offers a separate box.)
+
+Label patterns (regex, not literal wording):
+- section heading:   /^languages?$/i
+- language picker:   /^language(\s*(name|s))?$/i
+- fluent checkbox:   /\bfluent\b/i                                       -> check
+- native checkbox:   /\bnative\b/i (only when it is a SEPARATE box)       -> check on both entries
+- level/proficiency: /^(level|.*proficiency|language ability|skill level)$/i  -> every such control in the entry
+
+Option patterns (pick the first that the tenant actually offers):
+- English option:    English -> English* -> *English*
+- Chinese option:    Chinese*Mandarin* -> Mandarin* -> Chinese*Simplified* -> Chinese -> Chinese* -> *Mandarin* -> *Chinese*
+- Level, in order of preference:
+  C2* -> *Native Speaker* -> Native or Bilingual* -> Native* -> Fluent* -> Proficient*
+  -> Advanced* -> Expert* -> Full Professional* -> 5*
+
+Confirmed live on Relativity / kcura.wd1 (2026-07-27): ids are `language-N--language`,
+`language-N--native` (whose LABEL is "I am fluent in this language." — one box, not two) and a
+hashed `language-N--<guid>` for Level. Options offered: "English", "Chinese" (no Mandarin variant),
+level "C2 (Proficient/Native Speaker)". Both entries filled and the step advanced.
+
+[CERTS]
+AWS Certified Developer – Associate
+
+[LINKS]
+LinkedIn: www.linkedin.com/in/xiaoxiaolei/
+# LINKEDIN FILL FORMAT (user, 2026-07-26): fill LinkedIn fields WITHOUT the "https://" prefix —
+# use "www.linkedin.com/in/xiaoxiaolei/". Applies everywhere (all tasks/templates).
+GitHub: https://github.com/Dark417
+Resume: cv/Xiaoxiao_Lei_RESUME.pdf
+Cover letter: cv/Xiaoxiao Lei Cover Letter.pdf
+
+[COVER LETTER]
+
+# Parsed from the current PDF. Personalize the role and company placeholders before use.
+
+Target role: backend software engineer
+Salutation: Dear Hiring Manager,
+
+I am applying for the backend software engineer position at your company. At JPMorgan Chase, I
+have taken end-to-end ownership of backend services, cloud infrastructure, and financial-data
+pipelines - from implementation and deployment through release validation and production support.
+My work has improved data and system reliability, reduced debugging time, strengthened operational
+readiness, and supported dependable delivery across multiple AWS services and downstream applications.
+
+I actively use AI to improve how I work. In my engineering workflow, I leverage heavily agentic
+coding tools for implementation, testing, documentation, and investigation, and I have built agent
+systems to automate business processes. Outside of work, I code with AI almost every day and use it
+to automate repetitive tasks and improve personal productivity. I am deeply interested in emerging
+technologies and the practical potential of AI to transform software development and everyday work.
+
+I am looking for a team where I can continue growing into an excellent software engineer with strong
+AI capabilities, take meaningful ownership, and contribute to products with real user and business impact.
+
+I would welcome the opportunity to learn more about your team, product, and engineering challenges,
+and to discuss how my experience in backend systems, data platforms, reliability, and AI-assisted
+development could contribute to your company.
+
+Sincerely,
+Xiaoxiao Lei
+
+# T6 SmartRecruiters (user, 2026-07-27): this exact text is the default answer for the optional
+# "Message to the Hiring Team" field — generic across companies (no hardcoded company name), so it
+# fills unconditionally when that field is empty. City answer confirmed for the same template:
+# "Dallas, TX, US" (matches the first live autocomplete suggestion for "Dallas").
+
+[QUESTION BANK]
+
+# How to use: for each form question, match it against the patterns in a group.
+
+# Matching is case-insensitive; <...> is a wildcard (company / location / role / condition).
+
+# If a group matches -> use its Answer. If nothing matches AND no direct answer exists elsewhere
+
+# in this file -> log it to [OPEN QUESTIONS] and DO NOT guess (esp. work auth, visa, salary, YOE).
+
+# Workday Application Questions step: repetitive screening questions asked in many phrasings.
+
+# The code bank `DEFAULT_APPLICATION_QUESTIONS` in eve/workday.js drives `handleApplicationQuestions`
+
+# by matching a whole question block's text (question + explanation) against regex, then choosing the
+
+# Yes/No option and filling any revealed "Please provide details" field. Groups below are tagged with
+
+# their Workday topic. To teach a NEW phrasing of an existing question, add a glob pattern under that
+
+# topic to `workdaySavedAnswers.applicationQuestions` ({ topic, patterns:[...], choose, followUp }) —
+
+# same-topic patterns merge into the defaults, so the bank accumulates over time.
+
+# STANDING RULE (user, 2026-07-18) — GROWING THE BANK FROM A NEW PAGE:
+
+# When the user gives a new application page/screenshot, for each question: (1) reason out the
+
+# correct answer from this file + the applicant's profile; (2) DON'T just store the literal wording —
+
+# write it as case-insensitive regex and GENERATE A FEW variant patterns that cover other ways the
+
+# same question is commonly phrased (synonyms, optional clauses, reordered wording); (3) add them
+
+# under the matching topic here AND in the code bank (DEFAULT_APPLICATION_QUESTIONS /
+
+# DEFAULT_VOLUNTARY_DISCLOSURES in eve/workday.js); (4) if it's a brand-new topic, create a new
+
+# group. Goal: one real question teaches the bank to match many future phrasings, not just that one.
+
+# ---------------------------------------------------------------------------------
+# SECTIONS. Every question group lives under exactly one section. Within a section,
+# one "## [Topic]" == one question asked many ways: many QUESTION patterns, usually
+# 1-2 ANSWER patterns. Answer patterns are ordered by priority, most specific first,
+# and must not overlap in a way that lets a broader one beat a more specific one.
+# To add or update a question, use the `add-question` skill (.ai/skills/add-question.md).
+# ---------------------------------------------------------------------------------
+
+# ==================== SECTION: LOCATION ====================
+# where the applicant is, and where they can work from
+
+## [CountryOfResidence] (topic: country-of-residence -> **U.S.**)
+
+Answer (user, 2026-07-27): **U.S.** Select the exact U.S./United States option. This is a
+single-choice answer regardless of whether the site renders it as a dropdown, radio group, or
+labeled checkbox.
+Patterns:
+
+- what is your country of residence
+- current country of residence
+- country (where|in which) you (currently )?reside
+
+## [PreferredGeographicLocation] (topic: preferred-geographic-location -> FREE TEXT)
+
+Answer (free text, user 2026-07-20): "CA, WA, UT, TX" (preferred states: California, Washington,
+Utah, Texas). Filled into the textarea directly by the code bank `text` field — runRegexChoiceStep
+now fills free-text questions, not just Yes/No.
+Patterns:
+
+- what is your preferred geographic location\??
+- (preferred|desired) (geographic )?location
+- what (is|are) your (preferred|desired) (work )?location
+
+## [PreferredWorkLocations-MultiSelect] (Indeed T5 topic: preferred-work-locations -> MULTI-SELECT)
+
+Answer (2026-07-27, Hudson Manpower "QA Automation Engineer IV" — Indeed Smart Apply "What is
+location" question): a custom chip multi-select combobox listing ~50 specific US office/remote-city
+options for the posting. Select EVERY offered option naming one of [CONTACT]'s "Remote US states
+able to work in: CA, WA, TX" (California, Washington, or Texas) — never a state outside that list.
+This reproduced Indeed's own prior memory for the same field (San Jose/Sunnyvale/Bay Area CA,
+Seattle/Redmond WA, Remote-Dallas TX) once corrected for a stray wrong "Remote (New York, New York,
+United States)" chip left by an earlier test round.
+Code (Indeed-only, NOT part of the shared/spliced DEFAULT_INDEED_QUESTIONS bank — this exact
+chip-multi-select widget has no Greenhouse equivalent): `DEFAULT_INDEED_MULTISELECT_QUESTIONS` in
+eve/indeed.js + abby/indeed.js, `optionMatch: /california|washington|texas/i`. User extensions merge
+via `indeedSavedAnswers.multiSelectQuestions`.
+Patterns:
+
+- what is location\??
+- which location(s)?
+- select (all )?locations?
+- preferred location
+- location(s)? (would|do) you
+
+# ── Added from Citi (wd5) Senior Fullstack Developer Application Questions, live 2026-07-25. ──
+# All answers derived from this file + profile; each stored as several regex variants, and mirrored
+# into DEFAULT_APPLICATION_QUESTIONS in eve/workday.js. No open questions were produced.
+
+## [CurrentLocationText] (topic: current-location-text -> FREE TEXT)
+
+Answer: **Dallas, TX**.
+Patterns:
+
+- please list your current location
+- current location .*city.*state
+- current location .*city.*province
+
+## [CurrentLocation-NorthAmerica] (topic: current-location-north-america -> YES)
+
+Answer: **Yes** — currently located in Dallas, Texas, United States, which is in North America.
+Patterns:
+
+- are you currently located in north america
+- (currently )?(located|based|residing) in north america
+
+## [USCanada-Location-Or-WorkAuthorization] (topic: us-canada-location-or-authorization -> YES)
+
+Answer: **Yes** — currently based in Dallas, Texas and authorized to work in the United States.
+Patterns:
+
+- currently based in the u\.?s\.? or canada .* authorized to work
+- based in (the )?(u\.?s\.?|united states|canada) and/or .*authorized to work
+
+## [BasedIn-NewYork-Or-SanFrancisco] (topic: based-in-ny-or-sf -> NO)
+
+Answer: **No** — currently based in Dallas, Texas, not New York or San Francisco.
+Patterns:
+
+- are you (currently )?based in new york or san francisco
+- (currently )?(based|located|residing) in (new york|nyc) .* (or|and) .* san francisco
+- (currently )?(based|located|residing) in san francisco .* (or|and) .* (new york|nyc)
+
+## [BayAreaResidency] (topic: bay-area-residency -> YES; new 2026-07-27)
+
+Answer: **Yes** — "Do you currently live in the San Francisco Bay Area?" (user-supplied Q&A,
+Column). Distinct from [BasedIn-NewYork-Or-SanFrancisco] above, which only fires on the COMBINED
+"New York or San Francisco" phrasing and stays **No**; this is a single-region residency question
+and the region name is incidental. Did not previously match any bank topic — added as its own
+topic (mirrored into greenhouse.js/indeed.js and workday.js).
+Patterns:
+
+- (live|living|reside|residing|resident|based|located)[\s\S]{0,40}(san francisco )?bay area
+- (san francisco )?bay area[\s\S]{0,40}(do you|are you|currently)?[\s\S]{0,10}(live|reside|resident|based|located)
+
+## [RemoteUSWorkStates] (topic: remote-us-work-states -> FREE TEXT)
+
+Answer: **CA, WA, TX**.
+Patterns:
+
+- remote us location .*state.*able to work
+- what states? are you able to work in
+- state(s) .*eligible .*remote
+
+# ==================== SECTION: RELOCATION & OFFICE ATTENDANCE ====================
+# always the affirmative option — see the standing rule in [Relocation]
+
+## [Relocation]
+
+Answer: Yes
+**STANDING RULE (user, 2026-07-26): ALWAYS choose willing to relocate.** Any relocation / office-
+attendance / "can you work N days in <city>" question is answered with the affirmative option, for
+every city and every company, with no further confirmation needed. The applicant lives in Dallas, TX;
+committing to another city is accepted deliberately. Never pick a "cannot"/"not willing" option —
+it is self-disqualifying. See [HybridOfficeAttendance] for the multi-office variant.
+When the tenant offers an **at-whose-expense** breakdown instead of plain Yes/No, the answer is
+**"Yes, at the company's expense"** (user, 2026-07-25, Bank of America / GHR
+`Software-Engineer-III--ETL-DataStage-_26023881`). Never "at my own expense", never the No option.
+Note the options there render as **checkboxes**, not radios, and are mutually exclusive — exactly
+one is ticked and any wrong prefill is cleared. Code: `relocation-consider` in
+`DEFAULT_APPLICATION_QUESTIONS` carries
+`optionMatch: /(company|employer)['‘’ʼ`´]?s?\s+expense|^\s*yes\s*$/i` (the apostrophe class matters —
+Workday renders a typographic ’ and a plain `'?` would miss it)
+so the bare-Yes tenants keep working and "own expense" can never be selected.
+Patterns:
+
+- are you willing to relocate\??
+- are you willing to relocate to <location>\??
+- are you (open to|willing to consider) relocation( to <location>)?( if <condition>)?\??
+- would you consider relocating,? either now or in the future\??
+- would you consider relocat(e|ing|ion)\b[\s\S]{0,40}(now or in the future|in the future)?
+- (relocat\w*)[\s\S]{0,40}(at the )?(company'?s?|employer'?s?) expense
+- (relocat\w*)[\s\S]{0,40}at my own expense( under the right circumstances)?
+
+User-supplied Q&A (2026-07-27): "Are you willing to move to SF and work in person with us?" -> Yes.
+Same standing rule, worded with "move" instead of "relocate" — the city and company wording are
+incidental. Added to `relocation-hybrid` (greenhouse.js/indeed.js) and `relocation-consider`
+(workday.js):
+
+- (willing|able|open) to move to <location>
+- move to <location>[\s\S]{0,40}(and )?work in person
+- work in person with (us|our team|the team)
+
+User-supplied Q&A (2026-07-27, batch 2): "Are you able to work in-person in San Francisco?
+(Presidio)" -> Yes and "Will you require relocation?" -> Yes. The office/city name in the first is
+incidental, and the second is the direct "require relocation" phrasing (distinct from "willing/able
+to relocate" above). Added to `relocation-hybrid` (greenhouse.js/indeed.js) and `relocation-consider`
+(workday.js):
+
+- (able|willing|open|available)\b[\s\S]{0,30}work in-?person\b
+- (will you|do you)[\s\S]{0,20}require relocation
+- (need|require)[\s\S]{0,20}relocation\b
+
+## [Relocation-Where] (multi-select: Local / Statewide / Nationwide / Anywhere / Not interested)
+
+Answer (user, 2026-07-18): check **Local, Statewide, AND Nationwide** (all three). Do NOT check
+"Not interested in relocating". "Anywhere" is optional/not selected by default (applicant is on
+H-1B = US only; Nationwide already covers the whole US).
+Selection rule (for any relocation scope multi-select): tick every US-scope option up to and
+including "Nationwide" (i.e. Local + Statewide + Nationwide + Regional/anything similar); skip
+"Anywhere" (reads as international) and "Not interested". If only one box is allowed, pick the
+broadest US one available (Nationwide).
+Ties to [Relocation] = Yes.
+Patterns (the "where / scope / preference" multi-select variants — the plain Yes/No "willing to
+relocate?" lives in [Relocation]):
+
+- are you interested in relocating\??( if so,? where\??)?
+- (are|would) you (be )?(willing|open) to relocat(e|ion|ing)\b.*(where|location|which|area|region)?
+- where (are|would) you (be )?willing to relocate\??
+- (please )?(select|indicate|choose) (your )?relocation (preference|willingness|option|scope)s?\b
+- relocation (preference|willingness|option|scope)s?\b
+- if (offered|selected|hired|needed)[\s\S]{0,40}(willing|able) to relocate\??
+- would you consider relocat(e|ing|ion)\b
+
+## [HybridOfficeAttendance] (topic: hybrid-office-attendance -> the "I CAN work N days in the <office>" option)
+
+Answer: **Yes — pick the "I can work N days a week in the <city> office" option.** Never
+"I cannot work N days a week in an office", which is self-disqualifying and contradicts
+[Relocation]=Yes / [Relocation-Where]=Local+Statewide+Nationwide (the applicant is in Dallas, TX and
+is willing to relocate anywhere in the US at the company's expense).
+WHICH office when several are offered: pick the one matching the posting's own **Location** field
+(Ashby shows it in the job header). Cape lists New York, NY and Arlington, VA; the New York office is
+the default when the posting says New York or the posting location is not one of the listed offices.
+Live options seen 2026-07-26:
+  - Platform Software Engineer (New York): "I can work 3 days a week in the NYC office" /
+    "I cannot work 3 days a week in an office"                  -> picked the CAN option
+  - Forward Deployed Engineer, East Asia: "I can work 3 days a week in the New York office" /
+    "...in the Arlington office" / "I cannot work 3 days a week in an office" -> picked New York
+CONFIRMED BY USER 2026-07-26: "always choose willing to relocate" — this commits to relocating to
+that city and that is intended. Do NOT flag it as an open question again; just pick the CAN option.
+Patterns:
+
+- able to work in a hybrid setting
+- hybrid work environment .*days a week in( the)? office
+- (willing|able|comfortable|prepared|can you) .*office .*days( a| per)? week
+- (willing|able|comfortable|prepared|can you) .*on-?site .*days( a| per)? week
+- (can|able to) .*work \d+ days a week in (the |an |our )?\w* ?office
+- \d+ days (a|per) week in( the| our)? office
+- (are you )?(willing|able) to (work|come) (on-?site|in the office) \d+ days
+- (office-centric|office based|on-site|onsite) model .*employees? working .*office .*\d+[\s-]?days
+- can you meet (this|the) (office|onsite|on-site|attendance) requirement
+
+## [NYCOffice-Relocate] (topic: nyc-office-relocation -> relocate option)
+
+Answer: **Yes — "Able to relocate to NYC upon offer acceptance and comfortable being in the
+office at least 3 days/week."** Do not choose "Currently located in NYC" because the applicant is
+based in Dallas.
+Patterns:
+
+- comfortable working in-person at .*nyc office .*3 days
+- relocate to nyc upon offer .*3 days
+- currently located in nyc .*3 days
+
+## [PlannedWorkLocation-NYC] (topic: planned-work-location-nyc -> "Open to relocating to NYC")
+
+Canonical question: Where do you plan to work from?
+Answer: **Open to relocating to NYC.** The applicant is currently in Dallas and has explicitly
+confirmed willingness to relocate to NYC; never choose the false "NYC" current-location option.
+Patterns:
+
+- where do you plan to work from
+- planned work location
+- where will you (be )?working from
+
+## [RelocationLocations-CheckAll] (topic: relocation-locations-all -> tick EVERY option)
+
+"Please indicate all of the locations that you would be interested in relocating to for this
+position." (user, 2026-07-27 screenshot: New York, NY AND San Francisco, CA both checked). The
+applicant is open to relocating anywhere, so every offered location is checked - the bank entry uses
+`checkAll: true` rather than picking one option. Patterns: indicate all of the locations; locations
+.* interested in relocating to; (which|what) locations .* (would you|are you) (interested|willing|
+open); select all .* (locations|offices|cities).
+
+## [TravelWillingness] (topic: travel-willingness -> **Yes**) — registered 2026-07-27 (T5 Indeed/Infosys)
+
+# Same affirmative family as the [Relocation] standing rule: the applicant is open to relocating
+# anywhere, so willingness to travel for work is Yes. Encoded in greenhouse.js
+# DEFAULT_GH_QUESTIONS (shared into DEFAULT_INDEED_QUESTIONS via tools/sync-indeed-bank.js).
+
+Q: Are you open to travel?  -> Yes
+Patterns:
+- (open|willing|able) to travel
+- travel (requirement|up to|as (needed|required))
+- comfortable (with )?(business )?travel
+
+# ==================== SECTION: WORK AUTHORIZATION & SPONSORSHIP ====================
+# authorized to work = Yes; sponsorship needed = Yes (H-1B transfer)
+
+## [WorkAuth-US] (Workday topic: work-authorization -> choose YES)
+
+Answer: Yes (legally authorized to work). Pick the affirmative option even when it is long,
+e.g. BlackRock's "Yes, I affirm I will be able to provide documentation to evidence my legal
+authorization to work for BlackRock in the country." Never pick "No".
+Patterns:
+
+- are you (legally )?authorized to work in the (us|united states|country( work location)?)\??
+- do you have legal authorization to work in the country( work location)?( \(where the role is based\))?\??
+- do you have (the )?(legal )?right to work in the (us|united states)\??
+- (fully )?authorized to work in the united states for any employer
+- (are you )?authorized to work for any employer in the (u\.?s\.?|united states)
+- can you work for any (u\.?s\.? )?employer without restriction
+
+## [Visa/Work-Permit-Future] (Workday topic: visa-or-work-permit-future -> choose YES + details)
+
+Answer: Yes.
+Follow-up "Please provide details.\*" text field -> H1b transfer and greencard.
+Note: distinct from [WorkAuth-US]; this asks whether a visa/work permit action will be NEEDED
+(now or in the future). Match this BEFORE work-authorization so the details field gets filled.
+Patterns:
+
+- will you need to (obtain|renew|extend|transfer) a visa or work permit\b.\*
+- ._(obtain|renew|extend or transfer) (a )?(visa|work permit)._(now or in the future|in the future)?
+- ._(visa|work permit)._(now or in the future|in the future).\*
+
+## [Sponsorship] (Workday topic: sponsorship -> choose YES + details when present)
+
+Answer: Yes — requires sponsorship now and in the future.
+Full: On H-1B; authorized to work only for the current employer; requires visa sponsorship
+(transfer) for future employment.
+Patterns:
+
+- will you (now,? or in the future,?|now or in the future) require sponsorship
+- do you (require|need) (visa )?sponsorship( for employment visa status)?( \(e\.g\.,? h-?1b\))?\??
+- do you now or will you in the future require visa sponsorship .*work in the united states
+- (now|future).*visa sponsorship
+
+User-supplied Q&A confirmation (2026-07-27, Column): "Will you now or in the future require
+sponsorship to work in the United States (e.g., H-1B visa)?" -> Yes. Already matched this topic
+before any change (verified live against the extracted bank in both greenhouse.js and workday.js);
+no code change was needed.
+
+## [Sponsorship-CurrentToCommence] (topic: sponsorship-current-commence -> **No**)
+
+Answer: **No**. "Do you CURRENTLY require <company> to sponsor a work visa on your behalf TO COMMENCE
+employment?" The applicant already holds valid US work authorization (H-1B), so nothing is required
+to *start*; sponsorship is needed later (transfer/renewal).
+CRITICAL SPLIT — three distinct questions with two different answers:
+  - "currently … to commence employment"        -> **No**  [sponsorship-current-commence]
+  - "will you IN THE FUTURE require sponsorship" -> **Yes** [sponsorship]
+  - "now OR in the future require sponsorship"   -> **Yes** [sponsorship]
+The current/commence entry is ordered BEFORE the generic one and excludes any "now or in the future"
+wording, so the combined question can never be answered No. All three directions are unit-tested.
+Patterns:
+
+- do you currently require .*sponsor .*(work visa|visa)
+- currently require .*to commence employment
+- require .*sponsor a work visa .*commence
+
+## [UnrestrictedRightToWork] (topic: unrestricted-right-to-work -> **Yes**)
+
+Answer (user override, 2026-07-26): **Yes**. For the exact binary question "Do you have unrestricted
+work authorization for the United States?", choose the affirmative option even when it explains
+"I am a US citizen, greencard holder, or a citizen of Mexico or Canada." This explicit instruction
+supersedes the earlier No mapping for the `unrestricted-right-to-work` topic.
+Patterns:
+
+- do you have the unrestricted right to work( in the country)?\??
+- unrestricted right to work
+- right to work .*(on any visa|any visa or possess|expiration date|daca or tps)
+- authorized to work .*(u\.?s\.?|united states) .*without (company|employer)? sponsorship
+- work in (the )?(u\.?s\.?|united states) .*without (company|employer)? sponsorship
+
+## [I9-Acknowledgment] (topic: i9-acknowledgment -> **Yes**)
+
+Answer: Yes. Acknowledgement that proof of legal right to work + I-9 completion is required on hire.
+Patterns:
+
+- .*completion of an i-?9 form will be required
+- i understand .*proof of (legal )?right to work .*(i-?9|required)
+
+## [WorkEligibilityVerification] (topic: work-eligibility-verification -> **Yes**)
+
+Answer: Yes. "Can you, within the time period prescribed by law, submit verification of both your
+identity and authorization to work…? (Proof will be required)" — this is the I-9 document question
+phrased as a question. Applicant holds valid US work documents (H-1B) and can complete I-9 on hire.
+Distinct from [WorkAuth-US] and from [UnrestrictedRightToWork] (both now Yes by user instruction,
+but matched as separate topics). Matched BEFORE
+work-authorization so a generic "authorization to work" pattern cannot steal it.
+Patterns:
+
+- within the time period prescribed by law
+- submit verification of .*identity and .*authorization to work
+- (submit|provide|produce) .*(verification|proof|documentation|evidence) .*(identity|employment eligibility)
+
+## [Sponsorship-Details] (topic: sponsorship-details -> FREE TEXT)
+
+Answer (free text): "On H-1B, authorized to work only for my current employer; I require visa
+sponsorship (H-1B transfer) for future employment."
+For combined free-text questions phrased "Do you now or will you in the future require sponsorship
+... If so, please explain", answer exactly: **"Yes, H1b transfer."** (user screenshot, 2026-07-26).
+Citi renders this as its OWN required question block ("In the text box below please provide
+additional details on your required sponsorship."), NOT as a field inside the sponsorship question,
+so it needs a standalone free-text entry. The `sponsorship` Yes/No entry excludes this wording.
+Also note: generic follow-up patterns must match "provide ADDITIONAL details", not just
+"provide details" — the follow-up regexes are now /provide[\s\S]{0,24}details/i.
+Patterns:
+
+- (provide|share|give|enter) .*details .*sponsorship
+- additional details .*sponsorship
+- text box below .*sponsorship
+- sponsorship .*(explain|describe|provide (additional )?details)
+
+## [WorkAuthStatus-Select] (topic: work-auth-status-select -> the TEMPORARY WORK VISA / H-1B option)
+
+Answer: the option that says the applicant is on a **temporary work visa (H-1B) and would need the
+employer to sponsor a TRANSFER**. This is the MULTI-OPTION status picker, not a Yes/No — the tenant
+lists mutually exclusive immigration statuses and exactly one is factually true.
+Cape's live option list (2026-07-26) and why each is wrong except one:
+  - US Citizen / Permanent Resident (no sponsorship needed)                     -> NO (Chinese national)
+  - Currently authorized to work without restriction (ex. asylum, refugee)      -> NO (H-1B is restricted)
+  - On student visa work authorization (F-1 OPT/STEM OPT)                       -> NO (no longer F-1)
+  - Eligible for TN or E3 status (Canadian, Mexican, Australian citizens)       -> NO (not eligible)
+  - **On a temporary work visa (ex. H-1B) - would need employer to sponsor a transfer  -> YES**
+  - Will require new sponsorship to begin work in the US                        -> NO (already work-authorized today)
+Best-fit rule for ANY tenant wording of this question: pick the option naming an existing temporary
+work visa / H-1B / transfer. If no such option exists, fall back to the option that means
+"authorized now BUT will need sponsorship later"; never the citizen/greencard option and never the
+"cannot work in the US" / "require new sponsorship to begin" option (the applicant can start today).
+Use this multi-option status rule independently from the user-overridden binary
+[UnrestrictedRightToWork]=Yes answer.
+Patterns:
+
+- which best describes your (current )?work authorization
+- (to help us understand timing,? )?which .*(describes|applies to) .*work authorization
+- (select|choose) .*(your )?(current )?(work authorization|immigration|visa) status
+- what is your (current )?(work authorization|visa|immigration) status
+- (h-?1b|temporary work visa) .*(transfer|sponsor)
+
+## [UnrestrictedRightToWork] — additional Cape binary phrasing (topic: unrestricted-right-to-work -> **Yes**)
+
+"Do you have unrestricted work authorization for the United States?" rendered as exactly two radios:
+  - **"Yes, I have unrestricted work authorization (I am a US citizen, greencard holder, or a
+     citizen of Mexico or Canada)"** -> CORRECT (user override, 2026-07-26)
+  - "No, I do not have unrestricted work authorization (I require sponsorship to work)" -> WRONG
+Use the affirmative option for this topic. Patterns:
+
+- do you have unrestricted work authorization( for the united states)?
+- unrestricted work authorization
+- (us citizen|greencard holder|green card holder) ,? or a citizen of (mexico|canada)
+
+# ==================== SECTION: WORK EXPERIENCE ====================
+# years of experience, tech-specific experience, prior/current employment
+
+## [PriorEmployment-SpecificCompany]
+
+STANDING RULE (user, 2026-07-18): any "have you PREVIOUSLY been employed / worked / contracted
+with <the target company or its named affiliates/subsidiaries/dealers>" question is ALWAYS **No**.
+Answer: No
+Why: The only real employers are J.P. Morgan Chase & Co. (current, since Apr 2022) and Graphen Inc.
+(Software Engineer Intern, 2021). No prior employment/contracting with any hiring company applying to.
+Patterns:
+
+- have you ever (worked|been employed)( at| by| for) <company>\??
+- have you been (previously|formerly) employed (with|by|at) (us|<company>)\??
+- are you a (current|former) employee of <company>( or its (affiliates|subsidiaries))?\??
+- do you have (any )?prior employment (with|at) <company>\??
+- have you previously been DIRECTLY employed with <company/list>\?? (i.e. paycheck or W-2 directly)
+- have you been employed or are you currently employed with an authorized dealer of <company>\??
+- have you previously or are you currently working as a contractor for <company>\??
+  Exception: If it's a single dropdown about the TARGET company with options like
+  never / current / former / intern / contractor -> pick the "never worked" option.
+  (e.g. xAI: "I have never worked for SpaceX, xAI, X, or Twitter".)
+
+## [YearsOfExperience] (Workday topic: years-of-relevant-experience -> the band STARTING AT 5)
+
+Specific override (user, 2026-07-26): for **"How many years of relevant work experience do you
+have for this position?"**, choose **"4 - 6 YoE"** under topic
+`years-of-relevant-experience-position`. This exact-position phrasing is matched before the generic
+rule below.
+
+Answer (user, 2026-07-25): **"5 to 7 Years of Experience"**. Bands are worded differently per tenant,
+so the rule is: pick the band whose range **starts at 5** — "5 to 7 Years of Experience", "5-7",
+"5+ years", "5 to 10", "More than 5", "At least 5 years".
+NEVER pick a band below it ("No Experience", "Up to 2", "2 to 4"), never one above it
+("More than 8", "10+"), and never a band that merely ENDS at 5 ("1 to 5", "0-5", "3 to 5",
+"Up to 5", "Less than 5") — those are ceilings, not a band starting at 5.
+Factual note: professional software engineering experience began Apr 2022; the user selected this
+band knowingly. Do not re-derive or "correct" it from the CV dates.
+Code: `optionMatch: /^(?!.*\b(?:up\s+to|under|less\s+than|fewer\s+than|below|at\s+most)\b)\D*5\b/i`
+— anchored so 5 must be the FIRST number in the option text.
+Patterns:
+
+- how many years of .*experience
+- (total )?years of (relevant|professional|industry|work|overall) .*experience
+- years of experience do you have
+- how much (relevant )?(work )?experience do you have
+  Exclude: programming languages | platforms | most proficient | with each  (so it never steals the
+  "top 3 programming languages … length of experience with each" free-text question, or a
+  per-technology "years of experience with X").
+
+## [EssentialFunctions] (Workday topic: essential-functions -> **Yes**)
+
+Answer: Yes. "Are you able to perform the essential functions of the job for which you are applying,
+with or without reasonable accommodation?" — the standard ADA job-capability screen. The applicant is
+a working software engineer performing exactly these functions.
+NOT the CC-305 disability self-identification (that is a separate Self Identify step answered
+"No, I do not have a disability"); the code entry excludes self-ID / CC-305 / disability-status
+wording so the two can never be confused.
+Patterns:
+
+- able to perform the essential functions
+- perform the essential (job )?functions
+- essential functions of the (job|position|role)
+- with or without (a )?reasonable accommodation
+
+## [CurrentEmployeeOfCompany] (Workday topic: current-employee-of-company -> **No**)
+
+Answer: No. "Are you currently an employee of a &lt;company&gt; Group company?" The only current employer
+is J.P. Morgan Chase & Co. Distinct from [PriorEmployment-SpecificCompany], which covers the
+"have you ever / previously been employed" phrasings — both answer No, but they are separate
+questions and some tenants (Hitachi) ask BOTH, the prior-employee one on My Information and the
+current-employee one on Application Questions.
+Patterns:
+
+- are you currently an employee of
+- are you (currently )?employed (by|with|at) .*group company
+- current employee of (a|an|the)\b
+- currently .*employee of .*(group|company|its (subsidiaries|affiliates))
+
+# ── Finance-tenant screening set, from Morgan Stanley wording (user-supplied answers, 2026-07-25).
+# The same questions recur at Citi, BofA, Goldman and JPMC, so every pattern is <company>-agnostic —
+# no tenant name is hardcoded. Answers below are the USER'S OWN, recorded as given, not re-derived.
+
+## [KPMG-Employment] (topic: kpmg-employment -> **No**)
+
+Answer: No. Citi asks specifically about KPMG LLP (its auditor) in the last three years. Only
+employers are J.P. Morgan Chase (current) and Graphen Inc. (2021 intern).
+Patterns:
+
+- employed by kpmg
+- partner .*kpmg
+- kpmg( llp)? .*(members|affiliates|last three|3\)? years)
+
+## [YearsJavaSpringReact] (topic: years-java-spring-react -> FREE TEXT)
+
+Canonical question: How many years of professional experience do you have developing applications
+with Java, Spring Boot, and React?
+Answer: **4**
+Ways to ask / patterns:
+
+- years of professional experience .*java .*spring ?boot .*react
+- how many years .*developing applications .*java .*react
+- experience with java .*spring .*react(js)?
+
+## [YearsMicroservicesEventDriven] (topic: years-microservices-event-driven -> FREE TEXT)
+
+Canonical question: How many years have you worked with production microservices and event-driven
+architectures?
+Answer: **4**
+Ways to ask / patterns:
+
+- years of professional experience .*microservices?.*event[- ]driven
+- how many years .*event[- ]driven architecture
+- production .*microservice[- ]styled .*architecture
+
+## [YearsRelationalDatabase] (topic: years-relational-database -> FREE TEXT)
+
+Canonical question: How many years have you worked with relational databases such as MySQL?
+Answer: **4**
+Ways to ask / patterns:
+
+- years of professional experience .*relational databases?
+- how many years .*relational (database|db)
+- experience .*mysql|mysql .*experience
+
+## [YearsNoSQLDocumentDatabase] (topic: years-nosql-document-database -> FREE TEXT)
+
+Canonical question: How many years have you worked with NoSQL or document databases such as
+MongoDB?
+Answer: **4**
+Ways to ask / patterns:
+
+- years of professional experience .*nosql .*document databases?
+- how many years .*(nosql|document database)
+- experience .*mongodb|mongodb .*experience
+
+## [SupplyChainLogisticsSoftware] (topic: supply-chain-logistics-experience -> **No**)
+
+Canonical question: Do you have experience building software in supply-chain or logistics domains
+such as WMS, TMS, or WCS?
+Answer: **No**
+Ways to ask / patterns:
+
+- experience building software .*supply[- ]chain|logistics
+- built software .*(supply[- ]chain|logistics|warehouse management)
+- (wms|tms|wcs).*(experience|software)
+- warehouse|transportation|warehouse control system .*experience
+
+# ── Added from Greenhouse (job-boards.greenhouse.io) live pages 2026-07-26. Task 3 — encoded in
+# DEFAULT_GH_QUESTIONS in eve/greenhouse.js (tested by tools/gh-bank-test.js).
+
+## [CVTechExperience-JavaSpring] (gh topic: experience-java-spring -> **Yes**)
+
+Answer: Yes. "Do you have professional experience building production applications using Java and
+Spring Boot?" — CV: Spring Boot services at J.P. Morgan (Financial Data Enrichment Service,
+Document Broker Service). Patterns:
+
+- experience .*java .*spring
+- java and spring boot
+
+## [CVTechExperience-BackendFrontend] (gh topic: experience-backend-frontend -> **Yes**)
+
+Answer: Yes. "Have you professionally developed both backend services and frontend applications
+(React/TypeScript or similar) as part of the same software engineering role?" — CV: Spring Boot
+backends plus the React admin portal, in the same JPMC role. Patterns:
+
+- both backend .*frontend
+- backend services and frontend applications
+- full-?stack .*(react|typescript)
+
+## [CVTechExperience-CloudContainers] (gh topic: experience-cloud-containers -> **Yes**)
+
+Answer: Yes. "Have you deployed and supported production applications running in a public cloud
+environment (AWS, Azure, or GCP) using containers and/or Kubernetes?" — CV: AWS ECS/EKS, Docker,
+Kubernetes, Terraform, production support. Patterns:
+
+- public cloud .*(container|kubernetes)
+- (aws|azure|gcp) .*(container|kubernetes)
+- deployed and supported production applications
+
+## [LLM-Experience] (topic: llm-experience -> Yes)
+
+Answer: Yes to both "Do you have experience with LLMs?" and "Have you built a personal project
+using LLMs?" (user, 2026-07-27 screenshot). Patterns: experience (with|using) llms|large language
+models; (built|created|worked on) .* (personal )?project (using|with) llms; have you (used|worked
+with) llms|generative ai.
+
+## [MeetsMinimumExperience] (topic: meets-minimum-experience -> **Yes**) — registered 2026-07-27 (T5 Indeed/Infosys)
+
+# Yes/No "do you meet the minimum experience in the job description". Ordered BEFORE the banded
+# years-of-experience topics so a Yes/No control never falls into a numeric band optionMatch.
+# CV: 4+ years professional experience -> Yes.
+
+Q: Do you have at least the minimum years of relevant work experience as described in the job description?  -> Yes
+Patterns:
+- (at least )?the minimum years of (relevant )?(work )?experience
+- minimum years of[\s\S]{0,40}experience[\s\S]{0,60}(job description|described|required)
+- meet the (minimum|required)[\s\S]{0,30}experience
+
+## [PriorApplicationToCompany] (topic: prior-application -> **No**)
+
+Answer: No.
+Patterns:
+
+- have you (applied|submitted an application) (with|to) <company> previously
+- have you previously applied (with|to|for) <company>
+- prior application (with|to) <company>
+
+## [PriorOrCurrentInterviewWithCompany] (topic: prior-current-interview -> **No**)
+
+Answer: No.
+Patterns:
+
+- have you in the past or are you currently interviewing for any positions with <company>
+- have you (previously|ever) interviewed with <company>
+- are you currently interviewing (with|for a position at) <company>
+
+## [BankingBFSIExperience] (topic: banking-bfsi-experience -> **Yes**)
+
+Answer: Yes. J.P. Morgan Chase experience is Banking/BFSI domain experience.
+Patterns:
+
+- banking/?bfsi domain experience
+- experience in (the )?(banking|financial services|bfsi) domain
+- worked in (banking|financial services|bfsi)
+
+## [ExperienceFieldDescribed] (topic: years-experience-field-described -> **5**)
+
+Answer: 5.
+Patterns:
+
+- how many years of experience .* field described .* job description
+- years of experience .* field .* position .* applying for
+- experience in the field described
+
+# ==================== SECTION: SALARY & START DATE ====================
+# expectations, currency, availability
+
+## [Salary/Compensation expectations]
+
+Answer: 160000.
+Patterns:
+
+- (what are your |desired |expected )?(salary|compensation) (expectations|requirements)\??
+
+## [Salary/Compensation expectations] — NOW AUTO-FILLED (topic: salary-expectation)
+
+Answer (user, 2026-07-25): **160000**, auto-filled on EVERY tenant, required or optional.
+When the control is a salary-range dropdown, choose **$160,000 - $180,000** (user screenshot,
+2026-07-26). Keep `160000` for plain free-text salary fields.
+This narrows the standing never-guess rule for SALARY ONLY — work authorization, visa, sponsorship
+and employment history are still never guessed and still route to [OPEN QUESTIONS].
+The figure lives in ONE place in code: the `SALARY_EXPECTATION` constant at the top of
+eve/workday.js, which the bank entry reads. Change it there (and here) — never inline.
+Must NOT capture two look-alikes (covered by `exclude`, and unit-tested):
+  - CURRENT / previous / last salary and salary history — a different question entirely.
+  - HOURLY rate fields — an annual figure there would be nonsense.
+Patterns:
+
+- base salary expectation
+- salary expectations?
+- (expected|desired|target|requested) (base )?(salary|compensation)
+- salary requirements?
+- compensation expectations?
+- what (salary|compensation) (do|are) you (expect|seeking|looking for)
+
+## [DesiredStartDate] (topic: desired-start-date -> **09/07/2026**)
+
+Answer: 09/07/2026.
+Patterns:
+
+- what is your desired start date
+- desired or preferred employment start date
+- when (can|would) you (start|be available to start)
+
+## [MonthlySalary] (topic: salary-monthly -> **12000**)
+
+Answer: 12000 per month. This is separate from the annual salary answer 160000.
+Patterns:
+
+- desired monthly salary
+- expected salary per month
+- monthly (salary|compensation) expectation
+
+## [SalaryCurrency] (topic: salary-currency -> **USD**)
+
+Answer: USD. Match USD, U.S. Dollar, or United States Dollar options.
+Patterns:
+
+- select the currency
+- salary (currency|denomination)
+- currency for (your )?(salary|compensation)
+
+# ==================== SECTION: EDUCATION & SKILLS ====================
+# degree, certifications, languages
+
+## [Education-Identity] (gh/ash profile fields)
+
+- School / University / College / most recent school -> "University at Buffalo"
+- Graduation Date -> 02/01/2022 (Graduation Year -> 2022)
+- "Degree Type" rendered as a CHECKBOX list (Undergraduate/Bachelors | Master's | PhD | MBA) is the
+  same question as the Degree dropdown -> Master's.
+
+## [MinimumEducation-Bachelor] (topic: minimum-education-bachelor -> **Yes**) — registered 2026-07-27 (T5 Indeed/Infosys)
+
+# "Minimum of a Bachelor's degree or foreign equivalent (or experience in lieu)". User holds a
+# Master's (SUNY Buffalo, 2022) -> Yes.
+
+Q: Do you have a minimum of a Bachelor's degree or foreign equivalent or three years of relevant work experience in lieu of every year of education?  -> Yes
+Patterns:
+- minimum of a bachelor'?s degree
+- bachelor'?s degree or (foreign )?equivalent
+- do you (hold|have|possess)[\s\S]{0,40}bachelor'?s degree
+
+# ==================== SECTION: LEGAL & COMPLIANCE ====================
+# non-compete, government, sanctions, conflicts of interest — all **No** unless noted
+
+## [RestrictiveCovenant/NonCompete] (topic: restrictive-agreements -> **No**)
+
+# Registered 2026-07-27 from a user answer on Relativity/kcura, where this renders as a REQUIRED
+# FREE-TEXT box rather than a Yes/No dropdown. The entry now carries BOTH `choose: 'no'` and
+# `text: 'No.'` so it answers either control type.
+
+Answer: No — the applicant has no non-compete, non-solicit, or other restrictive covenant with any
+current or former employer that would limit working for the hiring company.
+Answer patterns, in priority order:
+- dropdown/radio:  /^no\b/i   (also matches a long "No, I am not subject to..." option)
+- free text:       "No."
+Patterns:
+
+- agreements with.{0,40}(current or former|any).{0,20}employers?
+- agreement.{0,100}restrict you
+- (restrict|prevent).{0,80}working (at|for)
+- non-?compete|non-?competition|restrictive covenant
+- subject to any.{0,60}(restrictive covenant|non-?compet)
+- (non-?solicit|garden leave|notice restriction).{0,60}agreement
+
+Source: Relativity / kcura.wd1 Application Questions, 2026-07-27.
+
+## [RelativesAtCompany]
+
+Answer: No (no relatives/family members or people with close relationships employed by or working
+for the hiring company or its subsidiaries/affiliates).
+Patterns:
+
+- do you have any relatives employed by <company>( or its (subsidiaries|affiliates))?\??
+- is any (relative|family member) employed (by|at) <company>\??
+- do you have any family members or people you have close relationships with who work for <company>\??
+
+## [PersonalRelationship] (Workday topic: personal-relationship -> choose NO)
+
+Answer: No. (No personal/family relationship with a current BlackRock employee or contingent
+worker. Meeting an employee at an event or during recruiting does not count.)
+Patterns:
+
+- do you have a personal relationship\*? with a current .\*(employee|contingent worker)\??
+- ._personal relationship._(current|blackrock|employee|contingent|worker).\*
+
+## [ConflictOfInterest-Omnibus] (topic: conflict-of-interest -> **No**; new 2026-07-27)
+
+Answer: **No**. User-supplied Q&A (Robinhood): "Do you have: a) any Personal/Familial Relationships
+(current Robinhood employees or employees of Robinhood's vendors); b) any Outside Business
+Activities that you wish to continue; c) any investment that is greater than 5% of the outstanding
+shares of a publicly-traded company; d) any investment in a private company that has a business
+relationship or that is a current competitor of Robinhood; or e) any Intellectual Property
+Ownership (patents, trademarks, copyrights) that you wish to retain and/or create/develop while at
+Robinhood?" -> No. The company name is incidental; this is an OMNIBUS conflict-of-interest
+disclosure combining personal/familial relationships + outside business activities + investments
+(public or private company) + IP ownership into one question, so it is matched by SHAPE
+(co-occurrence of these disclosure categories), not the literal wording — kept distinct from the
+narrower single-topic questions ([RelativesAtCompany], [RestrictiveAgreements]) that only ask one
+thing. Extended workday.js's existing `conflict-of-interest` topic and added the same topic to
+greenhouse.js (which previously had no broad COI topic, only [RelativesAtCompany]).
+Patterns:
+
+- (personal|familial)[\s\S]{0,40}relationships?[\s\S]{0,400}outside business activit
+- outside business activit(y|ies)[\s\S]{0,400}(intellectual property|investment)
+- (personal|familial)[\s\S]{0,40}relationships?[\s\S]{0,400}intellectual property
+- intellectual property (ownership|rights)[\s\S]{0,100}(patents?|trademarks?|copyrights?)
+
+## [SecuritiesRegistration] (topic: securities-registration -> **No**)
+
+Answer: **No**. "Are you currently, were you previously, or have you ever attempted to become,
+registered in the securities industry?" Never registered.
+Patterns:
+
+- registered in the securities industry
+- (currently|previously|ever attempted) .*registered .*securities
+- securities industry registration
+
+## [GovernmentOfficial-Self] (folded into topic: government-employment -> **No**)
+
+Answer: **No**. "Are you currently, or have you been in the past three years, a Government Official,
+including military and/or law enforcement, or employed by a financial regulator?"
+Folded into the existing `government-employment` topic rather than given its own — same subject,
+same answer, so the bank grows by generalization. That topic now EXCLUDES the sibling
+Government-Official questions below so each still routes to its own entry.
+Patterns added:
+
+- (are you|have you been) .*a government official
+- employed by a financial regulator
+
+## [GovOfficial-InfluenceBusiness] (topic: gov-influence-business -> **No**)
+
+Answer: **No**. "In a capacity as a Government Official or employee of a financial regulator, have
+you had the ability to directly or indirectly influence the award of business to <company> and/or
+exercise decision making authority that impacts <company>?"
+Patterns:
+
+- influence the award of business
+- exercise decision making authority
+  Exclude: immediate family member | close associate  (that is the separate question below —
+  the two strings are near-identical and differ only by that wording).
+
+## [GovOfficial-FamilyOrAssociate] (topic: gov-family-associate -> **No**)
+
+Answer: **No**. "Are you an Immediate Family Member or Close Associate of any Government Official
+who has the ability to … influence the award of business …?" Ordered BEFORE the influence entry.
+Patterns:
+
+- immediate family member or close associate
+- (family member|close associate) of (any |a )?government official
+
+## [PostEmploymentRestrictions-Subject] (topic: post-employment-restrictions-subject -> **No**)
+
+Answer: **No**. "On the basis of employment as a Government Official or employee of a financial
+regulator, are you subject to any post-employment restrictions (cooling off period, non-disclosure,
+recusal requirements, etc.)?" Never a government employee, so no restrictions apply.
+OPPOSITE POLARITY WARNING: [PostGovernmentRestrictions] (topic post-government-restrictions) answers
+**Yes** — but that is the ATTESTATION form, "I attest that I have NO post-government employment
+restrictions". Same subject, inverted question, opposite answer. Note this one says
+"post-employment", not "post-government employment", so the patterns do not overlap; both directions
+are unit-tested.
+Patterns:
+
+- subject to any post-?employment restrictions
+- post-?employment restrictions .*(cooling off|non-?disclosure|recusal)
+- cooling off period
+
+## [GovOfficial-Referral] (topic: gov-referral -> **No**)
+
+Answer: **No**. "Were you referred or recommended for this position by a Government Official?"
+Distinct from [ReferralStatus] (the plain "were you referred?" question, also No).
+Patterns:
+
+- referred or recommended .*by a government official
+- referred .*by a government official
+
+## [Sanctions/ExportControl] (US sanctions & export-control screening; common on US tech ATS)
+
+Answer (main "select all that apply" list): None of the above.
+Why: Chinese national residing in the US on H-1B; not a citizen/resident of Cuba, Iran, North
+Korea, Syria, the listed Ukraine regions, Russia, or Belarus.
+Answer (the conditional follow-up "if you selected other than none of the above..."):
+"Not applicable (i.e., I selected 'none of the above' for the prior question)".
+Patterns:
+
+- compliance with u\.?s\.? sanctions and export controls
+- citizen or permanent resident of cuba, iran, north korea, or syria
+- are you a citizen,? national or permanent resident of (iran|cuba|north korea|syria)  -> **No** (Chinese national; Yes/No variant, Salesforce 2026-07-20)
+  (Workday code bank topic: export-control-restricted-country -> choose No)
+
+# ── Added from Salesforce Platform Engineer Application Questions (live page, 2026-07-20). ──
+# For each: reasoned the answer from this file + profile, then wrote regex variants (not literal
+# wording). Also added to DEFAULT_APPLICATION_QUESTIONS in eve/workday.js under the same topics.
+
+## [GovernmentEmployment] (topic: government-employment -> **No**)
+
+Answer: No. In the last 5 years, not a US federal/state/local government employee, "special
+Government employee" (18 U.S.C. §202), or member of the US Armed Services. Only employers are
+J.P. Morgan (current) and Graphen (2021 intern), both private.
+Patterns:
+
+- (in the last \d+ years,? )?have you been an employee of a .*government
+- government employment.*(employee|armed services|armed forces)
+- special government employee | 18 u\.?s\.?c\.? ?§? ?202
+
+## [PostGovernmentRestrictions] (topic: post-government-restrictions -> attest **Yes**)
+
+Answer: Yes (attest). Never a government employee, so no post-government employment restrictions
+apply; agree to disclose any if later found. Attestation -> Yes.
+Patterns:
+
+- i attest/?confirm that i have no .*restrictions
+- post-government employment restrictions
+
+## [Debarment] (topic: debarment -> **No**)
+
+Answer: No. Never debarred, suspended, proposed for debarment, or declared ineligible for a federal
+contract.
+Patterns:
+
+- are you (currently or have you .*)?(been )?debarred|debarment
+- suspended .*(debarment|ineligible)
+- declared ineligible for award of a contract( by any federal agency)?\??
+
+## [CitiRelatives-SeniorManagement] (topic: citi-relatives-senior-management -> **No**)
+
+Answer: No. No relatives or "Covered Relationships" in Citi Senior Management.
+NOTE (live 2026-07-25): Workday had this **prefilled Yes** from an earlier partial attempt; the
+adapter correctly re-selected No. Always recheck/correct this one rather than trusting a prefill.
+Patterns:
+
+- relatives .*covered relationships
+- (relatives|covered relationships) .*senior management
+- part of citi .*senior management
+
+## [AuditFirmAffiliation] (topic: audit-firm-affiliation -> **No**)
+
+Answer: No. Never a partner, principal, shareholder, or employee of Deloitte & Touche or another
+named audit/professional-services firm and its subsidiaries or affiliates.
+Patterns:
+
+- (currently|ever) .* (partner|principal|shareholder|employee) .* (deloitte|touche|kpmg|pwc|pricewaterhousecoopers)
+- (partner|principal|shareholder|employee) of .* (audit|accounting|professional services) firm
+- (partner|principal|shareholder|employee) .* (subsidiaries|affiliates)
+
+## [SGO-Referral] / [SCP-Referral] (topics: sgo-referral, scp-referral -> **No**)
+
+Answer: No to both. Not a referral/relative of a Senior Government Official, never held an SGO
+position; not a referral of a Senior Commercial Person. Consistent with [GovernmentEmployment] = No.
+Patterns:
+
+- senior government official | \bsgo\b .*(position|official)
+- referral or relative of .*government official
+- senior commercial person | \bscp\b .*(referral|person)
+- referral of .*commercial person
+
+# ==================== SECTION: CONSENT & ACKNOWLEDGEMENT ====================
+# terms, privacy, marketing, truthfulness attestations
+
+## [Consent-FutureOpportunities] (marketing/talent-network consent — Workday topic: consent-future-opportunities -> YES)
+
+Answer: Yes. Any "do you consent to the use/sharing of your personal information for FUTURE job and
+career opportunities" (Disney Family of Companies, talent network, marketing email) -> Yes.
+User rule (2026-07-18): "...consent..." -> yes ; "...future...job..." -> yes.
+Patterns:
+
+- do you consent to the use of your personal information\??
+- consent .\*(future|other).\*(job|career|employment).\*opportunit
+- sharing of your personal information .\*(compan|affiliat)
+
+User-supplied Q&A (2026-07-27, Column): "Do you agree to allow Column to contact you about job
+opportunities for up to 2 years? (Recruiting Privacy Policy)" -> **"I agree"**. The company name and
+duration are incidental; this is the same standing "consent to future job contact -> Yes" rule,
+just worded with "agree"/"contact" instead of "consent"/"sharing", and the desired option is
+literally "I agree" rather than plain "Yes" (both are accepted via
+`optionMatch: /^\s*(i agree|yes)\b/i` in workday.js; greenhouse.js's default `choose:'yes'` matcher
+already tries "I agree" before "Yes"). Also excluded from `[PrivacyNoticeAcknowledgement]`'s broad
+"privacy policy" pattern in greenhouse.js, which was wrongly stealing this question because of the
+"(Recruiting Privacy Policy)" parenthetical. Added patterns:
+
+- (agree|consent)[\s\S]{0,100}(contact|reach out to) (you|me)[\s\S]{0,100}(job|career)[\s\S]{0,20}opportunit
+- (contact|reach out to) (you|me)[\s\S]{0,100}(job|career)[\s\S]{0,20}opportunit[\s\S]{0,80}(agree|consent)
+- recruiting privacy policy
+
+## [Consent-SMS] (Workday topic: consent-sms-contact -> **No / Opt-Out**)
+
+Answer (user, 2026-07-25): decline SMS/text contact — **Opt-Out** where the control offers
+Opt-In/Opt-Out (Visa), **No** where it is a plain Yes/No (Morgan Stanley: "Do you consent to receive
+follow up communication via SMS WhatsApp from Talent Acquisition regarding job opportunities at
+<company>?"). ONE topic handles both vocabularies via
+`optionMatch: /^\s*(opt[\s-]?out|no)\b/i` — the underlying preference is identical, so this is not
+forked into two topics. The "No" branch is anchored at the option start so it can never hit
+"None of the above" or "Not interested".
+Standing rule (user, 2026-07-27): **always choose No / Opt-Out** for job-application SMS, text
+message, or WhatsApp updates, whether the control is a dropdown, radio group, or labeled checkbox.
+This is an explicit EXCEPTION to the general "...consent... -> yes" rule, which still applies to
+[Consent-FutureOpportunities] and [Consent-AIScreening].
+Patterns:
+
+- reach out to me via sms
+- via (sms|text messages?)
+- message and data rates may apply
+- consent .*(sms|text message)
+- agreement to receive text message updates .*job application
+- (yes|no).*consent to receiving text messages
+- \bsms\b .*whatsapp
+- follow up communication via
+- \bwhatsapp\b
+
+## [Consent-AIScreening] (Workday topic: consent-ai-screening -> **Opt-In**)
+
+Answer: **Opt-In**. "<company> may use automated tools such as AI to support review of your
+application ... If you prefer not to have your application processed by these tools, you can
+opt-out. Opting out will not impact your eligibility." Opting in allows matching to additional open
+roles and the tenant states neither choice affects eligibility, so Opt-In is pure upside.
+Patterns:
+
+- automated tools such as ai
+- (\bai\b|automated tools?) .*(review|process) .*your application
+- prefer not to have your application processed
+
+## [AcknowledgeTruthful] (topic: acknowledge-answers-truthful -> **Yes**)
+
+Answer: Yes. Final attestation that all answers are truthful/accurate; offer conditional on truth.
+"Please select 'yes' if you acknowledge."
+Patterns:
+
+- i acknowledge that i have read,? reviewed and answered
+- answered the above questions truthfully
+- select .?yes.? if you acknowledge
+- confirm (that )?you have read (this|the) (advisement|notice|statement)
+- (read|reviewed) .*advisement .*confirm
+
+## [FuturePositions-Communications] (topic: consent-future-opportunities -> **Yes**)
+
+Answer: Yes — "Yes, I would like to receive communications about <company> and future openings".
+Same topic as [Consent-FutureOpportunities]; this is the "Regarding future positions, please select
+one of the following" listbox variant (Yes = receive communications, No = do not contact).
+Patterns:
+
+- regarding future positions .*(select|choose) one
+- future (positions|openings) .*(communications|contact|receive)
+- receive communications about .*(future|openings)
+
+## [ApplicationAccuracyConfirmation] (topic: application-accuracy-confirmation -> **Yes**)
+
+Answer: **Yes**. Confirms the submitted application answers are complete and accurate and permits
+the employer to verify statements.
+Patterns:
+
+- confirm .*answers .*complete and accurate
+- permission is granted .*verify .*statements
+- certify .*application .*true and complete
+
+## [PrivacyNoticeAcknowledgement] (topic: privacy-notice-acknowledgement -> affirmative, precedence)
+
+# Registered 2026-07-26 from a user screenshot (required dropdown, single option "Acknowledge",
+# nothing selected -> reasoned: privacy/consent acknowledgements are always affirmative).
+
+Answer precedence (first present on the page wins; if not listed, try the next):
+1. Acknowledge / I acknowledge (any option whose text starts with or contains "acknowledge")
+2. Yes / I agree / Agree
+3. Accept / I accept / I consent
+4. If it's a checkbox instead of a dropdown -> check it.
+Patterns:
+
+- privacy (notice|policy|statement|act)[\s\S]{0,40}acknowledge?(ment)?
+- (acknowledge|agree to|accept|consent to)[\s\S]{0,60}privacy (notice|policy|statement)
+- (data )?privacy (notice|policy|statement)\b
+- (have read|read and understood)[\s\S]{0,60}privacy
+- have you read[\s\S]{0,30}privacy (policy|notice|statement)
+
+# ROOT WIDENED 2026-07-26 (user screenshot, Iterable/gh): "Note from <company>" dropdowns whose only
+# real option is "Acknowledge" (e.g. a note explaining demographic questions) are the same root
+# acknowledgement question. Extra patterns for the same topic + answer precedence:
+
+- ^note from [\w .&-]{1,40}$
+- (please )?(read and )?acknowledge[\s\S]{0,40}(note|notice|statement|below|following)
+- committed to[\s\S]{0,80}(acknowledge|below)
+
+## [ApplicationAccommodations] (topic: application-accommodations -> **No**) — registered 2026-07-27 (T5 Indeed/Infosys)
+
+# Accommodation/adjustment disclosure for the application & selection process. Reasoned from the
+# user's EEO defaults (no disability, no accommodations ever requested): answer No. "Prefer not
+# to say" is unnecessary since the true answer is simply No.
+
+Q: Do you require adjustments to the application and selection process?  -> No
+Patterns:
+- (require|need)[\s\S]{0,30}(adjustments?|accommodations?)[\s\S]{0,80}(application|selection|recruit|interview|hiring)
+- (adjustments?|accommodations?) to (the )?(application|selection|interview|recruitment)
+- reasonable accommodations?[\s\S]{0,60}(apply|application|interview)
+
+## [GenericAcknowledgement] (topic: acknowledgement-generic -> affirmative)
+
+Answer precedence: Yes → Acknowledge / I Acknowledge → I Agree / Agree → Accept.
+Standing rule: if the question prompt contains `acknowledge`, always select the affirmative answer.
+Use a matching dropdown/combobox first; if none exists, use the matching checkbox/multi-checkbox.
+
+# ==================== SECTION: DEMOGRAPHICS & PERSONAL ====================
+# EEO self-ID, military service, age, pronouns, name
+
+## [Age]  (topic id: `age`; was [MinimumAge])
+
+Answer: always the YES option — bare "Yes" or a long one like "Yes, I am at least 18 years old".
+(Established professional, well over any minimum age; can provide proof of age.)
+Registered by PATTERN, any minimum (16/18/19/21…), never by a tenant's exact wording:
+
+- at least\s*\d{1,2}\s*(\+\s*)?years?\s*(old|of age)?
+- \b\d{1,2}\s*years?\s*(of age|or older|or above|old)\b
+- \b(over|above|older than)\s*(the age of\s*)?\d{1,2}\b
+- proof of age.{0,80}meet this requirement\??
+- minimum age requirement
+- (meet|satisfy).{0,20}minimum age
+- \bof legal (working|employment) age\b
+- age of majority .* right to contract .* own name
+- (18|19) .* (right|capacity|ability) to contract
+- (legal age|legally old enough) .* contract in (your|my) own name
+
+Exclude (must NOT steal these): years? of (experience|work experience|professional|industry|
+relevant) | how many years | experience (do you have|with) | notice period.
+Example that motivated the generalized pattern (user, 2026-07-27):
+"Are you at least 18 years old?*" -> "Yes, I am at least 18 years old".
+
+## [AgeBracketVoluntary]  (topic id: `age-bracket-voluntary`; distinct from [Age] above)
+
+Answer: **I prefer not to answer**. This is a VOLUNTARY EEO age-BRACKET disclosure (e.g. Under 30 /
+30-39 / 40-49 / 50-59 / 60 or older / I prefer not to answer) — not the [Age] minimum-age
+eligibility gate above. No real age fact is registered anywhere in this file, and this class of
+question always carries a legitimate decline option, so decline rather than guess (same convention
+as Gender/Veteran/Disability/Hispanic when the true fact isn't independently on record for use).
+Registered 2026-07-28 (Promise, jobs.ashbyhq.com):
+"What is your current age?" -> I prefer not to answer.
+
+## [MilitaryService-Self] (Veterans self-ID; distinct from EEO veteran dropdown — Application Questions phrasing)
+
+Answer: No — never served. Pick the "No, I have never served in the U.S. Armed Forces, reserves
+or national guard" option when it is worded long (choose the No/never-served option, not "I do not
+wish to answer"). Consistent with [EEO veteran] = "I am not a veteran".
+Patterns:
+
+- do you currently or have you ever served in the (u\.?s\.?|united states) military\??
+- have you ever served in the (u\.?s\.?|united states) (armed forces|military)\??
+
+## [MilitaryService-Spouse]
+
+Answer: No.
+Patterns:
+
+- has your (spouse|domestic partner) ever served in the (u\.?s\.?|united states) military\??
+
+## [EEO/Demographic — voluntary self-identification] (Workday step: Voluntary Disclosures / Self Identify)
+
+# The stored answer is matched as a SUBSTRING of the option, so it works even when the real option
+
+# is longer (e.g. "Asian" -> "Asian (United States of America)"; "not a veteran" -> "I am not a
+
+# veteran"). Code bank: DEFAULT_VOLUNTARY_DISCLOSURES in eve/workday.js, driven by
+
+# handleVoluntaryDisclosures(). Add phrasings to workdaySavedAnswers.voluntaryDisclosures
+
+# ({ topic, patterns:[glob…], optionMatch|answer }); same-topic patterns merge into the defaults.
+
+Gender (topic: gender): Male for standard EEO; **Man** when asked "How would you describe your
+gender identity? (mark all that apply)". Never matches Woman.
+Gender identity (topic: gender-identity; widened 2026-07-27): the plain "What is your gender
+identity?" wording now reaches this topic too (previously only the "how would you describe…"/"mark
+all that apply" checklist phrasing did). ORDERED PRECEDENCE: **Cisgender man** when offered, else
+plain **Man**, else **Male**.
+Race/ethnicity (topic: race-ethnicity): Asian for flat EEO lists; **East Asian** when asked
+"How would you describe your racial/ethnic background? (mark all that apply)"; also now the answer
+for the plain "What is your race or ethnicity?" wording (2026-07-27) — that already reached
+`race-ethnicity` via the bare "race" pattern, upgraded to ORDERED PRECEDENCE: **East Asian** when
+offered, else plain **Asian** (workday.js's race-ethnicity already had this precedence, via the
+Chinese/East Asian/Asian candidate chain; greenhouse.js's simpler entry was upgraded to match).
+Sexual orientation (topic: sexual-orientation): **Heterosexual**.
+Transgender identity (topic: transgender): **No**.
+Hispanic or Latino? (topic: hispanic-latino): No
+Veteran (topic: veteran): **No, I am not a veteran or active member** when that exact option exists;
+otherwise not a veteran. The option match is ANCHORED AT THE OPTION START:
+  /^\s*(i\s+am\s+)?not\s+a\s+(protected\s+)?veteran\b/i — so it selects "I AM NOT A VETERAN"
+  (T-Mobile), "I am not a protected veteran" (Disney) and the bare "Not A Veteran"
+  (Bank of America / GHR, confirmed live 2026-07-25). The anchor is what keeps it off the trap
+  options that DECLARE veteran status — "Non-Protected Veteran", "Disabled Veteran", "Recently
+  Separated Veteran", "Armed Forces Service Medal Veteran", "Active Duty Wartime or Campaign Badge
+  Veteran", "I am a Veteran, just not a protected veteran" — and off "I Do Not Wish To Self-Identify".
+"What is your military status?" (user-supplied Q&A, 2026-07-27) already routed here via the
+existing "military status" pattern. ORDERED PRECEDENCE upgraded: **I have never served in the
+military** when offered, else "have not served"/"no military service" wording, else falls back to
+the original "not a veteran" match above.
+Disability status: **No, I don't have a disability** (and have not had one in the past). Plain
+"What is your disability status?" wording (2026-07-27) added as its own pattern (previously only
+"do you have/consider... a disability" phrasing reached it). ORDERED PRECEDENCE: the exact "No, I
+don't have a disability" wording when offered, else falls back to the original guarded "No … not
+have a disability" match — NEVER a decline-to-answer option ("I don't wish to answer" / "decline"
+can never be picked by either candidate).
+"Do you identify as part of the LGBTQ+ community?" (user-supplied Q&A, 2026-07-27) -> **No**. A
+separate question from sexual-orientation/transgender above (broader community-membership scope,
+not a specific identity/orientation picker) — registered as its own new topic `lgbtq-identity`.
+Patterns (question side; matched case-insensitively over the whole question block):
+
+- what is your gender\?? | \bgender\b
+- what is your gender identity\?? | \bgender identity\b
+- (please select the )?race\s*/?\s*ethnicity( option)? | \brace\b | ethnicity
+- are you hispanic( or)?/?\s\*latino\?? | hispanic | latino
+- do you identify as a veteran\?? | \bveteran\b | military status
+- disability status | what is your disability status\??
+- how would you describe your gender identity
+- how would you describe your racial/ethnic background
+- how would you describe your sexual orientation
+- how do you identify your sexual orientation
+- do you identify as transgender
+- disability or chronic condition .*substantially limits
+- veteran or active member .*armed forces
+- lgbtq | identify as (part of )?(the )?lgbtq | part of the lgbtq\+? community
+
+## [PreferredFirstName]
+
+Answer: Xiaoxiao
+Patterns:
+
+- preferred (first )?name
+
+## [MilitaryService-Self] — additional Citi phrasing (topic: military-service -> **No**)
+
+"Are you serving, or have you ever served in the Armed Forces of the United States of America (to
+include active duty, Reserves, or National Guard)?" -> No. Added patterns:
+
+- (are you (currently )?serving|have you ever served) .*(armed forces|military|reserves|national guard)
+- armed forces of the united states
+- served .*(armed forces|national guard|reserves)
+
+# ── Added from Cape (cape.co, Ashby embedded board) 2026-07-26. Task 3 / agent-driven apply.
+# Ashby renders these as native radio groups inside the iframe #ashby_embed_iframe.
+
+## [Pronouns] (topic: pronouns -> He / Him / His, precedence)
+
+# Registered 2026-07-26 from a user screenshot (Iterable/gh: "Addressing you by the correct pronoun
+# is an important part of this commitment", options She/Her/Hers, He/Him/His, They/Them/Theirs,
+# Other). Confirmed explicitly by the user's 2026-07-27 screenshot with He / Him / His selected.
+
+Answer precedence: He / Him / His > any option starting with "He" > Decline/Prefer not to say (only
+if no "He" option exists; never pick She/They/Other for this user).
+Patterns:
+
+- \bpronouns?\b
+- (addressing|address|refer to) you[\s\S]{0,60}pronouns?
+- (what|which) pronouns? (do you use|should we use|do you go by)
+- (select|share|indicate)( your)? pronouns?
+
+# ==================== SECTION: FREE TEXT & ESSAYS ====================
+# long-form answers; the reusable bodies live in [ESSAYS] below
+
+## [Exceptional/Proud-work — free text]
+
+Answer: use [ESSAYS] > proud_work_pipeline (personalize per role).
+Patterns:
+
+- what exceptional work have you done\??
+- (tell us about|describe) (a|the) (project|piece of work) (you'?re| you are)? ?(most )?proud of
+
+## [EnglishLevel-Select] (topic: english-level -> highest offered level)
+
+Answer: the same as the Workday Languages section - English, fluent, native, C2. Written as an
+ORDERED PRECEDENCE chain so any tenant list works: C2* -> *Native Speaker* / Native or Bilingual*
+/ Native* -> Proficient* -> C1* -> Fluent* / Advanced* / Full Professional*. Confirmed against the
+CEFR list (C2: Proficient. / C1: Advanced. / B2: Upper-Intermediate. / B1 / A2 / A1) from the
+user screenshot 2026-07-27. Free-text fallback: "C2 (Proficient / Native Speaker)".
+Patterns: what(’s| is) your english level; (english|language) (level|proficiency); level of
+english; how (well) (do you) (speak|write) english. EXCLUDE: programming languages (so it never
+steals the "top 3 programming languages" question).
+
+## [CountryOfResidence-Search] (topic: country-of-residence -> United States)
+
+Searchable country lists: type "uni", wait, then select "United States" (user screenshot
+2026-07-27). Added phrasings: (in) which country do you (currently) reside|live; country (of|in
+which) ... (reside|residence|live); what country do you (currently) reside|live in.
+
+## [AISystemsBuilt-Essay] (topic: ai-systems-built-essay)
+
+For AI-systems-engineering roles that ask "what AI systems have you built?" and explicitly want
+systems built AROUND foundation models rather than model training. Answer draws on the real work:
+the JPMC financial-data validation agent system (Google ADK, FastAPI, Azure OpenAI, AWS Bedrock;
+classification, instrument-type routing, structured extraction, normalisation, record retrieval,
+sequential and parallel comparison agents) with the reliability work called out (schema-constrained
+outputs, validation rules, traceable results, human review, evaluation against manually reviewed
+examples), plus the Eve extension as a second system built around models with deterministic
+matching and verification. Ends by stating plainly that no foundation models were trained from
+scratch - honesty is the point of that sentence, do not remove it. Ordered BEFORE
+[AIExperience-Essay] so the narrower "what have you built" framing wins.
+
+## [YearsOfExperience] free-text
+
+"How many years of experience do you have in software engineering?" -> 5 (the same topic that
+picks a band starting at 5 from a dropdown now also answers a plain number field).
+
+## [VeteranBranch-Select]
+
+"Veteran Branch of Service" typeahead (I am not a Veteran / Air Force / Army / Coast Guard /
+Marines / Navy / Other / Prefer not to say / I don't wish to answer) -> "I am not a Veteran".
+Never "Prefer not to say" and never "I don't wish to answer".
+
+## [AIExperience-Essay] (topic: ai-experience-essay -> long-form AI experience)
+
+Answer (user-supplied, 2026-07-27): daily AI chat / AI coding-agent use plus the JPMC financial-data
+validation agent system (Google ADK, FastAPI, Azure OpenAI, AWS Bedrock; email classification,
+instrument-type routing, structured extraction, normalization, internal-record retrieval, sequential
+and parallel comparison agents; schema-constrained outputs, validation rules, traceable results,
+human review for uncertain cases; evaluated against manually reviewed examples; moved the team from
+manual comparison to exception-based review, projected to save hundreds of banker-hours per month).
+Kept AFTER [AITools-Usage-Essay] so the narrower "3-4 sentences, how do you use AI tools" prompt
+still gets its own shorter answer. Patterns:
+
+- describe your ai experience
+- (describe|tell us about) .* your (experience with|background in) (ai|artificial intelligence|machine learning)
+- ai experience
+- what is your experience with (ai|artificial intelligence)
+
+## [GPA] (topic: gpa, requiredOnly)
+
+GPA = 3.65, but ONLY filled when the control is actually required (user, 2026-07-27). An optional
+GPA box is left blank rather than volunteering the number.
+
+## [RelocationAssistance] (topic: relocation-assistance -> No)
+
+"If you are not currently based in <region>, will you require relocation assistance?" -> No. The
+applicant relocates at their own arrangement and asks for nothing; this is a different question
+from willingness to relocate, which is always Yes. Pattern style the user asked for: the loosest
+shape that still means the same thing - "relocat.. assist.." in either word order.
+
+## [YearsOfExperience] band selection
+
+5 years -> pick the band that CONTAINS 5, by precedence: an explicit 5 / 5+ band, then a band
+whose low <= 5 and high >= 6 ("4 to 7 years"), then 4+/5+, and only as a last resort a band that
+ENDS at 5 ("3-5 years"). Never a band above 5 ("6-10", "8 or more") - that overstates.
+
+## [Education] school picker - Other first for the undergrad
+
+For the SECOND education entry (Beijing International Studies University, schoolNotListed), search
+"other" and take the tenant's own "Other" option FIRST - it takes priority over searching the real
+name, which surfaces unrelated near-matches. Exact-match guard still applies so a school whose
+name merely contains "other" is never picked; if choosing Other reveals a free-text box, the real
+school name goes in it.
+
+## [ConditionalCommute-vs-Residency] (important distinction)
+
+Two question shapes look alike and must be answered DIFFERENTLY (user, 2026-07-27):
+- RESIDENCY: "Are you currently based in New York or San Francisco?" -> No (honest; the
+  applicant is in Dallas). Topic: based-in-ny-or-sf.
+- ABILITY, often conditional: "IF you are based in San Francisco, Salt Lake City, or New York
+  City, are you able to commute to the office three days per week?" and "Are you able to meet the
+  location requirements of the position as stated in the job description?" -> Yes. Topic:
+  office-attendance-requirement.
+The residency topic therefore EXCLUDES "if you are based/located", "are you able to", "can you
+commute/work" and "commute to the office". Without that exclude the conditional question was
+answered No, which reads as a refusal to attend the office.
+
+## [Phone] label
+
+"Preferred phone number" is the same phone field; the label pattern matches the noun anywhere
+("phone number", "mobile", "cell"), while "Preferred First Name" still maps to the first name.
+
+## [HubLocation-Select] (topic: hub-location-radius -> relocate, never a hub city)
+
+Two shapes seen live (user, 2026-07-27):
+- "…reside within 50 miles of the hub advertised… will you be located within 50 miles of one of
+  our hubs?" -> "N/A - I am not in one of the hub locations but I AM able to relocate"
+- "Please select which <Company> hub you are currently based out of:" with a hub list plus
+  "Willing to relocate to one of the above areas" / "Not willing to relocate to any of these
+  areas" -> the WILLING option.
+Both the willing and the not-willing option contain the words "willing to relocate", so the
+affirmative candidates are anchored at the START of the option text. Never a hub city (the
+applicant is in Dallas), never the unable/not-willing option.
+
+## [OfficeAttendance] additions
+
+"…join us in the office every Tuesday and Wednesday as part of our hybrid model?" -> Yes.
+Named weekdays instead of a day count; also "in-office time", "in the office every <weekday>".
+
+## [WorkAuthStatus-Select] additions
+
+Radio form: "Can work for any employer / Can work for current employer / Seeking work
+authorization" -> "Can work for current employer" (an H-1B holder can work only for the current
+employer). Never "any employer" (that is the citizen/green-card claim), never "seeking".
+
+## [WhyCompany-Essay] (gh topic: why-company-essay -> reusable startup pitch)
+
+Answer (user-supplied wording, 2026-07-27 - supersedes the earlier phrasing of the same pitch;
+personalize per posting):
+
+"I am interested in your company because I thrive in new environments where engineers can
+independently turn ideas into working products-from design and implementation through deployment
+and customer delivery. My experience across full-stack development, backend services, cloud
+infrastructure, data platforms, and AI agents allows me to contribute across the product rather
+than within a limited scope."
+
+Patterns:
+
+- what about <company> is exciting to you
+- why (are you interested|do you want to (work|join))
+- why (this|our) company
+- what (draws|attracts) you to
+- what interest(ed|s) you (about|in) <this role / this position / our team>
+- (what|why) .* interested in (this|the|our) (role|position|job|opportunity|team|company)
+- what (made|makes) you (want to )?apply
+
+## [EntrepreneurialWays-Essay] (topic: entrepreneurial-ways-essay -> [ESSAYS] entrepreneurial)
+
+Answer: polished four-sentence response grounded in the user's self-taught software career,
+2017 chatbot startup, Eve job-application extension, and long-term hiking goals. Patterns:
+
+- in what ways are you entrepreneurial
+- how (are|would you describe) yourself as entrepreneurial
+- describe your entrepreneurial (mindset|experience|spirit)
+- examples? of (being|your) entrepreneurial
+
+## [FiveYearPlan-Essay] (gh topic: five-year-plan-essay -> APPROVED by user 2026-07-26)
+
+Answer (drafted 2026-07-26 from the user's own essays, approved verbatim — long horizons, ownership, growing with one
+product, deepening AI/platform skills, mentoring): "In five years I see myself as a senior engineer
+who has grown alongside one product for years - owning reliable systems end to end … help shape
+technical direction as the team and product scale." Full text in DEFAULT_GH_QUESTIONS. Patterns:
+
+- where do you see yourself in (five|5|ten|10) years
+- (five|5)-year (plan|goal)
+
+# ==================== SECTION: MISC & FORM MECHANICS ====================
+# how-heard, multi-select defaults, control-handling rules
+
+## [MultiSelect-Default] ("select all that apply" required checkbox group with no specific answer)
+
+Rule (user, 2026-07-18): if there is NO specific stored answer for a required multi-checkbox
+question (e.g. Disney "Which reasons were important to your decision to apply?"), tick the **first 3
+options when there are >= 3**, else the **1st**. Skip entirely if any box is already checked.
+Handled generically by runRegexChoiceStep's checkbox fallback (and answerOnPageChoiceQuestions).
+Note: this also happens to satisfy [Relocation-Where] (first 3 = Local + Statewide + Nationwide).
+
+## [HowHeard]
+
+Answer (user, 2026-07-25 — SUPERSEDES the old LinkedIn/Glassdoor/Indeed precedence and the earlier
+"prefer Referral" rule): **no targeting at all — open the picker and take the FIRST option.** If that
+first option drills into another list, take the first option there too, repeating until a leaf is
+selected (depth cap 4 so a malformed picker cannot loop). Whatever the tenant happens to list first
+is the answer; the user accepted that this forfeits LinkedIn attribution and does NOT want a
+"prefer LinkedIn if present" fallback, since that would defeat the simplification.
+A value already selected is kept as-is and the picker is never reopened (see the skip-if-filled rule
+below). A free-text source input is still skipped entirely and never counts as missing.
+Code: `ensureSourceSelected()` in eve/workday.js.
+Observed live 2026-07-25 on Bank of America / GHR (`Lateral-US`): the first-option path resolves to
+**Advertisement -> Campus Print Ad - University Magazine**, so that leaf is the real source
+attribution on that tenant. GHR's top-level list is alphabetical, so "first option always" lands on
+an advertising category rather than anything job-board related — expected, per the user's rule.
+Recognising the control matters: GHR renders this field as a uxi selectinput multiselect
+(`<input type="text" placeholder="Search">`, `data-uxi-widget-type="selectinput"`, no `role`), the
+same shape as its School and Field of Study fields — `isSearchPickerControl()` is the shared test.
+Its empty marker is `0 items selected` (Citi's is `" Select One Required"`); both read as empty.
+
+## [Search-and-pick fields: skip if already filled] (user, 2026-07-25)
+
+For **My Information** search-and-pick / picker / prompt fields — How Did You Hear About Us, Country,
+State, Phone Device Type, Country Phone Code — if the field **already holds a value, it is DONE**:
+do not reopen it, do not re-search, do not clear and refill, even when the existing value differs
+from the stored profile value. Those values come from the user's own Workday candidate profile, so
+keeping them is the safer direction.
+What counts as filled: a real selected value. Workday's placeholder "Select One" (Citi renders it
+" Select One Required") is NOT a value — one shared helper, `pickerSelectedValue()` + the
+`PICKER_PLACEHOLDER` regex, defines emptiness for both this rule and `blockAnswered()`.
+**Deliberately NOT applied to** screening questions (Application Questions) or Voluntary Disclosures /
+Self Identify: those have a known-correct answer and must still CORRECT a wrong prefill — e.g. the
+relocation "Yes, at the company's expense" clearing of a wrong checkbox, and Citi's prefilled-"Yes"
+relatives/Senior-Management question being flipped to No.
+Patterns:
+
+- how did you hear about (this|the) (job|role|position|opening)\??
+- where did you (hear|learn) about (us|this)\??
+
+## User-supplied Q&A batch (2026-07-27, 260727-18:45): SMS long-form, experience level, US Person,
+## hybrid role, startup experience, built essay, prior employment, Harvey office/relocation chain,
+## legal-name/employer profile fields
+
+[Consent-SMS] verification: the exact long-form option pair "Yes - I consent to receiving text
+messages" / "No - I do not consent to receiving text messages" was checked against the existing
+topic (topic: consent-sms-contact) — it ALREADY routed correctly and already picked the long-form
+No option via `optionMatch: /^\s*(opt[\s-]?out|no)\b/i` (anchored "no" at the option start). No
+change needed; locked with a new regression assertion in both test suites.
+
+## [ExperienceLevel] (topic: experience-level-select -> **Senior**)
+
+"Which level best reflects your experience and the role you are looking to step into?" (options:
+Mid-Level / Senior / Lead) — the user did not state a choice; **Senior** is the reasoned best fit for
+the applicant's real background (5+ years, end-to-end ownership, per the ideal-candidate-pitch
+essay) — solidly beyond Mid-Level's "foundational experience... looking to grow" framing, but short
+of Lead's "drive strategy, mentor others" framing. Ordered precedence: an option that STARTS WITH
+"senior" first, then any option merely containing "senior", then Mid-Level as a fallback only when
+Senior is not offered at all — **NEVER Lead**.
+
+## [USPersonStatus] (topic: us-person-status -> **No**)
+
+"Are you presently a US Person? A 'U.S. Person' is defined as a: Lawful Permanent Resident: U.S.
+Citizen OR Legal Immigrant with a 'Green Card', Protected Individual granted asylum or refugee
+status" -> **No**. This is an export-control/ITAR-style US-Person disclosure, NOT a
+work-authorization question — the applicant is on an H-1B (not a citizen, green-card holder, or
+asylee/refugee). Kept as a DISTINCT topic, ordered before [WorkAuthorization] /
+[UnrestrictedRightToWork] so it never collides with those (which stay **Yes**). Patterns match the
+"US Person"/green-card/lawful-permanent-resident/asylum definition shape, not a bare "authorized to
+work" phrase.
+
+## [USCitizenOrGreenCard] (topic: us-citizen-or-green-card -> **No**)
+
+"Are you a U.S. Citizen or Green Card holder?" -> **No**. Simpler phrasing than [USPersonStatus]
+above (no "lawful permanent resident"/"asylum"/"refugee" definition text) but the same underlying
+fact and answer — H-1B, not a citizen or green-card holder. Registered 2026-07-28 (Promise,
+jobs.ashbyhq.com). Distinct topic so it never collides with work-authorization/visa-sponsorship
+(which stay Yes).
+
+## [HybridRoleAttestation] (topic: relocation-hybrid / relocation-consider -> **Yes**)
+
+"This hybrid role involves being in San Carlos, CA, 3 days per week. Please mark Yes that you read,
+understand, and are able to do this." -> **Yes**. The city is incidental. Distinct from
+[HybridOfficeAttendance]'s "office"-worded phrasings: this shape has NO "office" word at all (just
+"hybrid role" + a weekly cadence), so it needed its own pattern on the standing relocation topic
+rather than the office-attendance topic.
+
+## [StartupExperience] (topic: startup-experience -> **Yes**)
+
+"Have you worked at a startup before?" -> **Yes**. Ordered BEFORE [PriorEmployment] in the bank: that
+topic's broad "have you (ever|previously) worked (at|for)" patterns would otherwise steal this
+question and wrongly answer No (it asks about startups in general, not the target company).
+
+## [BuiltProjectsEssay] (topic: built-projects-essay)
+
+"Tell us about, or post links to some cool things you've built!" — distinct from
+`recent-build-essay` (the single AI financial-validation project) and ordered after it so a
+"...built recently"-qualified question still lands there. User-supplied content, lightly polished
+for grammar (no facts invented); full text in [ESSAYS] > cool_things_built.
+
+## [PriorEmployment] verification: "employed ... by/at ... or its subsidiaries" (-> No)
+
+"Have you ever been employed full-time at <Company> or its subsidiaries?" was checked against the
+existing topic (topic: prior-employment) — it ALREADY routed correctly via the general "have you
+(ever|previously) (worked|been employed)" pattern; the company name and "or its subsidiaries" are
+already incidental (nothing after "been employed" is required to match). No change needed; locked
+with a new regression assertion. `[CurrentEmployeeOfCompany]` (CURRENT employment, e.g. "are you
+currently an employee of a Hitachi Group company?") is a separate, untouched topic.
+
+## [HybridOfficeAttendance] extended: Harvey office/relocation option chain (topic:
+## office-attendance-requirement)
+
+THE GOVERNING RULE: Eve must NEVER claim the applicant already lives in / is based in the posted
+office location — the applicant is in Dallas, TX and is willing to relocate anywhere. So in any
+office/hybrid option list, ONE ordered `optionCandidates` chain applies:
+  1. an option that says willing/open to RELOCATE always wins first;
+  2. an affirmative that only claims ABILITY to attend, with NO residency claim, wins next;
+  3. a plain "Yes"/"I can/agree" is the last-resort fallback for ordinary Yes/No controls, but is
+     EXCLUDED via a negative lookahead if that same option also asserts "based in" the location —
+     such a question is left unanswered rather than falsely affirmed.
+  NEVER: an option claiming the applicant is already based in/lives in the posted location, a
+  remote-only option, "I may need flexibility", or "Other".
+
+Three Harvey screenshots (user, 2026-07-27) share this one chain:
+- "Harvey follows a hybrid in-office model...Are you excited and able to join us in person on those
+  days?" (options: "Yes, I'm able to work from the office 3 days a week" / "I may need flexibility
+  and would like to discuss" / "No, I'm only able to work remotely") -> option 1 (precedence 2 — no
+  relocate option offered, and option 1 makes no residency claim).
+- "Which of Harvey's offices would you be able to work from?" (options: "I'm based in the city this
+  role is posted in and can work from the office" / "I'm open to relocating to work from the
+  office") -> the relocate option (precedence 1) — the user's explicit choice.
+- "This role is tied to the office location listed in the job posting...hybrid work model...Are you
+  currently based in the listed location and able to work in person 3 days per week?" (options:
+  "Yes, I'm based in this location..." (NEVER) / "No, I'm not based in this location but willing to
+  relocate" (the user's explicit choice, precedence 1) / "No, I'm only able to work remotely" /
+  "Other") -> the willing-to-relocate option.
+Company name, city, and day count are incidental in all three.
+
+## [IdentityProfileFields] (greenhouse.js GH_PROFILE_FIELDS / indeed.js INDEED_PROFILE_FIELDS)
+
+- "Legal First and Last Name" -> **Xiaoxiao Lei** (a labeled variant alongside the existing
+  `/^legal name$/i` entry).
+- "Current or Most Recent Employer" -> the existing canonical `currentCompany` value, **J.P. Morgan
+  Chase & Co.** — the user wrote "JPMorgan", the same employer; no second spelling introduced. Label
+  pattern generalized to `current (company|employer)|(current or )?most recent employer|present
+  employer`. (Workday has no equivalent label-driven identity-field mechanism — its My Experience
+  employer field is filled structurally, not via this question-label bank — so this pair applies to
+  greenhouse.js/indeed.js only.)
+
+All of the above mirrored into greenhouse.js, workday.js (as applicable), and indeed.js (resynced
+via tools/sync-indeed-bank.js); regression assertions added to tools/gh-bank-test.js (440/440 pass)
+and tools/bank-test.js (352/352 pass); manifest bumped to 1.1.263; changed files copied to abby/.
+
+[ESSAYS]
+
+# Reusable free-text answers. Personalize per role before submitting.
+
+## proud_work_pipeline (~95 words; used for "proudest / most exceptional work")
+
+At J.P. Morgan I co-built an end-to-end AWS pipeline for a financial-instrument platform that
+ingests 30,000+ instruments daily from vendor APIs and normalizes 170+ attributes into validated
+domain objects. I built the transformation and data-quality layer in PySpark on AWS Glue,
+persisting canonical records to Aurora PostgreSQL and publishing enriched events through SNS.
+I'm proud of it because it turned messy, inconsistent vendor data into a reliable source of truth
+that multiple downstream applications depend on daily—designed for scale, correctness, and
+reliability from the ground up rather than patched together after the fact.
+
+## exceptional_performance_extension (user, 2026-07-27; Ramp)
+
+I am developing a Chrome extension that automates the job-application process across multiple
+sites, including this one. It stores user information and preferences, uses rule-based and
+regex-based matching to recognize common application questions, and allows users to add custom
+rules for greater flexibility. It also supports configurable delays between actions to respect
+platform rate limits. Users can start a workflow, step away, and return to find that the extension
+has completed hundreds of applications.
+
+## ai_product_accomplishment (user, 2026-07-26; ~200 words)
+
+# Matches: "most impressive AI product/feature you built", "an AI project you're proud of",
+# "describe something you shipped with AI", "accomplishment you are most proud of".
+
+I built an AI agent system to automate financial-data validation between vendor emails and our
+internal platform. Bankers previously had to read each email, extract the relevant fields, clean
+inconsistent formats, and compare the values manually, which was time-consuming and error-prone.
+The system uses Google ADK, FastAPI, Azure OpenAI, and AWS Bedrock to classify incoming emails,
+route them by financial instrument type, extract structured data, normalize the results, retrieve
+matching internal records, and run sequential and parallel comparison agents. I added
+schema-constrained outputs, validation rules, traceable comparison results, and a human-review step
+for uncertain cases so the workflow stayed explainable and operationally safe. We evaluated it
+against manually reviewed examples and confirmed that it identified most known discrepancies. The
+solution changed the process from manual comparison to exception-based review and was projected to
+save the banker team hundreds of hours per month while improving consistency, productivity, and
+data quality.
+
+## ai_usage (user, 2026-07-27; 4 sentences)
+
+# Matches: "how do you use AI in your work/daily life", "what AI tools do you use", "describe your
+# AI-assisted workflow", "how do you use LLMs / coding agents".
+
+I use Claude, Codex, and GitHub Copilot extensively in both my professional and personal work. At
+work, I use Copilot's agent mode in VS Code to refine business requirements, turn them into stories
+and specifications, and generate implementation code. One especially helpful use is having AI
+agents operate integration tests as if I were testing the workflows myself, which saves me
+substantial time while still letting me review the results. Outside work, I use Claude Code and
+Codex to build and enhance personal projects, automate workflows, study complex topics, and develop
+and refine plans for my career, exercise, and nutrition.
+
+## entrepreneurial (user, 2026-07-27; 4 sentences)
+
+# Matches: "In what ways are you entrepreneurial?", "describe your entrepreneurial mindset",
+# "give an example of being entrepreneurial".
+
+I am entrepreneurial in how I turn ambitious goals into self-directed projects and take ownership
+from idea through execution. Although I did not study computer science, I taught myself
+programming, moved to the United States, and built a software engineering career at JPMorgan Chase; I
+bring the same persistence to my work and stay with important problems until they are delivered. I
+also cofounded a startup in 2017 that built custom chatbot services, and I recently created a
+Chrome extension that automates job-application form filling, with plans to develop it into a
+marketable product. Outside work, I choose goals for their long-term value and pursue them with the
+same discipline, including structured training in Texas for major mountain hikes around the world.
+
+## cool_things_built (user, 2026-07-27; topic: built-projects-essay)
+
+# Matches: "cool things you've built", "things you have built", "tell us about (something|projects)
+# you've built", "share (links to) (projects|side projects)", "what have you built".
+
+I'm building an ongoing Chrome extension that automates parts of the LinkedIn and myworkdayjobs
+job-application process. It stores my information and preferences, then uses rule-based and
+regex-based matching to recognize common application questions, and users can add their own custom
+rules. It also includes configurable delays between operations so users don't get suspended for
+rate limiting. Users can start the workflow, walk away, and come back to hundreds of submitted
+applications, so that I can apply to jobs 90%+ automatically.
+
+## why_startup (user, 2026-07-26; ~170 words)
+
+# Matches: "why do you want to work at a startup", "why are you interested in our company",
+# "why this company", "what draws you to an early-stage team".
+
+I'm interested in your company because I thrive in startup environments where engineers can
+independently turn ideas into working products - from design and implementation through deployment
+and customer delivery. My experience across full-stack development, backend services, cloud
+infrastructure, data platforms, and AI agents lets me contribute across the whole product rather
+than inside a narrow scope. I enjoy building creative solutions, learning new AI technologies
+quickly, and using AI-assisted development to improve both delivery speed and product quality. I
+also value taking part in product design and learning directly from customer feedback. Your company
+is solving the hard problem of making AI agents securely usable with real enterprise systems, which
+I believe is both technically challenging and highly impactful, and I'd be excited to help build it
+with a passionate team. Large companies offer a platform, but I prefer smaller teams: more
+challenge, more flexibility, and faster shipping.
+
+## why_you_fit_role (user, 2026-07-26, refurbished; ~130 words)
+
+# Matches: "why are you a good fit for this role", "what makes you the right person", "how can you
+# help us", "why should we hire you".
+
+I'm well aligned with what this role asks for. It centers on growth and AI technology, which is
+exactly where my own focus is. I pick up and apply new technologies quickly because I genuinely
+enjoy it: I work with AI agents every day, and I've shipped an agent system that replaced a manual
+financial-data review process with exception-based review at J.P. Morgan. I want real ownership -
+building reliable systems, keeping them healthy in production, and being accountable for how they
+behave for the people who depend on them. I also think in long horizons: I'm looking for a team
+where I can grow alongside the product over years, investing in both my own development and the
+product's, rather than only delivering the next ticket.
+
+## ideal_candidate_ownership (user, 2026-07-27; Commonware wording, company-agnostic answer)
+
+# Matches: "why are you a good fit for <company/role>", "why are you a strong fit", "what makes
+# you a good fit", "why should we hire you", "why are you the ideal candidate".
+
+I'm a strong fit for a Software Engineer role because over 5+ years I've moved beyond pure
+implementation into end-to-end ownership. In my current role, I design and build backend services,
+make system design and data modeling decisions, and deliver production systems that need to be
+reliable, scalable, and maintainable. I've worked across APIs, data pipelines, cloud
+infrastructure, observability, and release operations, which means I understand not just how to
+code a feature, but how to ship and operate it well. I also enjoy leading through execution:
+driving technical decisions, improving engineering quality, and taking responsibility for
+outcomes in fast-moving environments.
+
+## proudest_hire (~100 words; user-approved 2026-07-26; "describe a hire you're most proud of")
+
+I'm a software engineer rather than a professional recruiter, so I'll answer from the engineering
+side of hiring. The hire I'm proudest of contributing to was a junior engineer who joined my team
+at J.P. Morgan. I took part in the interview loop and then much of the onboarding - pairing on
+their first production changes, reviewing designs, and walking them through our AWS data pipeline.
+Within months they were independently delivering features and supporting production. Seeing someone
+I helped select and mentor grow into a dependable owner of our systems is what I'm most proud of.
+
+## smallest_company_recruited (~70 words; user-approved 2026-07-26; "smallest company you've recruited for")
+
+The smallest was my own: in 2017 I cofounded a three-person startup building a WeChat chatbot that
+let customers make appointments. At that size there was no recruiting team - bringing anyone on
+board meant personally convincing them to bet on an unproven idea, and every single addition
+changed what the company could do. That experience left me with real respect for early-stage hiring.
+
+[OPEN QUESTIONS]
+
+# Questions found on job forms that this file can't answer yet.
+
+# Format: <date> | <company/job> | <question> -> ANSWER:
+
+# Fill in the ANSWER: and I'll reuse it on future forms (promote resolved ones into [QUESTION BANK]).
+
+2026-07-26 | Accenture Federal Services / Full Stack Software Engineer 4683032006 |
+Do you hold a security clearance? (None / Public Trust / Secret / Top Secret / TS-SCI variants /
+Other) -> RESOLVED 2026-07-26
+ANSWER: None.
+
+2026-07-26 | Accenture Federal Services / Full Stack Software Engineer 4683032006 |
+At your current employer, are you currently working on a project with Accenture or have you worked
+on a project with Accenture in the past 24 months? -> RESOLVED 2026-07-26
+ANSWER: Yes.
+
+2026-07-26 | Stratolaunch / Systems Engineer 5159784008 |
+For purposes of complying with Federal Export Control Laws, which status applies: US Citizen,
+US National, U.S. Lawful Permanent Resident, person granted asylum, person granted refugee status,
+or Prefer not to answer? -> ANSWER:
+
+2026-07-26 | Stratolaunch / Systems Engineer 5159784008 |
+Do you currently hold a US Department of Defense Security Clearance? If so, what level of
+clearance? -> ANSWER:
+
+2026-07-26 | Stratolaunch / Systems Engineer 5159784008 |
+To the best of your knowledge, are you able to obtain a US Department of Defense Security
+Clearance if you do not currently hold one? (Yes / No / active clearance) -> ANSWER:
+
+2026-07-26 | Stratolaunch / Systems Engineer 5159784008 |
+Drug Free Workplace acknowledgement: employment may require a drug/alcohol screen and successful
+completion is a condition of employment. (Yes / No) -> ANSWER:
+
+2026-07-15 | Databricks (and general) | Veteran status (voluntary self-ID) -> RESOLVED 2026-07-17
+ANSWER: "I am not a veteran" (choose the "not a veteran" / "not a protected veteran" option).
+Promoted into [EEO/Demographic] (topic: veteran).
+
+2026-07-25 | Fidelity (wd1.myworkdaysite.com / FidelityCareers) / Senior Software Engineer/Developer,
+Westlake TX, req 2131435 | Application Questions 2 of 2 — FIVE required FREE-TEXT essays -> ANSWER:
+  These are NOT Yes/No. Each is a required `<textarea>` (`supplementaryQuestionnaire--<guid>`) of the
+  form "Do you possess <very specific requirement>? **If yes, please describe (in detail) your
+  specific experience in this domain**". This is a PERM/immigration-style questionnaire, so the text
+  is a detailed factual claim about the applicant's own professional experience — never auto-written.
+  Also note three of them name technologies that are NOT in the CV, so a "derived" answer would be a
+  misrepresentation: Angular, Node.js, Express.js, Postman, and *producing* Figma wireframes
+  (the CV only covers *translating* existing Figma designs).
+  The five questions verbatim:
+  1. "Do you possess a Bachelor's and three (3) years or Master's and one (1) year experience in
+     Computer Science, Engineering, Information Technology, Information Systems, Information Systems
+     Engineering and Management, or a closely related field (or foreign education equivalent)
+     designing, building, and testing full-stack web applications, using Angular, Node.js, or Java?
+     If yes, please describe (in detail) your specific experience in this domain"
+     -> the CREDENTIAL half is satisfied (MS Computer Science & Engineering, SUNY Buffalo 2022, plus
+        4+ yrs since Apr 2022, and Java is on the CV) but the narrative still needs the user's words.
+  2. "...scalable, responsive web interfaces, using JavaScript, TypeScript, HTML, CSS, and modern
+     frameworks (React or Angular); ... component-driven UIs ... cross-browser compatibility,
+     accessibility, and performance optimization; ... test-driven development ...?"
+     -> largely supportable from the React admin-portal work, but needs the user's own detail.
+  3. "...integrating front-end applications with back-end systems, using Node.js and Express.js;
+     ... RESTful APIs (including testing and validating endpoints with Postman)?"
+     -> NOT supported by the CV (no Node.js/Express.js). Do not claim it.
+  4. "...producing wireframes, prototypes, and design specifications for new features and
+     enhancements (Figma); translating designs into functional front-end components...?"
+     -> only partially supported (translated Figma designs; did not produce wireframes/specs).
+  5. "...delivering new features, addressing production issues, ... Agile ...; Git branching
+     strategies, pull requests, peer reviews; CI/CD pipelines and Jenkins; code analysis...?"
+     -> well supported by the J.P. Morgan experience, but still needs the user's own detail.
+  ACTION: the user must write these five answers (or say to answer 3 and 4 negatively / skip the
+  job). Eve correctly paused and named them rather than inventing experience.
+
+2026-07-25 | Bank of America / GHR Lateral-US | Years of relevant work experience -> RESOLVED 2026-07-25
+ANSWER (user): the band that starts at 5 — "5 to 7 Years of Experience".
+Promoted into [QUESTION BANK] > [YearsOfExperience] (topic: years-of-relevant-experience).
+
+2026-07-26 | Cape (Platform Software Engineer) | Are you able to work in a hybrid setting in our NYC
+based office? (options: I can work 3 days a week in the NYC office / I cannot work 3 days a week in
+an office) -> RESOLVED 2026-07-26 (user: "always choose willing to relocate"). Promoted into
+[Relocation] as a standing rule and into [HybridOfficeAttendance]. Original derivation note:
+  FILLED BY DERIVATION, NOT LEFT BLANK — please confirm or correct. Selected "I can work 3 days a
+  week in the NYC office". Derived from [Relocation] = Yes and [Relocation-Where] = Local + Statewide
+  + Nationwide (US-wide relocation at the company's expense). The applicant currently lives in
+  Dallas, TX, so this option is a commitment to relocate to New York City. The only alternative
+  ("I cannot work 3 days a week in an office") is self-disqualifying for a Hybrid-labelled posting.
+  If the user is NOT willing to relocate to NYC for this role, this radio must be changed before
+  submitting, and the standing [Relocation-Where] rule should be narrowed.
+
+2026-07-26 | Cape (Forward Deployed Engineer, East Asia) | Cape is a hybrid work environment with 3
+days a week in office. We have offices in New York, NY and Arlington, VA (options: New York office /
+Arlington office / cannot work 3 days a week in an office) -> RESOLVED 2026-07-26 (user: always
+willing to relocate; New York kept). Posting ABANDONED — user chose the Platform Software Engineer
+role instead; this form was cleared by reloading the tab. Original derivation note:
+  FILLED BY DERIVATION, NOT LEFT BLANK — please confirm or correct. Selected "I can work 3 days a
+  week in the New York office". Note the posting's own Location is "East Asia", so NEITHER listed
+  office matches the role; this looks like a company-wide question template applied to every Cape
+  posting. New York was chosen as Cape's primary office. If the user prefers Arlington, VA, or if
+  this East-Asia role should not have been applied to at all, change/withdraw before submitting.
+
+2026-07-26 | Cape (both postings) | Salary expectation, start date, notice period, "why Cape"
+essay -> ANSWER: NOT ASKED. Cape's Ashby forms carry no salary, start-date, essay, EEO or
+demographic questions at all, so nothing was guessed and nothing was left blank.
+
+2026-07-16 | BlackRock / Private Funds Lawyer Infrastructure | Second Work Experience entry -> RESOLVED
+(Second employer provided: Graphen Inc. — Software Engineer Intern — New York, NY — May 2021 to
+Sep 2021. Now recorded in [EXPERIENCE] and DEFAULT_MY_EXPERIENCE. Both work experiences are filled.)
+
+2026-07-27 | Innovative Signal Analysis (ISA) / Software Engineer 4297390009 (my.greenhouse.io) |
+"Do you have or are you eligible to obtain a security clearance?" and "Please select your security
+clearance level." -> NOT ANSWERED — deliberately left unanswered (like work-auth/visa/salary, this
+is legal/eligibility-sensitive and not something to guess). ALSO: this posting states "Employment
+at ISA requires US citizenship" outright, and separately asks the ITAR/EAR "All applicants must be
+U.S. persons within the meaning of U.S. regulations. Do you meet this requirement?" question — the
+user's profile is H-1B, so this specific job is likely not a real fit regardless of these answers;
+used only as a mechanical test target for the my.greenhouse.io autofill build, held before Submit.
+
+2026-07-27 | my.greenhouse.io education School search | Beijing International Studies University is
+NOT in Greenhouse's school-search database on at least the ISA board (confirmed: "Beijing",
+"Beijing International", and "Beijing International Studies" all return zero/unrelated results).
+Unlike Workday there is no generic "Other/not listed" fallback on this control — School is correctly
+left blank and reported rather than guessed. If this recurs on other Greenhouse boards, it's a
+site-data gap, not a bug.
+
+[SEEN QUESTIONS LOG]
+
+2026-07-25 | Morgan Stanley (user-supplied set; NOT observed on a live page — offline-banked only)
+# Raw wordings exactly as given, with the user's own answers. Patterns were genericized to <company>
+# because the same set appears at Citi, BofA, Goldman and JPMC. Verified by tools/bank-test.js only.
+
+- "Are you legally authorized to work for Morgan Stanley in the country in which the job is located?"
+  -> Yes [work-authorization, existing entry already matched]
+- "Do you currently require Morgan Stanley to sponsor a work visa on your behalf to commence
+  employment?" -> **No** [sponsorship-current-commence, NEW — note this is the opposite answer to the
+  generic sponsorship topic; see the split note in [Sponsorship-CurrentToCommence]]
+- "Will you in the future require sponsorship for employment visa status?" -> Yes [sponsorship]
+- "Are you currently, were you previously, or have you ever attempted to become, registered in the
+  securities industry?" -> No [securities-registration, NEW]
+- "Are you currently, or have you been in the past three years, a Government Official [1], including
+  military and/or law enforcement, or employed by a financial regulator?" -> No
+  [government-employment, phrasings folded into the existing topic]
+- "In a capacity as a Government Official or employee of a financial regulator, have you had the
+  ability to directly or indirectly influence the award of business to Morgan Stanley and/or exercise
+  decision making authority that impacts Morgan Stanley?" -> No [gov-influence-business, NEW]
+- "On the basis of employment as a Government Official or employee of a financial regulator, are you
+  subject to any post-employment restrictions (including, but not limited to, cooling off period,
+  non-disclosure of confidential information, recusal requirements, etc.)?" -> No
+  [post-employment-restrictions-subject, NEW — opposite polarity to post-government-restrictions]
+- "Are you an Immediate Family Member or Close Associate of any Government Official who has the
+  ability to directly or indirectly influence the award of business to Morgan Stanley and/or exercise
+  decision making authority that impacts Morgan Stanley?" -> No [gov-family-associate, NEW]
+- "Were you referred or recommended for this position by a Government Official?" -> No
+  [gov-referral, NEW — distinct from the plain referral-status question]
+- "Do you consent to receive follow up communication via SMS WhatsApp from Talent Acquisition
+  regarding job opportunities at Morgan Stanley?" -> No [consent-sms-contact, phrasings added; the
+  one topic now covers both Yes/No and Opt-In/Opt-Out controls]
+
+2026-07-25 | Bank of America / GHR (ghr.wd1, Lateral-US) — Software Engineer III, Addison
+
+- Step model (7), same shape as Citi: My Information -> My Experience -> Application Questions 1 of 2
+  -> Application Questions 2 of 2 -> Voluntary Disclosures -> Self Identify -> Review.
+- AQ 1 of 2 (all confirmed live):
+  - legally authorized to work in the US + able to present proper documentation of employment
+    eligibility on start date? -> Yes [work-authorization]
+  - relatives or others with close personal relationships employed by Bank of America? -> No
+  - worked at PricewaterhouseCoopers LLP (PwC), the bank's independent auditor, since July 2002? -> No
+    (prior-employment rule; PwC is the auditor-independence screen)
+  - currently an active contractor working at Bank of America? -> No
+  - were you referred to Bank of America for employment opportunities? -> No
+    (the follow-up "name of the referrer" free text is optional and correctly left blank)
+  - will you now or in the future require sponsorship for employment visa status? -> Yes
+  - "Would you consider relocating, either now or in the future?" -> **Yes, at the company's expense**
+    [relocation-consider] — rendered as THREE CHECKBOXES, not radios
+  - do you reside in one of the five boroughs of New York City? -> No (applicant is in Plano, TX)
+  - have you ever attended a community college / taken classes there? -> No
+  - veteran / military voluntary self-identification -> No
+  - current or former military spouse or domestic partner? -> No
+- AQ 2 of 2:
+  - "List the top 3 programming languages / platforms that you are most proficient in as well as your
+    length of experience with each" (required free text) -> "Java - 4 years; Python - 4 years;
+    SQL - 4 years" [top-programming-languages, NEW]
+  - "How many years of relevant work experience do you have?" -> **"5 to 7 Years of Experience"**
+    [years-of-relevant-experience] — answered by the user 2026-07-25 after being shown that the
+    offered bands skip 4-5 years. Options were: No Experience / Up to 2 Years of Experience /
+    2 to 4 Years of Experience / 5 to 7 Years of Experience / More than 8 Years of Experience.
+  - Voluntary Disclosures: Gender -> Male; Race/Ethnicity -> "Asian (Not Hispanic or Latino)
+    (United States of America)"; Veteran -> **"Not A Veteran"** (GHR wording; needed the anchored
+    veteran optionMatch); EEO terms-and-conditions consent checkbox -> checked.
+  - Self Identify (CC-305 disability) -> resolved from the existing bank, no change needed.
+- My Experience structure note: GHR names the school field `education-<n>--school` (BlackRock uses
+  `--schoolName`) and renders it as a **searchable multiselect picker**
+  (`data-uxi-widget-type="selectinput"`, wrapper `formField-school`, shows "0 items selected"),
+  NOT free text. Typing the full school name then picking the result works for both schools.
+
+2026-07-25 | Citi (citi.wd5) / Senior Fullstack Developer - RUTHERFORD 26935461 — SUBMITTED
+
+- Step model (7): My Information -> My Experience -> Application Questions 1 of 2 ->
+  Application Questions 2 of 2 -> Voluntary Disclosures -> Self Identify -> Review.
+  Citi SPLITS Application Questions into two numbered steps; currentStep() already strips " N of M".
+- AQ 1 of 2: legally authorized to work (country or jurisdiction where the position is located)? -> Yes
+- AQ 1 of 2: can you, within the time period prescribed by law, submit verification of identity and
+  authorization to work? (Proof will be required) -> Yes [work-eligibility-verification, NEW]
+- AQ 1 of 2: relatives / Covered Relationships in Citi Senior Management? -> No (was prefilled Yes; corrected)
+- AQ 1 of 2: partner and/or employed by KPMG LLP in the last three years? -> No
+- AQ 1 of 2: referral or relative of a Senior Government Official (SGO), or held an SGO position in
+  the last five years? -> No
+- AQ 1 of 2: referral of a current Senior Commercial Person (SCP)? -> No
+- AQ 1 of 2: will you now or in the future require sponsorship? -> Yes
+- AQ 1 of 2: "In the text box below please provide additional details on your required sponsorship."
+  (own required TEXTAREA block) -> the H-1B sponsorship sentence [sponsorship-details, NEW]
+- AQ 2 of 2: are you at least 18 years of age? -> Yes
+- AQ 2 of 2: "Are you serving, or have you ever served in the Armed Forces of the United States of
+  America (to include active duty, Reserves, or National Guard)?" -> No [military-service, new phrasing]
+- Voluntary Disclosures + Self Identify (CC-305 disability) passed on the existing bank.
+- Structure note: Citi's Yes/No control is a `button[aria-haspopup="listbox"]` whose option list is a
+  `<ul role="listbox">` PORTALED TO <body> and linked by `aria-controls`; the placeholder aria-label
+  is " Select One Required" (not plain "Select One").
+
+# Every question encountered on a real form, so we can grow the question bank.
+
+# <date> | <company/job> | <question> -> <how answered>
+
+2026-07-18 | T-Mobile / Sr Software Engineer - Billing Platform (Workday Voluntary Disclosures step)
+
+- "Please select your Gender" -> Male [gender]
+- "Please select the Race/Ethnicity which most accurately describes how you identify yourself" -> "Asian (Not Hispanic or Latino) (United States of America)" [race-ethnicity] (this tenant folds Hispanic/Latino into the race option; no separate Hispanic question)
+- "Please identify your Veteran status" -> "I AM NOT A VETERAN" [veteran] — options were: I AM NOT A VETERAN / I IDENTIFY AS A VETERAN, JUST NOT A VEVRAA VETERAN / I IDENTIFY AS ONE OR MORE OF THE CLASSIFICATIONS OF VEVRAA VETERANS LISTED ABOVE / I DO NOT WISH TO SELF-IDENTIFY. Confirmed live: the existing veteran optionMatch (/i am not a veteran/) selected the right one and avoided the "…JUST NOT A VEVRAA VETERAN" trap.
+- Terms & Conditions "Yes, I agree" checkbox -> checked. All handled by the existing DEFAULT_VOLUNTARY_DISCLOSURES bank; no new patterns needed.
+- Self Identify (step after) = CC-305 Voluntary Self-Identification of Disability -> "No, I do not have a disability and have not had one in the past"; Name + today's date auto-filled.
+
+2026-07-18 | T-Mobile / Sr Software Engineer - Billing Platform (Workday Application Questions step, 4 of 7)
+
+- "In order to be employed at T-Mobile, you must be at least 18 years of age and provide proof of age upon hire. Can you meet this requirement?" -> YES [MinimumAge]
+- "Are you legally authorized to work in the United States?" -> YES [WorkAuth-US]
+- "Do you now or will you in the future require sponsorship of a visa … (H-1B, F-1 OPT/CPT, TN, EAD, I-485)?" -> YES [Sponsorship]
+- "Have you previously been DIRECTLY employed with Deutsche Telekom AG or Softbank? (paycheck or W-2 directly)" -> NO [PriorEmployment]
+- "… Do you currently or have you ever served in the U.S. Military?" -> "No, I have never served in the U.S. Armed Forces, reserves or national guard" [MilitaryService-Self]
+- "Has your spouse or domestic partner ever served in the U.S. Military?" -> NO [MilitaryService-Spouse]
+- "Do you have any relatives employed by T-Mobile or its subsidiaries or affiliates?" -> NO [RelativesAtCompany]
+- "Have you been employed or are you currently employed with an authorized dealer of T-Mobile or Metro by T-Mobile?" -> NO [PriorEmployment]
+- "Have you previously or are you currently working as a contractor for T-Mobile?" -> NO [PriorEmployment]
+- "Are you interested in relocating? If so, where?" (multi-select checkboxes) -> Local + Statewide + Nationwide [Relocation-Where] (corrected 2026-07-18 per user; earlier provisional pick was Nationwide-only)
+- Structure note: 9 Yes/No are Workday custom "Select One" listboxes (plain Yes/No except the military-service one, whose No option is the long "No, I have never served…"); relocation is a checkbox grid (Local/Statewide/Nationwide/Anywhere/Not interested). Also, T-Mobile's My Information step (step 2) carried a separate prior-employment question ("… T-Mobile USA, TMUS India, MetroPCS, Sprint, Mint Mobile, …") -> NO by the same [PriorEmployment] rule.
+
+2026-07-16 | BlackRock / Associate, Consultant Relations (Workday Application Questions step)
+
+- "Do you have legal authorization to work in the country work location (where the role is based)?" (required, Yes/No dropdown)
+  -> YES = affirmative long option "Yes, I affirm I will be able to provide documentation to evidence my legal authorization to work for BlackRock in the country." [WorkAuth-US]
+- "Will you need to obtain, renew, extend or transfer a visa or work permit in order to commence work/maintain legal authorization to work at BlackRock in the country work location now or in the future?" (required)
+  -> YES [Visa/Work-Permit-Future]; then revealed "Please provide details.\*" text -> "H1b transfer and greencard."
+- "Do you have a Personal Relationship\* with a current BlackRock employee or contingent worker?" (required, long definition/explanation block)
+  -> NO [PersonalRelationship].
+- Structure note: each question is a block of question-(explanation)-answer; the answer control is a Workday custom Yes/No dropdown ("Select One"), not a native <select>. There may be an unknown number of such questions; they repeat across tenants in different phrasings, so match on regex over the block text and accumulate phrasings by topic.
+
+2026-07-17 | BlackRock / Associate, Consultant Relations (Workday Voluntary Disclosures step)
+
+- "What is your gender?" (required dropdown) -> Male [EEO topic: gender]
+- "Please select the race/ethnicity option with which you most self-identify." (required) -> Asian, shown as "Asian (United States of America)" [topic: race-ethnicity]
+- "Are you Hispanic or Latino?" (required) -> No [topic: hispanic-latino]
+- "Do you identify as a veteran?" (required) -> "I am not a veteran" [topic: veteran]
+- Long EEO/Accommodations/VEVRAA preamble paragraphs precede the questions; they are not form-field blocks and are ignored. The answer is matched as a substring of the option (e.g. "Asian" matches the longer real option). Handled by handleVoluntaryDisclosures via DEFAULT_VOLUNTARY_DISCLOSURES.
+
+2026-07-16 | BlackRock / Private Funds Lawyer Infrastructure (Workday My Experience slice — spec)
+
+- Sections observed: Work Experience, Education, Skills, Resume/CV (already uploaded), Websites.
+- Work Experience -> add TWO entries: J.P. Morgan Chase (Associate Software Engineer, Dallas TX, Apr 2022–Present, currently work here) and Graphen Inc. (Software Engineer Intern, New York NY, May 2021–Sep 2021).
+- Education -> add TWO entries from [EDUCATION]: SUNY Buffalo (MS, CS&E, 2020–2022) and Beijing International Studies University (BA, English, 2010–2014). Undergrad school not in list -> select `Other`, then type the name.
+- Skills -> SKIPPED per user (too many). The My Experience handler no longer fills the Skills section.
+- Cover letter -> attach `Xiaoxiao_Lei_Cover_Letter.pdf` silently behind the scenes (resume already uploaded).
+- Websites -> DO NOT touch.
+- Status: implemented in `handleMyExperience()` (v1.1.91); live selectors pending XC confirmation (Chrome MCP was off).
+
+2026-07-16 | BlackRock / Associate, Consultant Relations (Workday My Information slice)
+
+- How Did You Hear About Us? -> `LinkedIn` through `Job Board -> LinkedIn`; typing `linkedin` did not flatten this tenant's root-category list.
+- Exact selected-value evidence -> source accessibility description `1 item selected, LinkedIn`; do not accept raw search text as the answer.
+- Country -> `United States of America`; Legal Name -> `Xiaoxiao Lei`; preferred-name unchecked.
+- Address -> `1721 Walters Dr`, `Plano`, `Texas`, `75023`.
+- Email -> account-provided read-only value; Phone -> `Mobile`, `United States of America (+1)`, `(571) 376-1882`; optional Extension blank.
+- Save and Continue -> one click after the Workday delay; advanced from My Information step 2 of 7 to My Experience step 3 of 7 without changing the SPA URL.
+
+2026-07-16 | BlackRock / Private Funds Lawyer Infrastructure (Workday My Information slice)
+
+- How Did You Hear About Us? -> `LinkedIn`; already present as an exact selected token and retained.
+- Country -> `United States of America`.
+- Legal Name -> First Name `Xiaoxiao`; Last Name `Lei`; preferred-name checkbox unchecked.
+- Address -> `1721 Walters Dr`, `Plano`, `Texas`, `75023`.
+- Email -> `xiaoxiaoleijobapp@gmail.com` (read-only account value).
+- Phone -> Device Type `Mobile`; Country Phone Code `United States of America (+1)`; Phone Number `1-571-376-1882`; optional Extension blank.
+- Workday accepted the page and advanced from step 2 of 6, **My Information**, to step 3 of 6, **My Experience**.
+- Picker evidence: source and phone-code selections may live in selected-token/accessibility state while the nested text input remains empty; do not treat the empty inner input as a missing answer.
+
+2026-07-16 | BlackRock / Private Funds Lawyer Infrastructure (Workday Manual Apply refill)
+
+- Manual Apply on the five-step `/apply` My Information page restored known blanks from `workdaySavedAnswers`: First Name `Xiaoxiao`, Address Line 1 `1721 Walters Dr`, City `Plano`, Postal Code `75023`, and Phone Number `(571) 376-1882`.
+- A cleared How Did You Hear About Us? token was restored as exact `LinkedIn` through `Job Board -> LinkedIn`; this tenant requires the category submenu before the LinkedIn choice is available.
+- Independent XC reconfirmation cleared City only and restored `Plano` after a 2.204-second action gap, with zero Save-and-Continue clicks and no navigation.
+- No new questions or unresolved fields were introduced.
+
+2026-07-16 | BlackRock / Associate - Data Engineering (Workday entry/auth slice)
+
+- Start-page instruction: "Please enter your name using English letters only (A–Z). Do not use accented letters or special characters." -> Legal name `Xiaoxiao Lei` already complies.
+- Entry choices observed: Autofill with Resume / Apply Manually / Use My Last Application -> choose Autofill with Resume.
+- Authentication reused the configured Google session and returned to Workday without presenting an answer-bank question.
+
+2026-07-16 | BlackRock / Associate - Data Engineering (Workday resume slice)
+
+- Resume/CV upload -> `cv/Xiaoxiao_Lei_RESUME.pdf`.
+- Workday success evidence -> filename `Xiaoxiao_Lei_RESUME.pdf` and status `Successfully Uploaded!`.
+- Successful upload did not advance by itself; explicit Eve **Auto Apply** advanced from **Autofill with Resume** to **My Information** after the required two-second delay.
+- **How Did You Hear About Us?** was still blank on arrival at My Information; answer remains [HowHeard] -> LinkedIn. Tenant UI may expose LinkedIn directly after search or under Job Board.
+
+2026-07-16 | BlackRock / Associate - Data Engineering (Workday manual-mode test round)
+
+- No new form questions were observed: the designated authenticated **My Information** tab was not open when XC began.
+- A different BlackRock job/application was open, but it was not used as a substitute. Manual **Apply** still needs live validation on the designated My Information step; expected source answer remains LinkedIn, selected directly or under Job Board according to the tenant UI.
+
+2026-07-16 | BlackRock / Private Funds Lawyer Infrastructure (Workday manual resume round)
+
+- Historical 1.1.78 Resume/CV chooser -> `cv/Xiaoxiao_Lei_RESUME.pdf`; the current flow uses the private packaged resume silently and no longer opens this chooser. Workday's supported resume types remain DOC, DOCX, HTML, PDF, and TXT with a 5 MB maximum.
+- This application treated resume upload as a pre-step: after file attachment, Workday rendered **My Information** without an XC or Eve Continue/Next click and retained the `/apply/autofillWithResume` URL.
+
+2026-07-16 | BlackRock / Associate, Consultant Relations (packaged-resume XC setup)
+
+- Empty authenticated **Autofill with Resume** exposed `file-upload-input-ref`, visible **Select file**, and Workday **Continue**.
+- The first post-build click used a stale content-script context and produced `Extension context invalidated`; no file, chooser, or navigation action occurred. Hard-refresh the exact step before the decisive packaged-artifact retest.
+- After hard refresh, Manual **Apply** attached packaged `Xiaoxiao_Lei_RESUME.pdf` (106,737 bytes, PDF) after 2,020 ms with no native chooser. Workday reported **Successfully Uploaded!** after 2,468 ms and remained on the same step; Eve did not click Continue/Next.
+- Frozen 1.1.83 reconfirmation: silent assignment at 2,028 ms, Workday success at 2,379 ms, zero chooser signals, zero navigation clicks, same URL/step, Auto off, no console issues, final resume state uploaded.
+- No new answer-bank questions were introduced. The resulting My Information controls included the established source, country, legal-name, address, email, and phone fields.
+
+2026-07-16 | BlackRock / Associate, Consultant Relations (generic resume continuation)
+
+- Packaged Resume/CV upload -> `eve/artifacts/Xiaoxiao_Lei_RESUME.pdf` (`Xiaoxiao_Lei_RESUME.pdf`, 106,737 bytes).
+- Workday confirmation -> **Successfully Uploaded!**; generic action -> **Continue**; resulting step -> **My Information** without a URL change.
+- Manual My Information refill retained known answers and normalized Phone Number to `(571) 376-1882`; How Did You Hear About Us? -> `LinkedIn` (selected-token state, nested search input empty after selection).
+- No new application questions or unresolved answers were introduced in this transition.
+- Regression probe reconfirmed the mode contract: Manual **Apply** made zero Continue clicks; after Auto was armed, explicit **Auto Apply** clicked Continue exactly once after 2,017.5 ms and reached My Information. No new questions were introduced.
+- Version 1.1.86 superseded the former Manual stop-on-upload behavior: from an empty resume step, one Manual **Apply** attached the packaged resume after 2,020.5 ms, consumed one exact Continue 2,018.6 ms later, reached My Information, and stopped with Save and Continue untouched. No new questions were introduced.
+
+2026-07-15 | xAI / Software Engineer - Networking Software & Services (Greenhouse)
+
+- First/Last Name, Email, Country, Phone (standard identity) -> [CONTACT]
+- Resume/CV upload -> cv/Xiaoxiao_Lei_RESUME.pdf
+- Current Company / Current title -> J.P. Morgan Chase & Co. / Associate Software Engineer
+- LinkedIn Profile -> profile URL ; Google Scholar (optional) -> blank ; X Profile (optional) -> blank
+- Full Legal Name -> Xiaoxiao Lei ; Your Location (City, State) -> Dallas, TX
+- "Will you now, or in the future, require sponsorship... (H-1B)?" -> [Sponsorship] = Yes
+- "What exceptional work have you done?" (100 words) -> [ESSAYS] proud_work_pipeline
+- "Please indicate your SpaceXAI employment history." -> [PriorEmployment] "I have never worked..."
+
+2026-07-15 | Databricks / Software Engineer - GenAI inference (Greenhouse)
+
+- First/Last/Email/Country/Phone/Resume -> autofilled by Simplify plugin
+- "Preferred First Name" (required) -> [PreferredFirstName] Xiaoxiao (Simplify left it blank)
+- "How did you hear about this job?" (required, free text) -> [HowHeard] LinkedIn
+- "Are you legally authorized to work in the country in which you are applying?" -> [WorkAuth] Yes
+- "Do you now or will you in the future need sponsorship...?" -> [Sponsorship] Yes
+- "Do you currently or have you previously worked for Databricks in the past?" -> [PriorEmployment] No
+  (dropdown options: No / Yes-current / Yes-Previous FT / Yes-Contractor / Yes-Intern)
+- US sanctions/export-control screen -> [Sanctions/ExportControl] None of the above ; follow-up Not applicable
+- Voluntary self-ID: Gender=Male, Hispanic/Latino=No, Race=Asian, Disability=No ; Veteran=left blank
+- Cover Letter (optional) -> left blank
+  Note: Simplify autofilled identity/resume but LEFT ALL required custom questions blank (preferred
+  name, how-heard, work auth, sponsorship, prior-employment, sanctions) — always fill those by hand.
+
+[SEEN QUESTIONS LOG] — 2026-07-20 | T-Mobile (Sr Engineers, Software) Application Questions
+# T-Mobile uses custom Yes/No dropdowns (searchable). Answers:
+- At least 18 years of age / provide proof of age? -> Yes
+- Legally authorized to work in the US? -> Yes
+- Now or in future require visa sponsorship? -> Yes (H-1B; details: H-1B transfer / green card)
+- Previously DIRECTLY employed with Deutsche Telekom AG or Softbank (paycheck/W-2)? -> No
+- Section 4212 military service self-identify (veteran status)? -> "I am not a protected veteran" / not a veteran
+- Spouse or domestic partner ever served in U.S. Military? -> No
+- Any relatives employed by T-Mobile / subsidiaries / affiliates? -> No
+- Employed with an authorized dealer of T-Mobile or Metro by T-Mobile? -> No
+- Previously/currently working as a contractor for T-Mobile? -> No
+- Interested in relocating? If so, where? [Local/Statewide/Nationwide/Anywhere/Not interested]
+  -> OPEN: default "Nationwide" (applied to Bellevue WA from TX, so open to relocating). Confirm with user.
+# NOTE: on a retest, some Yes/No dropdowns errored (No not selected) — verify the custom-dropdown
+# selection works on the T-Mobile tenant; the bank patterns already match all of the above.
+
+[SEEN QUESTIONS LOG] — 2026-07-25 | Fidelity (myworkdaysite.com, FidelityCareers) Application Questions 1 of 2
+# Host: wd1.myworkdaysite.com (Workday tenant). Custom "Select One" Yes/No dropdowns.
+# Answers reasoned as best-fit from user info (work auth H-1B, only employers J.P. Morgan + Graphen,
+# open to relocation). All 7 now match exactly one bank topic (verified, no collisions):
+- Interested in and able to work at the location(s) listed on this opening? -> Yes  [topic: location-interest]
+- Are you legally authorized to work in the U.S? -> Yes  [work-authorization]
+- Do you now or will you in the future require sponsorship for a work visa (H-1B/O-1/E-3/TN)? -> Yes  [sponsorship]
+- Have you ever accepted an offer to work at Fidelity in any capacity (regular/intern/temp/consultant/contractor)? -> No  [prior-employment]
+- Do you have family member(s) (parents, children, spouse, ... stepfamilies) currently employed at Fidelity? -> No  [relatives-at-company]
+- Do you currently, or have you ever, worked for either PricewaterhouseCoopers (PwC) or Deloitte, or any of their affiliates? -> No  [prior-employment]
+- Do you have any agreements with current or former employers that could restrict you from working at Fidelity? -> No  [restrictive-agreements]
+# NOTE: Application Questions 2 of 2 (page 2) not yet captured — read & memorize on next pass.
+
+[SEEN QUESTIONS LOG] — 2026-07-25 | Bank of America (GHR tenant, ghr.wd1.myworkdayjobs.com) Application Questions 1 of 2
+# Custom "Select One" Yes/No dropdowns. Answers reasoned best-fit from user info and verified to each
+# match exactly one bank topic (first-match-wins over voluntary disclosures):
+- Legally authorized to work in the U.S. + present documentation on hire? -> Yes  [work-authorization]
+- Any relatives/close personal relationships employed by BofA or subsidiaries/affiliates? -> No  [relatives-at-company]
+- Currently or ever worked at PricewaterhouseCoopers LLP (PwC), the bank's auditor, since July 2002? -> No  [prior-employment]
+- Currently an active contractor working at Bank of America? -> No  [prior-employment]
+- Were you referred to Bank of America for employment opportunities? -> No  [referral-status]
+  (Follow-up "provide the name of the referrer" = optional TEXT field, left BLANK since not referred.)
+- Now or in future require sponsorship for employment visa status (F-1 STEM OPT / H-1B / TN)? -> Yes  [sponsorship]
+- Would you consider relocating, either now or in the future? -> Yes  [relocation-consider]
+- Do you reside in one of the five boroughs of New York City? -> No  [nyc-residence]
+- Ever attended a community college or taken classes/certifications there? -> No  [community-college]
+- Have you ever served / currently serving in the U.S. military (National Guard/Reserves)? -> No  [military-service]
+  (This question's preamble mentions "veterans and military spouses/domestic partners" — the
+   military-service exclude was narrowed so a spouse PREAMBLE no longer blocks the own-service Q.)
+- Are you a current or former military spouse or domestic partner? -> No  [spouse-military-service]
+# NOTE: Application Questions 2 of 2 (page 2) not yet captured — read & memorize on next pass.
+
+[SEEN QUESTIONS LOG] — 2026-07-25 | Fidelity (myworkdaysite.com) Application Questions 2 of 2
+# These are NOT Yes/No dropdowns — each is a single required free-text <textarea> of the form
+# "Do you possess [expertise X] ... If yes, please describe (in detail) your specific experience in
+# this domain*". They are JOB-SPECIFIC (tech stack varies per posting), so the descriptions are
+# written by the user, not auto-filled from a canned answer. Convention: the answer starts with "Yes"
+# then the user's specific experience. For this posting the 5 domains were: full-stack web apps
+# (Angular/Node/Java), scalable responsive UIs (JS/TS/React), full-stack integration (Node/Express,
+# REST/Postman), wireframes/prototypes (Figma), and Agile/Git/CI-CD (Jenkins).
+# ACTION: extension set all 5 textareas to "Yes"; user expands each with their specific experience,
+# then clicks Save and Continue. Do NOT store a canned description for these.
+
+[SEEN QUESTIONS LOG] — 2026-07-25 | Hitachi (hitachi.wd1.myworkdayjobs.com) My Information step
+# Hitachi puts a Yes/No screening question ON the My Information step (handled by
+# answerOnPageChoiceQuestions, which applies the bank + corrects a wrong prefill):
+- Are you a prior employee of a Hitachi Group company? -> No  [topic: prior-employment]
+# Also on this step: "How Did You Hear About Us?*" (source picker) — the extension PAUSES asking the
+# user to pick a source (ensureSourceSelected); URL had source=LinkedIn. And "Country Phone Code*"
+# was empty (should be United States of America (+1)). Application Questions steps not yet reached.
+
+# UPDATE 2026-07-25: Fidelity App Questions 2/2 now REGISTERED as bank topic 'possess-qualification-describe'
+# (pattern: "do you possess (a bachelor|a master|demonstrated expertise|experience)" / "please describe
+# (in detail) your specific experience"). Answer type: text:'Yes' — the extension auto-fills "Yes" as a
+# starter on all such questions; the user expands each with job-specific detail before Save and Continue.
+
+# UPDATE 2026-07-25: Field of Study picker is now CHAIN-ONLY (no "select first option in list" fallback).
+# CS chain: Computer Science > Computer and Information Science > Computer*Information*Science >
+# Computer*Science > Computer*Engineer*. The chain is authoritative; if nothing in the chain matches,
+# it types the primary value rather than grabbing an unrelated first entry.
+
+[SEEN QUESTIONS LOG] — 2026-07-25 | Guidewire (guidewire.wd5.myworkdayjobs.com, applyManually) Application Questions
+- Are you legally authorized to work in the country in which this job is located? -> Yes  [work-authorization]
+- Will you now or in the future require visa sponsorship to maintain work authorization? -> Yes  [sponsorship]
+  (Added phrasing to sponsorship topic: "require VISA sponsorship" — a word between require+sponsorship.)
+- Explain why you believe you are the ideal candidate for this position -> free-text pitch  [NEW topic: ideal-candidate-pitch]
+  (Registered a reusable, truthful J.P. Morgan / MS-CS pitch as text:; user edits per posting.)
+- What pronouns do you use? -> He / Him / His [pronouns; superseded by explicit user selection 2026-07-27].
+
+# UPDATE 2026-07-25: Fixed "How Did You Hear About Us?" pause on Guidewire (and similar tenants). The
+# source listbox's FIRST <li role="option"> is a DISABLED "Select One" placeholder (aria-disabled=true,
+# empty data-value); ensureSourceSelected was clicking it (a no-op) and never reaching a real source, so
+# it paused. Now the placeholder is skipped and it picks the first REAL source (per the "take first
+# option, no targeting" rule — LinkedIn preference intentionally NOT reintroduced). Verified live: source
+# selected, flow advanced past My Information; Field of Study chain filled "Computer Science" + "English".
+
+[SEEN QUESTIONS LOG] — 2026-07-25 | Capital One (capitalone.wd12.myworkdayjobs.com) Application Questions
+- Do you meet all of the Basic Qualifications for this role as specified in the job description? -> Yes  [NEW: basic-qualifications]
+- Do you currently, or have you previously, worked at Capital One or a company acquired by Capital One? -> No  [prior-employment; added "worked at" + comma-after-previously phrasing]
+- Do you have any relatives employed by Capital One? -> No  [relatives-at-company, existing]
+- Do you have any close or intimate personal relationships, shared financial interests, or other...? -> No  [personal-relationship; added phrasing]
+- [PREAMBLE] "Please answer the next two questions... For purposes of these questions..." -> OPEN: full text not captured (browser dropped); likely a government-official question -> No. CAPTURE LIVE.
+- Are you related to a Senior Government Official? -> No  [sgo-referral, existing]
+- Do you have a second job, outside business, or other employment...? -> No  [NEW: outside-employment]
+- Do you currently work for, or have you in the past two years worked for, Capital One's independent auditor? -> No  [prior-employment; added auditor phrasing]
+# NOTE: 7/8 verified route correctly in Node; Q5 preamble unmatched pending live full-text capture.
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Equinix (equinix.wd1.myworkdayjobs.com) Application Questions
+- Do you meet the minimum age requirement for unrestricted employment...? -> Yes  [age-minimum; added "minimum age requirement"]
+- Do you have the unrestricted legal authorization to work...? -> superseded 2026-07-26:
+  Yes [unrestricted-right-to-work; user override]
+- Do you know anyone that currently works for Equinix? (conflict of interest) -> No  [NEW: know-someone-at-company]
+- Are you a current or former U.S. government employee who has/had oversight...? -> No  [government-employment; added "government employee"]
+- Will you require Equinix's sponsorship now or in the future...? -> Yes  [sponsorship, existing]
+- Do you have any agreements...that may restrict...? -> No  [restrictive-agreements, existing]
+
+# UPDATE 2026-07-26: Veteran self-ID dropdown is sometimes titled "Please select your Military Status:"
+# (no "veteran" in the question, only in the options). Added patterns /military status/ +
+# /select your military status/ to the `veteran` disclosure topic; optionMatch still picks "I am NOT a
+# protected veteran" (verified it never selects the "I identify as ... protected veteran" trap).
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | CrowdStrike (crowdstrike.wd5.myworkdayjobs.com) Application Questions
+- Why are you interested in working for CrowdStrike? -> reusable pitch  [ideal-candidate-pitch; added "why are you interested in working for/at"]
+- Are you eligible to work in the country...? -> Yes  [work-authorization, existing]
+- Will you now or in the future require work authorization sponsorship? -> Yes  [sponsorship, existing]
+- Conflict of Interest: involved in any cybersecurity activity (board/advisory/business/other employment)? -> No  [NEW: conflict-of-interest]
+- Acknowledgment: I will personally participate in all interviews without generative AI assistance -> Yes  [NEW: acknowledgment-participate]
+
+- Do you need a reasonable accommodation due to a disability or medical need for applying/interviewing? -> No  [NEW: accommodation-request]
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Cape (cape.co / Ashby embed) Platform Software Engineer
+# TASK 3 (agent-driven apply, no extension code). Page: www.cape.co/job-listing?ashby_jid=87e4fac9-9193-40d7-9b28-dbc73e55615c
+# Form lives in the cross-origin iframe #ashby_embed_iframe -> jobs.ashbyhq.com/Cape/<jid>/application?embed=js
+# Posting header: Platform Software Engineer | New York | Hybrid | Engineering | Full time.
+# Ashby form shape: plain native controls (text inputs, one file input, native radio groups), NO
+# essays, NO EEO/demographics, NO salary question. Only SIX controls plus an optional
+# "Autofill from resume" uploader at the top (skipped — we fill manually).
+- Name* (text) -> Xiaoxiao Lei  [CONTACT] (sim had already filled it)
+- Email* (text) -> xiaoxiaoleijobapp@gmail.com  [CONTACT] (sim had already filled it)
+- Resume* (file) -> cv/Xiaoxiao_Lei_RESUME.pdf  (sim left it EMPTY and the field was invalid=true;
+  attached through the real file input via CDP upload_file — no native chooser opened)
+- "If you have a LinkedIn profile, please add it here." (optional text) -> https://www.linkedin.com/in/xiaoxiaolei/  [LINKS]
+- "To help us understand timing, which best describes your current work authorization?"* (6 radios)
+  -> "On a temporary work visa (ex. H-1B) - would need employer to sponsor a transfer"
+  [work-auth-status-select, NEW topic — see the full option list and elimination reasoning there]
+- "Are you able to work in a hybrid setting in our NYC based office?"* (2 radios)
+  -> "I can work 3 days a week in the NYC office"  [hybrid-office-attendance, NEW topic]
+# Nothing was left blank. NOT submitted.
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Cape (cape.co / Ashby embed) Forward Deployed Engineer, East Asia
+# Same Ashby board, jid cc18572e-fa2f-46cb-94e9-fcac492314f8 (the tab carrying utm_source=Simplify).
+# Header: Forward Deployed Engineer, East Asia | Full time | Engineering. Sim had autofilled NOTHING
+# here (its panel read "There was a problem fetching your profile."), so every field was ours.
+- Name* -> Xiaoxiao Lei ; Email* -> xiaoxiaoleijobapp@gmail.com ; Resume* -> cv/Xiaoxiao_Lei_RESUME.pdf
+- LinkedIn (optional) -> https://www.linkedin.com/in/xiaoxiaolei/
+- "Do you have unrestricted work authorization for the United States?"* (2 radios)
+  -> superseded 2026-07-26 by the user's new standing answer:
+  "Yes, I have unrestricted work authorization (I am a US citizen, greencard holder, or a citizen
+  of Mexico or Canada)" [unrestricted-right-to-work]
+- "Cape is a hybrid work environment with 3 days a week in office. We have offices in New York, NY
+  and Arlington, VA"* (3 radios: New York office / Arlington office / cannot work 3 days in an office)
+  -> "I can work 3 days a week in the New York office"  [hybrid-office-attendance]
+# Nothing was left blank. NOT submitted.
+# STRUCTURE NOTE (Ashby embedded boards generally): the top document is a marketing page with almost
+# nothing in it; enumerate frames and operate inside the Ashby RootWebArea. The Resume control
+# exposes a real <input type=file> that CDP upload_file can target directly; after a successful
+# attach the control loses invalid="true" and renders the filename plus a Replace/Delete pair.
+# The same company asks DIFFERENT work-auth questions on different postings (a 6-way status picker on
+# one, a 2-way unrestricted-yes/no on another) — always read the live options, never assume.
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | TurbineOne (job-boards.greenhouse.io) Recruiter (Product & Engineering) 5344689008
+# TASK 4 (gh) — Apply-Simplify test page. Greenhouse template: form#application-form, react-select
+# comboboxes (.select-shell), .file-upload blocks, Submit application button (never clicked).
+- First Name* / Last Name* / Preferred First Name / Email* -> [CONTACT] (Xiaoxiao / Lei / Xiaoxiao / job email)
+- Country (react-select inside the PHONE widget — it is the dial-code country) -> United States (+1)
+- Phone -> (571) 376-1882
+- Resume/CV upload (#resume) -> packaged eve/artifacts/Xiaoxiao_Lei_RESUME.pdf
+- Cover Letter upload (#cover_letter) -> packaged cover letter (ALWAYS attach where slot exists)
+- LinkedIn Profile (text) -> https://www.linkedin.com/in/xiaoxiaolei/  [LINKS]
+- "Other than what you can find on our website, what about TurbineOne is exciting to you?"* (textarea)
+  -> [WhyCompany-Essay] (gh topic why-company-essay; personalize per posting)
+- "Where do you see yourself in five years?"* (textarea) -> [FiveYearPlan-Essay] (drafted; user review)
+- "Describe a hire you're most proud of. …"* (textarea) -> RESOLVED 2026-07-26 (user-approved
+  verbatim answer; [ESSAYS] proudest_hire; gh topic proudest-hire-essay)
+- "Tell us about the smallest company you've recruited for."* (textarea) -> RESOLVED 2026-07-26
+  (user-approved verbatim answer; [ESSAYS] smallest_company_recruited; gh topic smallest-company-essay)
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | 6sense (job-boards.greenhouse.io) Software Engineer III 8037358
+# TASK 4 (gh) — Apply test page. Page was already partially sim-filled when inspected: names, email,
+# phone, LinkedIn, resume (Xiaoxiao_Lei_resume.pdf), sponsorship=Yes and all EEO dropdowns were set.
+- Location (City)* (#candidate-location, react-select autocomplete) -> type "Dallas", wait 0.5s,
+  select FIRST result (user override 2026-07-26: Dallas everywhere)
+- Will you now or in the future require visa sponsorship?* -> Yes  [sponsorship]
+- Do you have professional experience building production applications using Java and Spring Boot?
+  -> Yes  [experience-java-spring, NEW]
+- Have you professionally developed both backend services and frontend applications (React/TypeScript
+  or similar) as part of the same software engineering role? -> Yes  [experience-backend-frontend, NEW]
+- Have you deployed and supported production applications running in a public cloud environment
+  (AWS, Azure, or GCP) using containers and/or Kubernetes? -> Yes  [experience-cloud-containers, NEW]
+- Website (optional text) -> https://github.com/Dark417  [LINKS]
+- Cover Letter upload -> packaged cover letter
+- Gender -> Male (options Male/Female/Decline To Self Identify)  [gender]
+- Are you Hispanic/Latino? -> No (Yes/No/Decline)  [hispanic-latino]
+- Please identify your race -> Asian (7-option list)  [race-ethnicity]
+- Veteran Status -> "I am not a protected veteran" (3 options; anchored match avoids the
+  "I identify as one or more of the classifications of a protected veteran" trap)  [veteran]
+- Disability Status -> "No, I do not have a disability and have not had one in the past"  [disability]
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Accenture Federal Services (Greenhouse)
+- "Do you have any family members or people you have close relationships with who work for
+  Accenture Federal Services?" -> No [relatives-at-company]
+- Live v1.1.193 result: `#question_8460093006` selected token -> No.
+- Other required labels still unresolved by the GH adapter in this round: Degree; State;
+  NDA/non-compete; security clearance; work on an Accenture project within 24 months;
+  Reserves/National Guard enlisted service; US/state/local government employment within 10 years;
+  Disability Status; Affirmation; Gender; Hispanic/Latino; Veteran Status; race.
+- Optional labels left blank: School; Discipline.
+- No application was submitted because required controls and a visible CAPTCHA remained.
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Greenhouse current-location control
+- "Where are you currently located?"* -> type `Dallas`, wait for autocomplete, select the FIRST
+  result ("Dallas, Texas, United States" in the supplied screenshot).
+- Read-only live options/known answers:
+  - Degree -> Master’s Degree [EDUCATION]
+  - State -> Texas [CONTACT]
+  - "Have you entered into a non-disclosure or non-compete agreement or understanding of any
+    kind?" -> No [restrictive-agreements]
+  - "Will you be serving as enlisted personnel in either the Reserves or the National Guard while
+    working for AFS?" -> No [military-service]
+  - "Were you an employee of the U.S. Government (including U.S. Congress or military) or any
+    state or local government within the past 10 years? ..." -> No [government-employment]
+  - Disability Status -> No, I do not have a disability and have not had one in the past
+  - Current-government-employee -> No; Affirmation -> I agree; Gender -> Male;
+    Hispanic/Latino -> No; Veteran -> not protected; race -> Asian were already selected.
+- v1.1.195 exact-tab fill result: 41 fields filled. Greenhouse validation (`:invalid`) showed only
+  two real required blanks: security clearance and current-employer Accenture project within
+  24 months. The panel's longer list was a false report caused by empty React-select required
+  sentinels being scanned as ordinary text inputs.
+- Conditional follow-up `#question_8460094006` labelled only "Name" was incorrectly filled with
+  the applicant's full name even though family/close-relationship = No. This is a custom question,
+  not Ashby's `_systemfield_name`; keep it blank when its parent answer is No.
+- User-resolved required answers (2026-07-26):
+  - "Do you hold a security clearance?" -> None [security-clearance]
+  - Current-employer Accenture project within the past 24 months -> Yes
+    [current-employer-accenture-project]
+  - Sponsorship remains Yes despite unrestricted-work-authorization also being explicitly Yes.
+- Submission attempt on v1.1.198 initially returned Greenhouse HTTP 428 `captcha-failed` and
+  rendered an eight-character email security-code challenge.
+- Final submission confirmation (2026-07-26): the exact tab loaded
+  `/accenturefederalservices/jobs/4683032006/confirmation?gh_src=17d6aa496us` with HTTP 200, then
+  redirected to the Accenture Federal Services careers site. The application is SUBMITTED; do not
+  submit this job again.
+
+2026-07-26 | TurbineOne (gh) | "Describe a hire you're most proud of. What made them successful
+after they joined, and what role did you personally play in that outcome?" -> RESOLVED 2026-07-26:
+  user supplied and approved a verbatim answer (honest engineering-side framing). Banked as
+  [ESSAYS] proudest_hire and encoded as gh topic proudest-hire-essay in DEFAULT_GH_QUESTIONS.
+
+2026-07-26 | TurbineOne (gh) | "Tell us about the smallest company you've recruited for." ->
+  RESOLVED 2026-07-26: user supplied and approved a verbatim answer (own 3-person 2017 startup).
+  Banked as [ESSAYS] smallest_company_recruited; gh topic smallest-company-essay.
+
+2026-07-26 | TurbineOne (gh) | "Where do you see yourself in five years?" -> FILLED BY DERIVATION,
+  please confirm or edit: registered as [FiveYearPlan-Essay] with a draft grounded in the user's own
+  essays (long horizons, ownership, growing with the product, deepening AI skills, mentoring).
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Cape FDE (jobs.ashbyhq.com iframe, TASK 4 Ashby adapter recon)
+# Extension recon (v1.1.192 build): confirmed the T3 structure notes from live DOM. Fields:
+# _systemfield_name ("Name" -> Xiaoxiao Lei FULL name), _systemfield_email, _systemfield_resume
+# (required file), LinkedIn optional text (-> www.linkedin.com/in/xiaoxiaolei/ — SCHEME-LESS per
+# user 2026-07-26), unrestricted-work-auth 2-radio (-> Yes option after the later user override),
+# Cape hybrid 3-radio (-> I can …
+# New York). "Autofill from resume" uploader = Ashby parser, never touched. All Ashby buttons are
+# type=submit; the real submit is the "Submit Application" TEXT match. Invisible v2 reCAPTCHA
+# (g-recaptcha-response) excluded from fill/completeness; a VISIBLE captcha blocks submission.
+# Radio question label = label[for=<questionUuid>] where questionUuid is the last _-segment of the
+# radio group name. All routed topics verified in tools/gh-bank-test.js (112/112).
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Stratolaunch (job-boards.greenhouse.io) Systems Engineer 5159784008
+# TASK 4 read-only XC inventory from the exact existing tab; Eve v1.1.195; form untouched.
+- Complete current mailing address* -> `1721 Walters Dr, Dallas, TX 75023` [CONTACT + Dallas override].
+- Federal Export Control Laws* -> OPEN: choose among US Citizen / US National / U.S. Lawful
+  Permanent Resident / asylum / refugee / Prefer not to answer. Do not infer from H-1B.
+- [restricted-country-citizenship] Restricted-country citizenship checkbox group* ->
+  `I do not hold citizenship in any of the countries listed` (explicit user answer and
+  authoritative override, 2026-07-26). Match semantic variants that ask whether the applicant
+  holds citizenship, including dual citizenship, in specified/following/listed countries tied to
+  government-contract or State Department restrictions. This is ONE required multi-checkbox group
+  even though every checkbox has HTML `required`; select only the exact none-listed option, and one
+  selected group member satisfies it.
+- In addition to U.S. citizenship, do you currently hold citizenship in any other country?* ->
+  `People's Republic of China` (the applicant is not a U.S. citizen; state actual citizenship).
+- Do you currently hold a US Department of Defense Security Clearance? If so, what level?* -> OPEN.
+- Are you able to obtain a US Department of Defense Security Clearance if you do not currently hold
+  one?* -> OPEN; options Yes / No / active clearance.
+- Drug Free Workplace* -> OPEN; Yes/No acknowledgement about screening and successful completion.
+- How did you hear about us?* -> LinkedIn [how-heard].
+- Do you currently know anyone who works for Stratolaunch or WindWright?* -> `N/A`
+  [know-someone-at-company = No].
+- EEO choices -> Gender Male; Hispanic/Latino No; race mounts conditionally and then Asian; veteran
+  not protected; disability No.
+- Visible reCAPTCHA Enterprise badge/iframe present. Eve may fill but must hold without submit and
+  never interact with CAPTCHA.
+# v1.1.196 HISTORICAL LIVE RESULT: one Apply click filled 20 fields, attached both PDFs, selected
+# exactly the PRC checkbox, populated all known identity/question/EEO answers, and held on exactly
+# the four OPEN questions above. That inferred PRC selection is superseded by the explicit
+# restricted-country-citizenship answer above. Submit and CAPTCHA were untouched.
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Restricted-country citizenship explicit override
+- Certain U.S. government contracts supported by our company prohibit employment of individuals
+  who hold citizenship (including dual citizenship) in specific countries designated by the U.S.
+  Department of State. Please indicate whether you currently hold citizenship (including dual
+  citizenship) in any of the following countries:* ->
+  `I do not hold citizenship in any of the countries listed`
+  [restricted-country-citizenship].
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Relativity application screenshot
+- Please list your current location (City, State or Province)* -> `Dallas, TX`
+  [current-location-text].
+- If applying to Remote US location, what state(s) are you able to work in?* -> `CA, WA, TX`
+  [remote-us-work-states].
+- Are you legally authorized to work in the country in which the job is located?* -> Yes
+  [work-authorization].
+- Do you now or will you in the future require sponsorship for employment for the location that
+  you are applying to? If so, please explain.* -> `Yes, H1b transfer.`
+  [sponsorship-combined-explanation].
+- Are you subject to any restrictive covenant or non-competition agreement that may affect your
+  ability to work for Relativity?* -> No [restrictive-agreements].
+- My realistic base gross annual salary expectation for my next role is:* ->
+  `$160,000 - $180,000` [salary-range-expectation].
+- I confirm that my answers are complete and accurate and grant Relativity permission to verify
+  statements in the application* -> Yes [application-accuracy-confirmation /
+  acknowledge-answers-truthful].
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Ashby (`*.ashbyhq.com`)
+- What U.S State do you currently reside in?* -> `Texas` [state-of-residence].
+- `ashbyhq.com` is a T3 domain and uses the shared Greenhouse/Ashby adapter and answer bank.
+- How many years of relevant work experience do you have for this position?* -> `4 - 6 YoE`
+  [years-of-relevant-experience-position].
+- How would you describe your gender identity? (mark all that apply) -> Man [gender-identity].
+- How would you describe your racial/ethnic background? (mark all that apply) -> East Asian
+  [racial-ethnic-background].
+- How would you describe your sexual orientation? (mark all that apply) -> Heterosexual
+  [sexual-orientation].
+- Do you identify as transgender? -> No [transgender].
+- Disability or chronic condition that substantially limits major life activities? -> No
+  [disability-major-life].
+- Are you a veteran or active member of the United States Armed Forces? ->
+  `No, I am not a veteran or active member` [veteran-active-member].
+
+[SEEN QUESTIONS LOG] — 2026-07-26 | Rent the Runway
+- Office-centric Brooklyn schedule, four days per week plus flexible Fridays; can you meet it? ->
+  Yes [office-attendance-requirement / relocation-hybrid].
+- Fully authorized to work in the United States for any employer? -> Yes [work-authorization].
+- Now or future require U.S. visa sponsorship? -> Yes [sponsorship]. The notice says RTR will not
+  sponsor new H-1B applications; the user's answer remains Yes.
+- Confirm you read the multiple-roles / no-high-proficiency-needed advisement -> Yes
+  [advisement-read-confirmation].
+- Professional years developing with Java, SpringBot/Spring Boot, and ReactJS -> 4
+  [years-java-spring-react].
+- Professional years with production microservices and event-driven architecture -> 4
+  [years-microservices-event-driven].
+- Professional years with relational databases such as MySQL -> 4
+  [years-relational-database].
+- Professional years with NoSQL/document databases such as MongoDB -> 4
+  [years-nosql-document-database].
+- Experience building supply-chain/logistics software such as WMS/TMS/WCS -> No
+  [supply-chain-logistics-experience].
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | U.S. work authorization and sponsorship
+- "Are you authorized to work for any employer in the U.S?" -> Yes [work-authorization].
+- "Will you now or in the future require sponsorship for employment visa status?" -> Yes
+  [sponsorship].
+- "Are you currently located in North America?" -> Yes [current-location-north-america].
+- "Are you based in New York or San Francisco?" -> No [based-in-ny-or-sf].
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | AI-tool usage essay
+- "In 3–4 sentences, describe how you use (or choose not to use) AI tools in your work. Please
+  include a concrete example of when AI has been helpful to you and, if applicable, when you
+  decided not to use it or found it unhelpful." -> [ESSAYS] ai_usage.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Ramp
+- Legal Name -> Xiaoxiao Lei [CONTACT].
+- Agreement to receive Ramp job-application text-message updates -> No [consent-sms-contact].
+- "Do you have any examples of exceptional performance you want to highlight?" ->
+  [ESSAYS] exceptional_performance_extension.
+- "Do you have a minimum of 3 years of experience, not including internships?" -> Yes
+  [minimum-three-years-experience].
+- "Are you currently based in the U.S. or Canada and/or currently authorized to work in one of
+  these locations?" -> Yes [us-canada-location-or-authorization].
+- "Are you comfortable working in-person at our NYC office at least 3 days/week?" ->
+  "Yes | Able to relocate to NYC upon offer acceptance and comfortable being in the office at
+  least 3 days/week" [nyc-office-relocation].
+- "Where do you plan to work from?" -> "Open to relocating to NYC"
+  [planned-work-location-nyc].
+- "Have you read the privacy policy?" -> Yes [privacy-notice-acknowledgement].
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Entrepreneurial essay
+- "In what ways are you entrepreneurial?" -> [ESSAYS] entrepreneurial.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Office attendance
+- "Are you willing to work either out of our NYC office or San Francisco office 2-3 days per
+  week?" -> Yes [office-attendance-requirement]. The named cities and exact day range are
+  incidental; the semantic root is willingness to attend an office for recurring days.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Work authorization, residence, and recent build
+- "Are you authorized to work in the U.S. without company sponsorship?" -> Yes
+  [unrestricted-right-to-work].
+- "What is your country of residence?" -> U.S. [country-of-residence].
+- "What's something you've built recently?" -> [ESSAYS] ai_product_accomplishment.
+- Choice controls for these answers may be dropdowns, radios, or labeled checkboxes; the answer is
+  matched by meaning and option text, not by control type or position.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Ramp NYC-or-SF office choice
+- "Are you able to work in-person at either our NYC or SF office at least 3 days/week?" ->
+  "Yes | Able to relocate to SF or NYC upon offer acceptance and comfortable being in the office
+  at least 3 days/week" [nyc-office-relocation]. Do not select the option that falsely says the
+  applicant is currently located in SF or NYC.
+- Screenshot reconfirmed minimum 3 years excluding internships -> Yes and currently based in or
+  authorized for U.S./Canada -> Yes.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | NYC/SF relocation and sponsorship segmented buttons
+- "Are you based in NYC or SF or willing to relocate?" -> Yes [relocation-hybrid]. The applicant
+  is in Dallas but is willing to relocate, so the combined OR question is affirmative.
+- "Will you now or in the future require sponsorship for an employment visa (e.g., H-1B, TN,
+  etc.)?" -> Yes [sponsorship].
+- Both controls were rendered as custom Yes/No segmented buttons rather than native radios,
+  checkboxes, or dropdowns; answer matching remains by question and button label.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Commonware
+- "Why are you a good fit for Commonware?" -> [ESSAYS] ideal_candidate_ownership
+  [ideal-candidate-pitch]. The company name is incidental; the reusable semantic root is why the
+  applicant is a good/strong fit for the company or role.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Indeed Smart Apply (smartapply.indeed.com) Infosys "Graph DB Developer" (T5, Eve v1.1.220–1.1.225)
+
+questions-module/questions/1 (identity — mostly Indeed-prefilled, Eve skips filled fields):
+- "LinkedIn profile URL" / "State" / "City" / "Address 1" / "Address 2" / "Zipcode" /
+  "Most recent school, education institution" / "Graduation year"
+- "I agree to storing of my personal data by Infosys Limited for a period of 3 years for any
+  future reference, in case not shortlisted." (EU/EEA/UK-only optional consent radio — left
+  unchecked; not applicable to a US applicant)
+questions-module/questions/3 (employer screeners, all answered from the bank):
+- prior Infosys/subsidiary employment -> No [prior-employment]
+- contractual restrictions / restrictive covenants -> No [restrictive-agreements]
+- "How did you hear about us" (sole option "Indeed") -> Indeed (singleton-required rule)
+- "Are you legally authorized to work in the United States?" -> Yes [work-authorization]
+- Bachelor's minimum or experience in lieu -> Yes [minimum-education-bachelor]
+- "Are you open to relocate?" -> Yes [relocation-hybrid]
+- sponsorship/support for continued work authorization (H-1B, F-1/OPT, H-4, L2) -> Yes [sponsorship]
+- minimum years of relevant work experience per job description -> Yes [meets-minimum-experience]
+- "Today's Date" -> runtime MM/DD/YYYY (adapter special-case, not a bank topic)
+questions-module/questions/4:
+- "Are you open to travel?" -> Yes [travel-willingness]
+- EEO/D&I understanding acknowledgement (sole option "Accept") -> Accept (singleton-required rule)
+- "Do you require adjustments to the application and selection process?" -> No
+  [application-accommodations] (options were Yes / No / Prefer not to say)
+demographic-questions-module/demographic-questions/1 (EEO):
+- "Are you Hispanic or Latino? (…regardless of race.)" -> No [hispanic-latino] — EXCLUDE REFINED
+  2026-07-27: the question's own "regardless of race" parenthetical must not reroute it to the
+  race topic; only race-question wording (identify/select race, race category, racial,
+  race/ethnicity) excludes.
+- VEVRAA protected-veteran self-ID -> "No, I am not a veteran under one of the classifications
+  listed above" [veteran] — optionMatch now allows the leading "No,"; "Yes, I am…" variants still
+  rejected by the anchor.
+- Gender -> Male; Disability -> "No, I do not have a disability…" (existing topics)
+- "Country *" (custom div[role=combobox], 250 options) -> United States (profile)
+- "Race category …" (long descriptive label listing all EEOC race definitions; custom combobox)
+  -> Asian [race-ethnicity]
+review-module: "Review your application" — Eve verified completeness and HELD before
+"Submit your application" (data-testid submit-application-button), per the T5 no-submit rule.
+- 2026-07-27 UPDATE: the Infosys application above was SUBMITTED (user-approved). Confirmation:
+  review-module -> /form/post-apply, heading "Your application was submitted to Infosys", email
+  confirmation to the application account. Submit-on-complete is now the standing T5 rule
+  (INDEED_SUBMIT_ENABLED = true, v1.1.226).
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Workday prior-employment screenshot
+- "Have you been previously employed with us?" -> No [prior-employment]
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Topgolf Workday Application Questions screenshot
+- "Are you currently, or have you ever been, a partner, principal, shareholder or employee of
+  Deloitte & Touche LLP or any of its subsidiaries or affiliates (collectively, Deloitte)?" ->
+  No [audit-firm-affiliation]
+- "What is your desired salary?" -> 160000 [salary-expectation]
+- "Are you currently legally authorized to work for Topgolf Callaway Brands in the United
+  States?" -> Yes [work-authorization]
+- "Will you now or in the future require Topgolf Callaway Brands sponsorship or support to ensure
+  your continued eligibility to work lawfully for Topgolf Callaway Brands?" -> Yes [sponsorship]
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Indeed Smart Apply age/contract question
+- "Are you at least the age of majority under applicable law (i.e., age 18 in most states, but age
+  19 in Alabama and Nebraska) and have the right to contract in your own name?" ->
+  Yes [age-minimum; user correction supersedes the initial No]
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | VeriPark Workday Application Questions
+- "Have you applied with VeriPark previously?" -> No [prior-application]
+- "What is your desired Monthly Salary?" -> 12000 [salary-monthly]
+- "Please select the currency" -> USD [salary-currency]
+- "Do you have Banking/BFSI domain experience?" -> Yes [banking-bfsi-experience; derived from J.P.
+  Morgan Chase employment]
+- "Are you legally permitted to work in the country where this job is located?" ->
+  Yes [work-authorization]
+- "How many years of experience do you have in the field described in the job description you are
+  applying for?" -> 5 [years-experience-field-described]
+- "I understand and acknowledge the terms of use for VeriPark" ->
+  Yes [acknowledgement-generic / privacy-notice-acknowledgement]
+- "What is your desired start date?" -> 09/07/2026 [desired-start-date]
+- Live confirmation: the seven VeriPark questions above saved successfully and appeared with these
+  answers on Review. The application was held before Submit.
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | Insperity application question
+- "Have you in the past or are you currently interviewing for any positions with Insperity?" ->
+  No [prior-current-interview]
+
+[SEEN QUESTIONS LOG] — 2026-07-27 | User-supplied Q&A batch (260727-18:45)
+- SMS/text consent long-form option list (verified already correct) ->
+  No / "No - I do not consent to receiving text messages" [consent-sms-contact]
+- "Which level best reflects your experience and the role you are looking to step into?" ->
+  Senior [experience-level-select; reasoned, never Lead]
+- "Are you presently a US Person? ... Lawful Permanent Resident ... Green Card ... asylum or refugee
+  status" -> No [us-person-status]
+- "This hybrid role involves being in San Carlos, CA, 3 days per week. Please mark Yes that you
+  read, understand, and are able to do this." -> Yes [relocation-hybrid / relocation-consider]
+- "Have you worked at a startup before?" -> Yes [startup-experience]
+- "Tell us about, or post links to some cool things you've built!" -> Chrome extension essay
+  [built-projects-essay]
+- "Have you ever been employed full-time at <Company> or its subsidiaries?" (verified already
+  correct) -> No [prior-employment]
+- "Legal First and Last Name" -> Xiaoxiao Lei [identity profile field]
+- "Current or Most Recent Employer" -> J.P. Morgan Chase & Co. [identity profile field]
+- Harvey: "Are you excited and able to join us in person on those days?" (Yes/flexibility/remote
+  options) -> "Yes, I'm able to work from the office 3 days a week" [office-attendance-requirement]
+- Harvey: "Which of Harvey's offices would you be able to work from?" (based-in-city/open-to-relocate
+  options) -> "I'm open to relocating to work from the office" [office-attendance-requirement]
+- Harvey: "...tied to the office location...Are you currently based in the listed location and able
+  to work in person 3 days per week?" (based-in/willing-to-relocate/remote-only/other options) ->
+  "No, I'm not based in this location but willing to relocate" [office-attendance-requirement]
+
+[SEEN QUESTIONS LOG] — 2026-07-28 | Promise (jobs.ashbyhq.com) Software Engineer - AI, aed7d514-6a36-498b-9659-4fb6ae38dca4
+- "How do you identify your sexual orientation? Please select all that apply." (Bisexual / Lesbian /
+  Gay / Queer / Heterosexual / straight / Other / I prefer not to answer) -> Heterosexual / straight
+  [sexual-orientation; regex generalized — previous pattern only matched bare "Heterosexual", this
+  tenant appends " / straight"]
+- "What is your current age?" (Under 30 / 30-39 / 40-49 / 50-59 / 60 or older / I prefer not to
+  answer) -> I prefer not to answer [age-bracket-voluntary; NEW topic, no real age fact on record]
+- "Are you a U.S. Citizen or Green Card holder?" (Yes/No buttons) -> No [us-citizen-or-green-card;
+  NEW topic, distinct from us-person-status]
+- "Are you able to work in person at the Promise office location listed in the job description at
+  least four times per week?" (Yes/No buttons) -> Yes [office-attendance-requirement; regex
+  generalized to also match "times per week", not just "days per week"]
+- Live result (v1.1.266/267): filled 21 fields, held only the 3 genuinely optional items (Pronouns,
+  "Show Off Your Excellence" essay, community-membership checkboxes), submitted successfully.
+  Confirmation page: heading "Application Success" + "Thanks for sending us your application."
+  This exact phrasing didn't match the existing `submissionConfirmed()` regex (no "thank you" /
+  "submitted" / "received" token), so the code reported "no confirmation detected — verify
+  manually" even though the real Ashby page showed success — fixed by adding `/application
+  success/i` and `/thanks for (sending|submitting)/i` to submissionConfirmed() in greenhouse.js.
+  The Applied Jobs log entry for this one submission was backfilled manually since the missed
+  detection also skipped the automatic recordGhApplication() call.

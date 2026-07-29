@@ -42,25 +42,33 @@
     const POSITION_KEY = 'eve_sr_panel_pos';
     const WIDTH_KEY = 'eve_sr_panel_width';
     const MAX_ARTIFACT_BYTES = 5 * 1024 * 1024;
-    const ARTIFACT_METADATA = Object.freeze({
-        resume: Object.freeze({ name: 'Xiaoxiao_Lei_RESUME.pdf', size: 106737 })
-    });
+    // The packaged resume's real filename and size come from eve/profile.local.json (see
+    // eve/profile.example.json) and are resolved by background.js — nothing is hardcoded here.
 
     // Identity values from info/myworkdayjobs [CONTACT]/[LINKS] — same source as the gh adapter.
-    const SR_PROFILE = Object.freeze({
-        firstName: 'Xiaoxiao',
-        lastName: 'Lei',
-        email: 'xiaoxiaoleijobapp@gmail.com',
-        phone: '(571) 376-1882',
-        city: 'Dallas',
-        // Confirmed live 2026-07-27 answer for the City autocomplete on this template — the first
-        // suggestion for "Dallas" (kept for reference; the fill still selects the FIRST live
-        // suggestion rather than string-matching this, since the option value is opaque).
+    // PLACEHOLDER identity. The real values live in the gitignored eve/profile.local.json
+    // (copy eve/profile.example.json and fill it in); background.js loads that file into
+    // extension storage as `eveProfile` and SR_PROFILE is merged from it at fill time, so a
+    // fresh clone answers with ITS OWN details rather than the author's.
+    const SR_PROFILE_DEFAULTS = Object.freeze({
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "you@example.com",
+        phone: "(555) 555-0100",
+        city: "Dallas",
         cityConfirmed: 'Dallas, TX, US',
-        // LinkedIn WITHOUT the https:// scheme (user, 2026-07-26 rule) — applies everywhere.
-        linkedin: 'www.linkedin.com/in/xiaoxiaolei/',
-        website: 'https://github.com/Dark417'
+        linkedin: "www.linkedin.com/in/your-handle/",
+        website: "https://github.com/your-handle",
     });
+    let SR_PROFILE = { ...SR_PROFILE_DEFAULTS };
+    async function loadRuntimeProfile() {
+        try {
+            const stored = await storageGet(['eveProfile']);
+            const identity = stored && stored.eveProfile;
+            if (identity && typeof identity === 'object') SR_PROFILE = { ...SR_PROFILE_DEFAULTS, ...identity };
+        } catch { /* no stored profile — placeholders stand */ }
+        return SR_PROFILE;
+    }
 
     // Default "Message to the Hiring Team" — generic across companies (user, 2026-07-27), mirrors
     // info/myworkdayjobs [COVER LETTER]. Fills unconditionally when that optional field is empty.
@@ -75,9 +83,10 @@
         '',
         'I would welcome the opportunity to learn more about your team, product, and engineering challenges, and to discuss how my experience in backend systems, data platforms, reliability, and AI-assisted development could contribute to your company.',
         '',
-        'Sincerely,',
-        'Xiaoxiao Lei'
+        'Sincerely,'
     ].join('\n');
+    // The signature line is the applicant's own name, taken from the runtime profile.
+    const srMessage = () => `${SR_MESSAGE}\n${SR_PROFILE.fullName || ''}`.trimEnd();
 
     // ── Tiny shared helpers (adapted from greenhouse.js / workday.js) ────────────────────────
     const WAIT = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -260,20 +269,19 @@
         return bytes;
     }
     async function packagedResumeFile() {
-        const expected = ARTIFACT_METADATA.resume;
         const response = await sendRuntimeMessage({ type: MSG('get-workday-artifact'), artifactId: 'resume' });
         const artifact = response.artifact || {};
-        if (artifact.name !== expected.name || artifact.type !== 'application/pdf' || Number(artifact.size) !== expected.size) {
+        if (artifact.type !== 'application/pdf' || !artifact.name) {
             throw new Error('The packaged resume metadata is invalid.');
         }
         if (!artifact.dataBase64 || artifact.size <= 0 || artifact.size > MAX_ARTIFACT_BYTES) {
             throw new Error('The packaged resume is empty, oversized, or unreadable.');
         }
         const bytes = base64ToBytes(artifact.dataBase64);
-        if (bytes.byteLength !== expected.size || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
+        if (bytes.byteLength !== Number(artifact.size) || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
             throw new Error('The packaged resume contents failed validation.');
         }
-        return new File([bytes], expected.name, { type: 'application/pdf', lastModified: 0 });
+        return new File([bytes], artifact.name, { type: 'application/pdf', lastModified: 0 });
     }
     function resumeDropzoneInputs() {
         return deepQueryAll(document, 'input[type="file"]')
@@ -305,7 +313,7 @@
         const input = deepGetControl('hiring-manager-message-input');
         if (!input) return;
         if (clean(input.value)) { report.skipped.push('message'); return; }
-        await fillTextField(input, SR_MESSAGE);
+        await fillTextField(input, srMessage());
         report.filled.push('message to hiring team');
     }
 
@@ -341,6 +349,7 @@
         setStatus('Uploading resume…', 'running');
         await attachResume(report);
         setStatus('Filling personal information…', 'running');
+        await loadRuntimeProfile();   // this installation's identity, not the placeholders
         await fillTextFields(report);
         await fillMessage(report);
         await fillPhone(report);

@@ -58,31 +58,46 @@
     // Referenced by the spliced question bank (same value as greenhouse.js).
     const SALARY_EXPECTATION = '160000';
     const MAX_ARTIFACT_BYTES = 5 * 1024 * 1024;
-    const ARTIFACT_METADATA = Object.freeze({
-        resume: Object.freeze({ name: 'Xiaoxiao_Lei_RESUME.pdf', size: 106737 }),
-        coverLetter: Object.freeze({ name: 'Xiaoxiao_Lei_Cover_Letter.pdf', size: 46123 })
-    });
+    // Which packaged documents this engine may request. Their real filenames and sizes live in
+    // eve/profile.local.json (see eve/profile.example.json) and are resolved by background.js.
+    const ARTIFACT_IDS = ['resume', 'coverLetter'];
 
     // Identity / profile values from info/myworkdayjobs [CONTACT]/[LINKS]/[EXPERIENCE].
     // Location override (user, 2026-07-26): Dallas everywhere.
-    const INDEED_PROFILE = Object.freeze({
-        firstName: 'Xiaoxiao',
-        lastName: 'Lei',
-        fullName: 'Xiaoxiao Lei',
-        email: 'xiaoxiaoleijobapp@gmail.com',
-        phone: '(571) 376-1882',
-        city: 'Dallas',
-        state: 'Texas',
-        country: 'United States',
+    // PLACEHOLDER identity. The real values live in the gitignored eve/profile.local.json
+    // (copy eve/profile.example.json and fill it in); background.js loads that file into
+    // extension storage as `eveProfile` and INDEED_PROFILE is merged from it at fill time, so a
+    // fresh clone answers with ITS OWN details rather than the author's.
+    const INDEED_PROFILE_DEFAULTS = Object.freeze({
+        firstName: "Jane",
+        lastName: "Doe",
+        fullName: "Jane Doe",
+        email: "you@example.com",
+        phone: "(555) 555-0100",
+        city: "Dallas",
+        state: "Texas",
+        country: "United States",
         postalCode: '75023',
-        streetAddress: '1721 Walters Dr',
+        streetAddress: '1 Example St',
         cityStateZip: 'Dallas, TX 75023',
-        linkedin: 'www.linkedin.com/in/xiaoxiaolei/',
-        github: 'https://github.com/Dark417',
-        currentCompany: 'J.P. Morgan Chase & Co.',
-        currentTitle: 'Associate Software Engineer'
+        linkedin: "www.linkedin.com/in/your-handle/",
+        github: "https://github.com/your-handle",
+        currentCompany: "Your Current Employer",
+        currentTitle: "Your Current Title",
     });
-    const INDEED_PROFILE_FIELDS = [
+    let INDEED_PROFILE = { ...INDEED_PROFILE_DEFAULTS };
+    async function loadRuntimeProfile() {
+        try {
+            const stored = await storageGet(['eveProfile']);
+            const identity = stored && stored.eveProfile;
+            if (identity && typeof identity === 'object') INDEED_PROFILE = { ...INDEED_PROFILE_DEFAULTS, ...identity };
+        } catch { /* no stored profile — placeholders stand */ }
+        // Label-driven fields capture profile values, so rebuild them from whatever is current.
+        INDEED_PROFILE_FIELDS = buildINDEED_PROFILE_FIELDS();
+        return INDEED_PROFILE;
+    }
+    function buildINDEED_PROFILE_FIELDS() {
+        return [
         { label: /^first name/i, value: INDEED_PROFILE.firstName },
         { label: /^last name/i, value: INDEED_PROFILE.lastName },
         { label: /full (legal )?name|^(legal )?name$/i, value: INDEED_PROFILE.fullName },
@@ -105,7 +120,9 @@
         // employer" / "present employer" phrasings match without a second spelling of the name.
         { label: /current (company|employer)|(current or )?most recent employer|present employer/i, value: INDEED_PROFILE.currentCompany },
         { label: /current (job )?title|^(job )?title$/i, value: INDEED_PROFILE.currentTitle }
-    ];
+        ];
+    }
+    let INDEED_PROFILE_FIELDS = buildINDEED_PROFILE_FIELDS();
 
     // ── Question bank (spliced verbatim from greenhouse.js DEFAULT_GH_QUESTIONS) ─────────────
     // Same first-match-wins contract: `patterns` match the question text; `exclude` protects
@@ -158,7 +175,7 @@
         {
             topic: 'mailing-address',
             patterns: [/complete current mailing address/i, /^mailing address$/i],
-            text: '1721 Walters Dr, Dallas, TX 75023'
+            profileKey: 'mailingAddress'   // resolved from the runtime profile
         },
         {
             topic: 'current-location-north-america',
@@ -1835,21 +1852,23 @@
         return bytes;
     }
     async function packagedArtifactFile(artifactId) {
-        const expected = ARTIFACT_METADATA[artifactId];
-        if (!expected) throw new Error('Unsupported packaged document.');
+        // The name/size of the packaged PDFs comes from whatever this installation configured
+        // (eve/profile.local.json -> background.js), so only the artifact ID is validated here;
+        // the bytes themselves are checked below.
+        if (!ARTIFACT_IDS.includes(artifactId)) throw new Error('Unsupported packaged document.');
         const response = await sendRuntimeMessage({ type: MSG('get-workday-artifact'), artifactId });
         const artifact = response.artifact || {};
-        if (artifact.name !== expected.name || artifact.type !== 'application/pdf' || Number(artifact.size) !== expected.size) {
+        if (artifact.type !== 'application/pdf' || !artifact.name) {
             throw new Error('The packaged document metadata is invalid.');
         }
         if (!artifact.dataBase64 || artifact.size <= 0 || artifact.size > MAX_ARTIFACT_BYTES) {
             throw new Error('The packaged PDF is empty, oversized, or unreadable.');
         }
         const bytes = base64ToBytes(artifact.dataBase64);
-        if (bytes.byteLength !== expected.size || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
+        if (bytes.byteLength !== Number(artifact.size) || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
             throw new Error('The packaged PDF contents failed validation.');
         }
-        return new File([bytes], expected.name, { type: 'application/pdf', lastModified: 0 });
+        return new File([bytes], artifact.name, { type: 'application/pdf', lastModified: 0 });
     }
 
     // ── Session (per-tab, explicit-activation only) ───────────────────────────────────────────
@@ -1867,7 +1886,7 @@
     // Resume selection (confirmed live 2026-07-27, Infosys "Graph DB Developer"):
     // radio cards under [data-testid="resume-selection-radio-card-group"], radio
     // name="resume-selection"; value "file" = the resume already uploaded to Indeed
-    // (Xiaoxiao_Lei_Resume.pdf, preselected). A hidden file input
+    // (the packaged resume, preselected). A hidden file input
     // ([data-testid="resume-selection-file-resume-radio-card-file-input"]) can take a fresh
     // upload — used as fallback when no resume card exists yet.
     async function handleResumeSelection() {
@@ -1902,7 +1921,7 @@
             fileInput.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
-                if (document.body.innerText.includes(ARTIFACT_METADATA.resume.name.replace(/_/g, '_'))
+                if (document.body.innerText.includes(file.name)
                     || [...document.querySelectorAll('input[type="radio"]')].some(radio => radio.checked)) break;
                 await WAIT(300);
             }
@@ -1958,7 +1977,7 @@
         return {
             status: 'needs-trusted-upload',
             message: 'Cover letter: "Upload a file" selected, but Indeed requires a browser-trusted '
-                + 'file selection that a content script cannot produce. Attach cv/Xiaoxiao Lei Cover '
+                + 'file selection that a content script cannot produce. Attach the cover letter '
                 + 'Letter.pdf to the visible file input (input[type="file"][data-testid*='
                 + '"upload-button-file-input"]) via a CDP-level upload (chrome-devtools MCP '
                 + 'upload_file), then click Apply to resume.'
@@ -1969,6 +1988,7 @@
     // REQUIRED questions pause the flow (never guessed — work auth/visa/salary/etc. come only
     // from the bank, which encodes the user's explicit answers).
     async function fillCurrentStepFields() {
+        await loadRuntimeProfile();   // this installation's identity, not the placeholders
         const bank = await indeedQuestionBank();
         const filled = [];
         const failures = [];
@@ -2010,8 +2030,12 @@
             }
             const entry = matchBankEntry(bank, label);
             seen.push({ question: label, control: isEssayControl ? 'textarea' : 'text', topic: entry ? entry.topic : '' });
-            if (entry && entry.text != null) {
-                await fillTextField(input, entry.text);
+            // `requiredOnly` answers (GPA) are used only when the control is required.
+            if (entry && entry.requiredOnly && !isRequiredInput(input)) continue;
+            // A `profileKey` answer comes from this installation's own profile.
+            const bankedText = entry && entry.profileKey ? (INDEED_PROFILE[entry.profileKey] || '') : (entry ? entry.text : null);
+            if (entry && bankedText) {
+                await fillTextField(input, bankedText);
                 filled.push(`${label} [${entry.topic}]`);
             } else if (entry && entry.choose) {
                 await fillTextField(input, entry.choose === 'yes' ? 'Yes' : 'No');
