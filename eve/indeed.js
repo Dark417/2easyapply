@@ -786,9 +786,15 @@
             patterns: [
                 /what is your desired start date/i,
                 /(desired|preferred) (employment )?start date/i,
-                /when (can|would) you (start|be available to start)/i
+                /when (can|would) you (start|be available to start)/i,
+                /when could you start/i,
+                /(earliest|possible) start date/i,
+                /availability to start/i
             ],
-            text: '09/07/2026'
+            // A free-text box gets the human wording; a native date control gets `date` below,
+            // because input[type=date] silently rejects anything that is not yyyy-mm-dd.
+            text: 'Sep 7, 2026',
+            date: '2026-09-07'
         },
         {
             // "What are the main programming languages and technologies you've worked with in your
@@ -1876,6 +1882,15 @@
     }
     // Every TEXT field: click the field → type → click away → pause, then the next field. Filling
     // back-to-back too quickly left required inputs still counted as empty by the page.
+    // Native date/month inputs only accept yyyy-mm-dd (or yyyy-mm); a free-text box takes the
+    // human wording. The control decides which representation of a banked answer is used.
+    function answerForControl(input, entry, fallback) {
+        const type = String(input.type || '').toLowerCase();
+        if (entry && entry.date && (type === 'date' || type === 'month')) {
+            return type === 'month' ? entry.date.slice(0, 7) : entry.date;
+        }
+        return fallback;
+    }
     async function fillTextField(input, value) {
         realClick(input);
         try { input.focus(); } catch { }
@@ -2271,7 +2286,7 @@
         // 1) Text inputs + textareas.
         const textInputs = [...root.querySelectorAll('input, textarea')].filter(el =>
             !isOurUi(el) && visible(el) && !el.disabled && !el.readOnly
-            && (el.tagName === 'TEXTAREA' || /^(text|email|tel|url|number|search)$/i.test(el.type || 'text')));
+            && (el.tagName === 'TEXTAREA' || /^(text|email|tel|url|number|search|date|month)$/i.test(el.type || 'text')));
         for (const input of textInputs) {
             if (clean(input.value)) continue; // already filled — leave it
             const label = labelForInput(input);
@@ -2297,7 +2312,7 @@
             // A `profileKey` answer comes from this installation's own profile.
             const bankedText = entry && entry.profileKey ? (INDEED_PROFILE[entry.profileKey] || '') : (entry ? entry.text : null);
             if (entry && bankedText) {
-                await fillTextField(input, bankedText);
+                await fillTextField(input, answerForControl(input, entry, bankedText));
                 filled.push(`${label} [${entry.topic}]`);
             } else if (entry && entry.choose) {
                 await fillTextField(input, entry.choose === 'yes' ? 'Yes' : 'No');

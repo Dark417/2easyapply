@@ -484,7 +484,8 @@ assert(src.includes('hasChoice: Boolean(entry.optionMatch || entry.choose)')
 routes('Do you have a non-compete or non-solicit agreement with a current or former employer?', 'restrictive-agreements');
 routes('Are you subject to any agreement that would restrict you from working for us?', 'restrictive-agreements');
 routes('What is your desired start date?', 'desired-start-date');
-assert(pick('What is your desired start date?').text === '09/07/2026', 'desired start date -> 09/07/2026');
+assert(pick('What is your desired start date?').text === 'Sep 7, 2026', 'desired start date, free text -> Sep 7, 2026');
+assert(pick('What is your desired start date?').date === '2026-09-07', 'desired start date, native date control -> ISO');
 routes('Have you in the past or are you currently interviewing for any positions with Insperity?', 'prior-current-interview');
 assert(pick('Have you in the past or are you currently interviewing for any positions with Insperity?').choose === 'no', 'prior/current employer interview -> No');
 

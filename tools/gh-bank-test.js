@@ -86,7 +86,13 @@ routes(FIELD_YEARS, 'years-experience-field-described');
 assert(pick(FIELD_YEARS).text === '5', 'described-field experience -> 5');
 routes('I understand and acknowledge the terms of use', 'acknowledgement-generic');
 routes('What is your desired start date?', 'desired-start-date');
-assert(pick('What is your desired start date?').text === '09/07/2026', 'shared desired start date -> 09/07/2026');
+// A free-text box gets the human wording; a native date control gets the ISO form, because
+// input[type=date] silently rejects anything else (user, 2026-07-28).
+assert(pick('What is your desired start date?').text === 'Sep 7, 2026', 'desired start date, free text -> Sep 7, 2026');
+assert(pick('What is your desired start date?').date === '2026-09-07', 'desired start date, date control -> ISO 2026-09-07');
+routes('When could you start working?', 'desired-start-date');
+assert(/type === 'date' || type === 'month'/.test(src), 'the engine picks the ISO form for a native date control');
+assert(/search|date|month/.test(src), 'date controls are no longer skipped by the text pass');
 routes('Have you in the past or are you currently interviewing for any positions with Insperity?', 'prior-current-interview');
 assert(pick('Have you in the past or are you currently interviewing for any positions with Insperity?').choose === 'no', 'shared prior/current interview -> No');
 assert(pick('I understand and acknowledge the terms of use').choose === 'yes', 'generic acknowledgement -> Yes');

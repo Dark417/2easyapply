@@ -1016,9 +1016,13 @@
             patterns: [
                 /what is your desired start date/i,
                 /(desired|preferred) (employment )?start date/i,
-                /when (can|would) you (start|be available to start)/i
-            ],
-            text: '09/07/2026'
+                /when (can|would) you (start|be available to start)/i,
+                /when could you start/i,
+                /(earliest|possible) start date/i,
+                /availability to start/i
+                        ],
+            text: 'Sep 7, 2026',
+            date: '2026-09-07'
         },
         {
             topic: 'banking-bfsi-experience',
