@@ -274,6 +274,13 @@
                 /(live|living|reside|residing|resident|based|located)[\s\S]{0,40}\b(san francisco )?bay area\b/i,
                 /\b(san francisco )?bay area\b[\s\S]{0,40}(do you|are you|currently)?[\s\S]{0,10}(live|reside|resident|based|located)/i
             ],
+            // A question that pairs the location with an ONSITE SCHEDULE ("…are you currently
+            // located in the Bay Area AND open to 4-5 days onsite?") is answered from an option
+            // list whose choices include "not currently in the Bay Area but open to relocation" —
+            // the honest pick. Answering plain Yes here would take the option that claims the
+            // applicant already lives there (user, 2026-07-28), so it is handed to
+            // office-attendance-requirement, whose candidates put relocation first.
+            exclude: /\bonsite\b|\bin[- ]office\b|days? (per|a) week|open to (this|the) schedule|willing to relocat|open to relocat/i,
             choose: 'yes'
         },
         {
@@ -394,14 +401,18 @@
             // Confirmed live on 6sense 2026-07-26 (react-select, options Yes/No).
             topic: 'sponsorship',
             patterns: [
-                /(require|need)[\s\S]{0,30}sponsorship/i,
+                // Widened 0,30 -> 0,80 (Plaid/Ashby, 2026-07-28): "require Plaid to provide
+                // immigration-related support or sponsorship" puts ~48 chars between the verb and
+                // the noun — the company name plus a support/sponsorship object clause.
+                /(require|need)[\s\S]{0,80}sponsorship/i,
                 /sponsorship[\s\S]{0,40}(employment )?visa/i,
                 /(h-?1b|work visa)[\s\S]{0,40}sponsor/i,
                 // Ashby/Notion phrasing (screenshot 2026-07-27): the COMPANY NAME sits between
                 // "require" and "to sponsor", and the object is an "immigration case", so neither
                 // of the patterns above reached it.
                 /(require|need)[\s\S]{0,40}to sponsor[\s\S]{0,40}(immigration case|visa|petition)/i,
-                /sponsor an immigration case/i
+                /sponsor an immigration case/i,
+                /immigration-related support or sponsorship/i
             ],
             exclude: /if so[\s\S]{0,40}(explain|describe)|please explain/i,
             // Some boards answer this question with a VISA-TYPE list instead of Yes/No (Ashby
@@ -649,7 +660,24 @@
                 // description at least four times per week?" (Promise/Ashby, 2026-07-28) — same
                 // shape as the "days per week" patterns above but worded as "times per week".
                 /\b(willing|able|comfortable|prepared|can you)\b[\s\S]{0,160}\b(office|on-?site)\b[\s\S]{0,100}\btimes? per week\b/i,
-                /work in person[\s\S]{0,60}office location[\s\S]{0,60}(times|days) per week/i
+                /work in person[\s\S]{0,60}office location[\s\S]{0,60}(times|days) per week/i,
+                // "This position is based onsite at our <name> office in <city>, 4–5 days per week.
+                // Are you currently located in the Bay Area and open to this schedule?" (user,
+                // 2026-07-28) — a combined location+schedule question. Its option list offers "not
+                // currently in <region> but open to relocation", which is the honest choice; the
+                // residency topic is excluded from this wording so it cannot answer a bare Yes.
+                /based onsite at[\s\S]{0,80}office/i,
+                /\d+\s*[-–]\s*\d+ days per week/i,
+                /open to (this|the) schedule/i,
+                // "...able to come into the office to work at least 2x's a week..." (Plaid/Ashby,
+                // 2026-07-28) — the "Nx's a week" shorthand, not "days"/"times per week".
+                /\b(willing|able|comfortable|prepared|can you)\b[\s\S]{0,160}\b(office|on-?site)\b[\s\S]{0,100}\d+x'?s?\s+(a|per)\s+week\b/i,
+                // "This role requires you to work from one of our offices 2x per week. Are you able
+                // to meet this requirement?" (Plaid/Ashby, 2026-07-28) — "able" sits in a SEPARATE
+                // sentence after the office/week clause, not before it like the patterns above.
+                // Scoped to "office(s)...week" so it can't collide with an unrelated "meet this
+                // requirement" elsewhere (e.g. a minimum-age or degree requirement question).
+                /work from one of our offices[\s\S]{0,60}\d+x per week[\s\S]{0,60}meet this requirement/i
             ],
             // A "which office do you PREFER / preferred work location" question is a location CHOICE,
             // not an ability question — it belongs to relocation-locations-all, which picks a city
@@ -726,6 +754,20 @@
                 /when (can|would) you (start|be available to start)/i
             ],
             text: '09/07/2026'
+        },
+        {
+            // "What are the main programming languages and technologies you've worked with in your
+            // previous roles?" (user, 2026-07-28) — a plain list, no years. Distinct from the
+            // top-programming-languages topic, which answers the "with length of experience for
+            // each" variant; ordered before it so the list-only wording wins.
+            topic: 'languages-technologies-list',
+            patterns: [
+                /(main |primary )?(programming )?languages and technologies/i,
+                /(technologies|tech stack)[\s\S]{0,40}(you|you've|you have)[\s\S]{0,30}worked with/i,
+                /what (programming )?languages[\s\S]{0,40}have you (worked with|used)/i
+            ],
+            exclude: /length of experience|how many years|with each/i,
+            text: 'Python, Java, TypeScript, SQL'
         },
         {
             topic: 'banking-bfsi-experience',
@@ -1299,6 +1341,12 @@
                 /(what|why)[\s\S]{0,30}interested in (this|the|our)\s*(role|position|job|opportunity|team|company)/i,
                 /what (made|makes) you (want to )?apply/i
             ],
+            // "select all that apply" (Plaid/Ashby, 2026-07-28): a "why are you interested" question
+            // rendered as a CHECKBOX group is the `employer-interest-reasons` topic below, not this
+            // free-text essay — without this exclude, matchBankEntry (first-pattern-wins, order-only)
+            // hands the checkbox group to this text-only topic and it fails with "no checkbox option
+            // matched" since there is no optionMatch/optionMatchAll here.
+            exclude: /select all that apply/i,
             // User-supplied wording, 2026-07-27 (supersedes the earlier phrasing of the same pitch).
             text: 'I am interested in your company because I thrive in new environments where engineers can independently turn ideas into working products—from design and implementation through deployment and customer delivery. My experience across full-stack development, backend services, cloud infrastructure, data platforms, and AI agents allows me to contribute across the product rather than within a limited scope.'
         },
@@ -1588,6 +1636,64 @@
             ],
             optionMatch: /^\s*(opt[\s-]?out|no)\b/i,
             optionLabel: 'No / Opt-Out'
+        },
+        {
+            // "Why are you interested in working at <Company>? Select all that apply." (Plaid/Ashby,
+            // 2026-07-28) — company name is a wildcard. Ticks the options that are genuinely true
+            // (AI-building interest, industry/fintech passion, product & technical innovation) and
+            // leaves generic/unverifiable ones (bare "Mission", "Culture") unticked rather than
+            // over-claiming.
+            topic: 'employer-interest-reasons',
+            patterns: [
+                /why are you interested in working (at|for)[\s\S]{0,60}\?/i,
+                /what interests you (about|most about) working (at|for)/i
+            ],
+            optionMatchAll: [
+                /\bai\b|artificial intelligence/i,
+                /passion for[\s\S]{0,20}(fintech|industry)/i,
+                /products?[\s\S]{0,20}(technical )?innovation/i
+            ]
+        },
+        {
+            // "Based on your current impression, how would you rate <Company>'s position in AI
+            // compared to other tech companies?" (Plaid/Ashby, 2026-07-28) — a subjective opinion
+            // survey about a specific company the applicant has no real informed view of. The
+            // honest, generalizable answer for ANY company here is the decline/no-information
+            // option, never a fabricated rating.
+            topic: 'ai-position-opinion-survey',
+            patterns: [
+                /rate[\s\S]{0,40}position in ai[\s\S]{0,40}compared to other tech companies/i,
+                /current impression[\s\S]{0,60}position in ai/i
+            ],
+            optionMatch: /not enough information/i,
+            optionLabel: "N/A - Not enough information"
+        },
+        {
+            // "How much time do you spend on frontend development?" (Plaid/Ashby, 2026-07-28) — a
+            // self-assessment bracket. Answered from the actual CV weighting (backend-heavy: AWS
+            // data pipelines, Spring Boot services, Document Broker Service, Terraform IaC; the one
+            // frontend line item is a single React admin portal) — honestly under 40%, even though
+            // the form itself suggests exploring Backend Engineering roles instead at that answer.
+            topic: 'frontend-time-percentage',
+            patterns: [/how much time do you spend on frontend development/i, /frontend[\s\S]{0,20}%[\s\S]{0,20}time/i],
+            optionMatch: /^\s*<\s*40\s*%/,
+            optionLabel: '< 40%'
+        },
+        {
+            // "Are you comfortable being evaluated on front-end engineering skills as part of the
+            // interview process?" (Plaid/Ashby, 2026-07-28) -> Yes.
+            topic: 'frontend-interview-comfort',
+            patterns: [/comfortable being evaluated on front-?end engineering skills/i],
+            choose: 'yes'
+        },
+        {
+            // "Preferred Work Location — Select all that apply" (office checkboxes: Plaid/Ashby,
+            // 2026-07-28) — a location CHOICE among the employer's own offices, not an ability
+            // question. Same "always willing to relocate" standing rule as everywhere else: tick
+            // every listed office rather than picking one.
+            topic: 'preferred-work-location',
+            patterns: [/preferred work location/i, /which (office|location)s?[\s\S]{0,40}(would|do) you prefer/i],
+            checkAll: true
         }
     ];
     // END spliced bank

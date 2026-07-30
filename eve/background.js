@@ -92,25 +92,63 @@ function isArtifactTabSender(sender) {
     }
 }
 
+// Filename patterns each artifact must satisfy (user rule, 2026-07-28): the resume is the PDF
+// whose name says resume/cv, the cover letter is the one whose name says letter.
+const ARTIFACT_NAME_RE = Object.freeze({
+    resume: /resume|\bcv\b/i,
+    coverLetter: /letter/i
+});
+
+// Candidate paths for an artifact, most specific first: what the profile configured, what was
+// resolved earlier and persisted, then conventional names built from the applicant's own name.
+async function artifactCandidates(artifactId) {
+    const stored = await new Promise(resolve => chrome.storage.local.get(['eveArtifacts', 'eveProfile'], resolve));
+    const candidates = [];
+    const push = path => { if (path && !candidates.includes(path)) candidates.push(path); };
+
+    if (CONFIGURED_ARTIFACTS && CONFIGURED_ARTIFACTS[artifactId]) push(CONFIGURED_ARTIFACTS[artifactId].path);
+    if (stored.eveArtifacts && stored.eveArtifacts[artifactId]) push(stored.eveArtifacts[artifactId].path);
+    if (WORKDAY_ARTIFACTS[artifactId]) push(WORKDAY_ARTIFACTS[artifactId].path);
+
+    const fullName = String((stored.eveProfile && stored.eveProfile.fullName) || '').trim();
+    const underscored = fullName.replace(/\s+/g, '_');
+    const suffixes = artifactId === 'resume'
+        ? ['RESUME.pdf', 'Resume.pdf', 'resume.pdf', 'CV.pdf']
+        : ['Cover_Letter.pdf', 'CoverLetter.pdf', 'cover-letter.pdf', 'cover_letter.pdf'];
+    for (const suffix of suffixes) {
+        if (underscored) push(`artifacts/${underscored}_${suffix}`);
+        push(`artifacts/${suffix}`);
+    }
+    return candidates;
+}
+
 async function getWorkdayArtifact(artifactId, sender) {
     if (!isArtifactTabSender(sender)) throw new Error('Packaged artifact access denied.');
-    // A profile-configured artifact wins over the built-in default, so a new installation serves
-    // ITS OWN resume/cover letter without touching the code.
-    const artifact = (CONFIGURED_ARTIFACTS && CONFIGURED_ARTIFACTS[artifactId]) || WORKDAY_ARTIFACTS[artifactId];
-    if (!artifact) throw new Error('Unknown Workday artifact.');
-    const response = await fetch(chrome.runtime.getURL(artifact.path));
-    if (!response.ok) throw new Error('Packaged Workday artifact is unavailable — check the artifacts entry in profile.local.json.');
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (artifact.size && bytes.byteLength !== artifact.size) throw new Error('Packaged Workday artifact size mismatch.');
-    if (bytes.length < 5 || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
-        throw new Error('Packaged Workday artifact is not a valid PDF.');
+    if (!ARTIFACT_NAME_RE[artifactId]) throw new Error('Unknown Workday artifact.');
+    // The MV3 worker is torn down between requests, so module state cannot be trusted — make sure
+    // the profile has been read at least once in THIS worker generation.
+    if (!CONFIGURED_ARTIFACTS) await loadLocalProfile();
+
+    const wanted = ARTIFACT_NAME_RE[artifactId];
+    const tried = [];
+    for (const path of await artifactCandidates(artifactId)) {
+        const name = path.split('/').pop();
+        if (!/\.pdf$/i.test(name) || !wanted.test(name)) continue;   // must be the right document
+        let bytes;
+        try {
+            const response = await fetch(chrome.runtime.getURL(path));
+            if (!response.ok) { tried.push(path); continue; }
+            bytes = new Uint8Array(await response.arrayBuffer());
+        } catch { tried.push(path); continue; }
+        if (bytes.length < 5 || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') { tried.push(path); continue; }
+        return {
+            name,
+            type: 'application/pdf',
+            size: bytes.byteLength,
+            dataBase64: bytesToBase64(bytes)
+        };
     }
-    return {
-        name: artifact.name,
-        type: artifact.type,
-        size: artifact.size,
-        dataBase64: bytesToBase64(bytes)
-    };
+    throw new Error(`No packaged ${artifactId === 'resume' ? 'resume' : 'cover letter'} PDF found. Put one in eve/artifacts/ and name it in eve/profile.local.json (tried: ${tried.join(', ') || 'none'}).`);
 }
 
 function mergeDeep(base, patch) {

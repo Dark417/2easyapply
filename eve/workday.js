@@ -502,6 +502,10 @@
                 /(live|living|reside|residing|resident|based|located)[\s\S]{0,40}\b(san francisco )?bay area\b/i,
                 /\b(san francisco )?bay area\b[\s\S]{0,40}(do you|are you|currently)?[\s\S]{0,10}(live|reside|resident|based|located)/i
             ],
+            // A question pairing the location with an ONSITE SCHEDULE is answered from an option list
+            // whose choices include "not currently in the Bay Area but open to relocation" (user,
+            // 2026-07-28) - office-attendance-requirement owns it and puts relocation first.
+            exclude: /\bonsite\b|\bin[- ]office\b|days? (per|a) week|open to (this|the) schedule|willing to relocat|open to relocat/i,
             choose: 'yes'
         },
         {
@@ -1325,6 +1329,20 @@
             choose: 'no'
         },
         {
+            // "What are the main programming languages and technologies you've worked with in your
+            // previous roles?" (user, 2026-07-28) — a plain list, no years. Distinct from the
+            // top-programming-languages topic, which answers the "with length of experience for
+            // each" variant; ordered before it so the list-only wording wins.
+            topic: 'languages-technologies-list',
+            patterns: [
+                /(main |primary )?(programming )?languages and technologies/i,
+                /(technologies|tech stack)[\s\S]{0,40}(you|you've|you have)[\s\S]{0,30}worked with/i,
+                /what (programming )?languages[\s\S]{0,40}have you (worked with|used)/i
+            ],
+            exclude: /length of experience|how many years|with each/i,
+            text: 'Python, Java, TypeScript, SQL'
+        },
+        {
             // Bank of America / GHR free text: "List the top 3 programming languages / platforms that
             // you are most proficient in as well as your length of experience with each". Derived
             // from [SKILLS] plus 4+ years of professional experience since Apr 2022.
@@ -1717,7 +1735,11 @@
                 /meet the location requirements/i,
                 /location requirements? of the (position|role|job)/i,
                 /if you are (based|located) in[\s\S]{0,80}(able to|can you)[\s\S]{0,40}(commute|work|come)/i,
-                /able to commute to the office/i
+                /able to commute to the office/i,
+                // Combined location+schedule question (user, 2026-07-28), mirrored from greenhouse.js.
+                /based onsite at[sS]{0,80}office/i,
+                /d+s*[-–]s*d+ days per week/i,
+                /open to (this|the) schedule/i
                         ],
             // A "which office do you PREFER / preferred work location" question is a location CHOICE,
             // not an ability question (user, 2026-07-28) - relocation-locations-all owns it.

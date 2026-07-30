@@ -942,12 +942,33 @@ assert(optPick('relocation-locations-all', ['Select...', 'Prefer not to say', 'L
 routes("Which of Harvey's offices would you be able to work from?", 'office-attendance-requirement');
 routes('Are you able to work from our Austin office 3 days/week?', 'office-attendance-requirement');
 
+console.log('\n=== Onsite-schedule question, artifacts and tech list (2026-07-28) ===');
+const POTRERO = 'This position is based onsite at our Potrero Hill office in San Francisco, 4\u20135 days per week. Are you currently located in the Bay Area and open to this schedule?';
+routes(POTRERO, 'office-attendance-requirement');
+const POTRERO_OPTIONS = ["Yes, I'm currently in the Bay Area and open to 4\u20135 days onsite", "I'm not currently in the Bay Area but am open to relocation and 4-5 days onsite", 'No, I am looking for remote opportunities'];
+const potreroPick = (() => { for (const c of pick(POTRERO).optionCandidates) { const i = POTRERO_OPTIONS.findIndex(t => c.test(t)); if (i >= 0) return i; } return -1; })();
+assert(/not currently in the Bay Area but am open to relocation/.test(POTRERO_OPTIONS[potreroPick]), 'the onsite-schedule question takes the relocation option, never the false residency claim');
+// The plain residency question keeps its own answer.
+routes('Do you currently live in the San Francisco Bay Area?', 'bay-area-residency');
+
+const TECH_LIST = 'What are the main programming languages and technologies you\u2019ve worked with in your previous roles?';
+routes(TECH_LIST, 'languages-technologies-list');
+assert(pick(TECH_LIST).text === 'Python, Java, TypeScript, SQL', 'the technologies list answer');
+assert(pick('List the top 3 programming languages / platforms that you are most proficient in as well as your length of experience with each')?.topic !== 'languages-technologies-list', 'the with-years variant is not claimed by the plain list topic');
+assert(pick('Are you willing to work in the office 5-days a week?')?.choose === 'yes', 'willing to work in the office 5 days a week -> Yes');
+
+// Packaged documents are resolved by name pattern, not a hardcoded filename.
+const backgroundSource = fs.readFileSync(path.join(__dirname, '..', 'eve', 'background.js'), 'utf8');
+assert(/ARTIFACT_NAME_RE/.test(backgroundSource), 'artifacts are matched by filename pattern (resume / letter)');
+assert(/if \(!CONFIGURED_ARTIFACTS\) await loadLocalProfile\(\)/.test(backgroundSource), 'a restarted service worker re-reads the profile before serving an artifact');
+assert(/artifactCandidates/.test(backgroundSource), 'several candidate paths are tried before giving up');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);
 assert(dupes.length === 0, `no duplicate topics (${topics.length} gh topics)${dupes.length ? ' dupes=' + dupes : ''}`);
 assert(BANK.every(e => Array.isArray(e.patterns) && e.patterns.length), 'every entry has patterns');
-assert(BANK.every(e => e.choose || e.text != null || e.optionMatch || e.optionCandidates || e.checkAll || e.check || e.profileKey), 'every entry has an answer (choose/text/optionMatch/optionCandidates/checkAll/check/profileKey)');
+assert(BANK.every(e => e.choose || e.text != null || e.optionMatch || e.optionCandidates || e.checkAll || e.check || e.profileKey || e.optionMatchAll), 'every entry has an answer (choose/text/optionMatch/optionCandidates/optionMatchAll/checkAll/check/profileKey)');
 
 console.log(`\nTOTAL ${pass}/${pass + fail} assertions passed${fail ? ` — ${fail} FAILURES` : ''}`);
 process.exit(fail ? 1 : 0);

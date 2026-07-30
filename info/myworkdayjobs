@@ -2920,3 +2920,44 @@ review-module: "Review your application" — Eve verified completeness and HELD 
   success/i` and `/thanks for (sending|submitting)/i` to submissionConfirmed() in greenhouse.js.
   The Applied Jobs log entry for this one submission was backfilled manually since the missed
   detection also skipped the automatic recordGhApplication() call.
+
+[SEEN QUESTIONS LOG] — 2026-07-28 | Plaid (jobs.ashbyhq.com) Software Engineer, Full Stack, ecc50d24-e303-480d-85d7-3041c1508cfe
+- "Current/Last Company" (text) -> J.P. Morgan Chase & Co. [identity profile field; regex
+  generalized to also match the "Current/Last Company" slash shorthand]
+- "Why are you interested in working at Plaid? Select all that apply." (Plaid's Mission / Passion
+  for Fintech Industry / Plaid's Products & Technical Innovation / Ability to Use and Build AI
+  Products / Company Culture) -> ticked "Passion for Fintech Industry" + "Plaid's Products &
+  Technical Innovation" + "Ability to Use and Build AI Products" [employer-interest-reasons; NEW
+  topic, NEW `optionMatchAll` engine capability — ticks every option matching any of a small regex
+  set, distinct from `checkAll` (tick literally everything); left "Mission"/"Culture" unticked as
+  too generic/unverifiable to genuinely claim]
+- "Based on your current impression, how would you rate Plaid's position in AI compared to other
+  tech companies?" (1-4 rating + "N/A - Not enough information on Plaid's AI work to say") ->
+  N/A [ai-position-opinion-survey; NEW topic — always decline to rate a specific company's
+  competitive position, honest for any employer, never a fabricated opinion]
+- "How much time do you spend on frontend development?" (< 40% / 40%-60% / 60%-80% / 80%-100%,
+  posting also says "if under 40%, explore Backend Engineering instead") -> < 40%
+  [frontend-time-percentage; NEW topic — reasoned honestly from the CV's backend-heavy weighting
+  (AWS pipelines, Spring Boot services, Terraform IaC vs. one React admin-portal line item), not
+  gamed toward what the posting hints looks better]
+- "Will you now or in the future require Plaid to provide immigration-related support or
+  sponsorship in order to employ you?" (Yes/No) -> Yes [sponsorship; regex gap widened 30->80 chars
+  — the company name + "provide immigration-related support or" sat between "require" and
+  "sponsorship"]
+- "...able to come into the office to work at least 2x's a week..." (Yes/No) -> Yes
+  [office-attendance-requirement; regex generalized to also match "Nx's a week", not just
+  "days"/"times per week"]
+- "Are you comfortable being evaluated on front-end engineering skills as part of the interview
+  process?" (Yes/No) -> Yes [frontend-interview-comfort; NEW topic]
+- "Preferred Work Location — Select all that apply" (San Francisco HQ / New York City Office /
+  Seattle Office) -> all three ticked [preferred-work-location; NEW topic, checkAll — same
+  "always willing to relocate" standing rule]
+- Education History (Ashby systemfield repeater: School typeahead combo + Degree/Field-of-Study
+  plain-text inputs + 4 native month/year <select>s + "+ Add Education" button for more entries) ->
+  filled BOTH entries by GH_EDUCATION index: #1 University at Buffalo - SUNY, Master of Science,
+  Computer Science, Jan 2020 - Feb 2022; #2 (via "+ Add Education") Beijing International Studies
+  University search, Bachelor of Arts, English Literature, Sep 2010 - Jul 2014 — same open caveat
+  as MyGreenhouse: Beijing is not in every board's school-search database, so entry #2's School
+  field may stay unfilled/reported on some tenants; Degree/Field/dates still fill regardless
+  [NEW `fillAshbyEducationEntries()` engine, ASHBY_EDUCATION_DETAIL for degree+dates, reuses the
+  shared GH_EDUCATION school/discipline search terms from the MyGreenhouse work].
