@@ -129,6 +129,9 @@
         currentCompany: "Your Current Employer",
         currentTitle: "Your Current Title",
     });
+    function initialsFrom(name) {
+        return String(name || '').split(/[s.-]+/).filter(Boolean).map(part => part[0].toUpperCase()).join('');
+    }
     let GH_PROFILE = { ...GH_PROFILE_DEFAULTS };
     async function loadRuntimeProfile() {
         try {
@@ -136,6 +139,9 @@
             const identity = stored && stored.eveProfile;
             if (identity && typeof identity === 'object') GH_PROFILE = { ...GH_PROFILE_DEFAULTS, ...identity };
         } catch { /* no stored profile — placeholders stand */ }
+        // Initials for 'by initialing below' certifications, derived from whatever name this
+        // installation configured (user, 2026-07-28) — never a literal in source.
+        GH_PROFILE.initials = initialsFrom(GH_PROFILE.fullName || `${GH_PROFILE.firstName || ''} ${GH_PROFILE.lastName || ''}`);
         // Label-driven fields capture profile values, so rebuild them from whatever is current.
         GH_PROFILE_FIELDS = buildGH_PROFILE_FIELDS();
         return GH_PROFILE;
@@ -152,7 +158,10 @@
         // ISA board: returns ["SUNY Buffalo State", "University at Buffalo - SUNY"] — a DIFFERENT,
         // wrong SUNY campus sorts first). "University at Buffalo" returns exactly the right one.
         Object.freeze({ schoolSearch: 'University at Buffalo', school: 'State University of New York at Buffalo', disciplineSearch: 'Computer', discipline: 'Computer Science' }),
-        Object.freeze({ schoolSearch: 'Beijing International', school: 'Beijing International Studies University', disciplineSearch: 'English', discipline: 'English Literature' })
+        // Second entry: search "other" and take the tenant's own Other option (user, 2026-07-28).
+        // The real undergrad name is not in these school lists and searching it surfaces unrelated
+        // near-matches, so `schoolOther` switches this entry to the Other option instead.
+        Object.freeze({ schoolSearch: 'other', schoolOther: true, school: 'Beijing International Studies University', disciplineSearch: 'English', discipline: 'English Literature' })
     ]);
 
     // Label-driven identity fields (plain text inputs). First matching entry wins; a field that
@@ -232,11 +241,31 @@
                 /^state$/i,
                 /^state\/province$/i,
                 /what u\.?s\.? state do you currently reside in/i,
-                /current state of residence/i
+                /current state of residence/i,
+                // "Which U.S. State or Canadian Province do you reside in?" (user, 2026-07-28).
+                /which (u\.?s\.? )?state( or [a-z ]+province)? do you (currently )?reside/i,
+                /state (or province )?(of residence|you reside in)/i
             ],
+            // A question that names the CITY as well wants the combined "Dallas, TX" text answer
+            // (topic current-location-text), so it is excluded here.
+            exclude: /\bcity\b/i,
             optionMatch: /^\s*texas\s*$/i,
             optionLabel: 'Texas',
+            // Searchable versions of this list filter as you type.
+            search: 'texas',
             text: 'Texas'
+        },
+        {
+            // "By initialing below, you hereby agree…" certification/confidentiality blocks (user,
+            // 2026-07-28). The initials are DERIVED from this installation's own name (see
+            // initialsFrom), so it is correct for whoever installed Eve rather than a literal.
+            topic: 'initials',
+            patterns: [
+                /\binitials\b/i,
+                /by initial(ing|ling)? (below|here)/i,
+                /(please |type |enter )initial(s)?\b/i
+            ],
+            profileKey: 'initials'
         },
         {
             // GPA (user, 2026-07-27): 3.65, but "only fill when required" — `requiredOnly` means the
@@ -562,6 +591,14 @@
                 /(do you currently|have you)[\s\S]{0,40}work(ed)? (at|for)/i
             ],
             exclude: /authoriz|right to work|current (company|employer|title)|how many years|years of professional experience/i,
+            // Long-form options ("I have not previously been employed at <Company>") never start
+            // with the word No, so the plain negative predicate could not see them (user, 2026-07-28).
+            optionCandidates: [
+                /never (worked|been employed)/i,
+                /^i have not (previously )?been employed/i,
+                /have not (previously )?(been )?(employed|worked)/i,
+                /^\s*no\b/i
+            ],
             choose: 'no',
             optionMatch: /^\s*(no\b|i have never worked)/i,
             optionLabel: 'No / never worked'
@@ -988,8 +1025,8 @@
             // -> LinkedIn; on a dropdown, prefer a LinkedIn option.
             topic: 'how-heard',
             patterns: [
-                /how did you (hear|learn) about/i,
-                /where did you (hear|learn) about/i,
+                /how did you (first |initially )?(hear|learn) about/i,
+                /where did you (first |initially )?(hear|learn) about/i,
                 // "How did you find us?" (user, 2026-07-27) — same question, different verb.
                 /how did you (find|discover|come across) (us|this (role|job|position|opening))/i,
                 /where did you (find|see) (this|the) (role|job|position|opening)/i
@@ -1208,6 +1245,10 @@
                 // "What AI tools are you currently using today and how are you using them?" (user,
                 // 2026-07-27) — the same question, asked as what + how.
                 /what ai tools[\s\S]{0,60}(using|use)/i,
+                // "How are you using AI today?" (user, 2026-07-28) — present continuous, which the
+                // "how do you use" pattern above does not reach.
+                /how are you using (ai|artificial intelligence|ai tools)/i,
+                /how (do|are) you (use|using)[\s\S]{0,25}\bai\b/i,
                 /which ai (tools|assistants)[\s\S]{0,40}(do you )?use/i
             ],
             text: "I use Claude, Codex, and GitHub Copilot extensively in both my professional and personal work. At work, I use Copilot's agent mode in VS Code to refine business requirements, turn them into stories and specifications, and generate implementation code. One especially helpful use is having AI agents operate integration tests as if I were testing the workflows myself, which saves me substantial time while still letting me review the results. Outside work, I use Claude Code and Codex to build and enhance personal projects, automate my own workflows, study topics in depth, and develop career, exercise, and nutrition plans that I keep feeding updates into so the model can analyse my progress and propose the next actions."
@@ -2556,7 +2597,12 @@
                         processed.add(shell);
                         if (shellValue(shell)) continue;
                         const edu = GH_EDUCATION[index];
-                        const result = await selectShellOption(shell, null, edu.schoolSearch, 'School');
+                        // `schoolOther` entries take the list's own "Other" option, matched exactly so a
+                        // school whose name merely contains the word can never win.
+                        const schoolPicker = edu.schoolOther
+                            ? texts => texts.findIndex(text => /^(other|other \(not listed\)|school not listed|not listed)$/i.test(text.trim()))
+                            : null;
+                        const result = await selectShellOption(shell, schoolPicker, edu.schoolSearch, 'School');
                         if (result.ok) filled.push(`School → ${result.value}`);
                         else failures.push(result.message);
                     }

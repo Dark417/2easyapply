@@ -1547,6 +1547,31 @@ still gets its own shorter answer. Patterns:
 - ai experience
 - what is your experience with (ai|artificial intelligence)
 
+## [Initials] (topic: initials -> derived from the profile name)
+
+"By initialing below, you hereby agree…" certification/confidentiality blocks want INITIALS.
+The answer is derived from the configured full name (Xiaoxiao Lei -> XL), never stored as a
+literal, so it stays correct for any installation. Guarded so "initial impression" / "initial
+30-day plan" questions are not treated as initials fields.
+
+## [PriorEmployment] long-form options
+
+"Have you previously been employed at <Company> for any length of time?" often offers full
+sentences rather than Yes/No. Ordered candidates: a never-worked option first, then "I have not
+previously been employed…", then a plain No.
+
+## [State] searchable list
+
+"Which U.S. State or Canadian Province do you reside in?" -> Texas, typing "texas" for the
+searchable version. A question that names the CITY as well is excluded here and answered with the
+combined "Dallas, TX" text instead.
+
+## [Education] gh/ash second entry
+
+On Greenhouse and Ashby the SECOND education entry always searches "other" and takes the list's
+own Other option (exact match), never the real undergrad name (user, 2026-07-28) - same rule as
+Workday.
+
 ## [GPA] (topic: gpa, requiredOnly)
 
 GPA = 3.65, but ONLY filled when the control is actually required (user, 2026-07-27). An optional

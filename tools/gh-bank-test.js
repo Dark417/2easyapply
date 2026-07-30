@@ -908,6 +908,26 @@ assert(pick(GPA).text === '3.65', 'GPA -> 3.65');
 assert(pick(GPA).requiredOnly === true, 'GPA is only filled when the field is required');
 assert(/entry\.requiredOnly && !isRequiredInput\(input\)/.test(src), 'greenhouse.js skips requiredOnly answers on optional fields');
 
+console.log('\n=== Affirm/Greenhouse round (2026-07-28) ===');
+const STATE_PROVINCE = 'Which U.S. State or Canadian Province do you reside in?';
+routes(STATE_PROVINCE, 'state');
+assert(optPick('state', ['Alabama', 'Texas', 'Ontario']) === 'Texas', 'state list -> Texas');
+assert(pick(STATE_PROVINCE).search === 'texas', 'the searchable state list types "texas"');
+// A question naming the city as well still wants the combined city+state answer.
+routes('What is your current city and state of residence?', 'current-location-text');
+
+routes('How did you first learn about Affirm as an employer?', 'how-heard');
+
+const PRIOR_LONGFORM = 'Have you previously been employed at Affirm for any length of time?';
+routes(PRIOR_LONGFORM, 'prior-employment');
+assert(optPick('prior-employment', ['I have previously been employed at Affirm', 'I have not previously been employed at Affirm']) === 'I have not previously been employed at Affirm', 'long-form prior-employment option -> the have-not option');
+assert(optPick('prior-employment', ['I have never worked for SpaceX, xAI, X, or Twitter', 'I currently work for xAI']) === 'I have never worked for SpaceX, xAI, X, or Twitter', 'the never-worked option still wins where both exist');
+
+// Second education entry takes the list's own Other option, never the real undergrad name.
+assert(/schoolOther: true/.test(src), 'the second education entry is flagged to use Other');
+assert(/schoolSearch: 'other'/.test(src), 'the second education entry searches "other"');
+assert(!/schoolSearch: 'Beijing International'/.test(src), 'the undergrad name is no longer searched');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);

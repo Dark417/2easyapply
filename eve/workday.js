@@ -877,6 +877,14 @@
                 /worked (at|for)[\s\S]{0,50}independent[\s\S]{0,25}(auditor|accounting)/i
             ],
             exclude: /authoriz(ed|ation) to work|right to work|how many years|years of professional experience/i,
+            // Long-form options ("I have not previously been employed at <Company>") never start with
+            // the word No (user, 2026-07-28); the never-worked option still wins first.
+            optionCandidates: [
+                /never (worked|been employed)/i,
+                /^i have not (previously )?been employed/i,
+                /have not (previously )?(been )?(employed|worked)/i,
+                /^\s*no\b/i
+            ],
             choose: 'no'
         },
         {
@@ -3427,10 +3435,6 @@
                 // nothing in the chain matches, leave it for the typed-primary fallback below (which the
                 // chain's broad globs make rare). Still exclude "Partial List (First N Entries)" / "All".
                 const headers = /partial list|first\s*\d+\s*entries|^all$|^recent$|^suggested/i;
-        // schoolNotListed -> try the tenant's own "Other" option BEFORE the real name (user,
-        // 2026-07-27): for the undergrad entry the picker offers unrelated near-matches for the
-        // real name, and "Other" is both the honest answer and the one the user picks by hand.
-        if (education.schoolNotListed && await selectSchoolOther(input, name, context)) return;
                 const option = await waitForPrecedenceOption(candidates, 4000, context, { fallbackFirst: false, excludeRe: headers });
                 if (option) {
                     await clickPickerChoice(option, 'Selecting Field of Study', context);
@@ -3479,6 +3483,10 @@
             return;
         }
         const headers = /partial list|first\s*\d+\s*entries|^all$|^recent$|^suggested/i;
+        // schoolNotListed -> try the tenant's own "Other" option BEFORE searching the real name
+        // (user, 2026-07-27): for the undergrad entry the picker offers unrelated near-matches for
+        // the real name, and "Other" is both the honest answer and the one the user picks by hand.
+        if (education.schoolNotListed && await selectSchoolOther(input, name, context)) return;
         // Try the full name first, then progressively shorter stems — a long exact string often
         // returns nothing while a distinctive stem ("Buffalo") surfaces the real entry.
         const stems = [];
@@ -4738,7 +4746,10 @@
         if (!ARTIFACT_IDS.includes(artifactId)) throw new Error('Unsupported packaged document.');
         const response = await sendRuntimeMessage({ type: 'eve:get-workday-artifact', artifactId });
         const artifact = response.artifact || {};
-        if (artifact.name !== expected.name || artifact.type !== 'application/pdf' || Number(artifact.size) !== expected.size) {
+        // No hard-coded name/size to compare against any more (see the comment above): the install
+        // supplies both. Validate only what must be true for the upload to work — a filename and a
+        // PDF content type — then let the byte checks below do the real verification.
+        if (!clean(artifact.name) || artifact.type !== 'application/pdf') {
             throw new Error(`The packaged ${artifactId === 'coverLetter' ? 'cover letter' : 'resume'} metadata is invalid.`);
         }
         if (!artifact.dataBase64 || artifact.size <= 0 || artifact.size > MAX_RESUME_BYTES) {
