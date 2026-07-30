@@ -154,6 +154,25 @@
             optionLabel: 'Master’s Degree'
         },
         {
+            // "Do you live in one of the following states? Alabama, Alaska, Delaware, …" (user,
+            // 2026-07-28). Companies ask this because they are NOT set up to employ in those
+            // states — no payroll/tax registration there — so living in one is disqualifying.
+            // The applicant is in Texas, which is not on such lists, so the truthful answer is No.
+            //
+            // The `exclude` is the safety catch: if the listed states DO include the applicant's
+            // own state, this entry steps aside and the question is left for a human, because
+            // then the honest answer would be Yes. Update the state name here if the profile
+            // moves (it mirrors the profile's `state`).
+            topic: 'state-exclusion-list',
+            patterns: [
+                /do you (live|reside)[\s\S]{0,40}(in )?(one of |any of )?the following states/i,
+                /are you (located|based|living)[\s\S]{0,40}(one of |any of )?the following states/i,
+                /(live|reside) in any of these states/i
+            ],
+            exclude: /\btexas\b/i,
+            choose: 'no'
+        },
+        {
             topic: 'state',
             patterns: [
                 /^state$/i,
@@ -786,6 +805,22 @@
             text: 'Python, Java, TypeScript, SQL'
         },
         {
+            // "What is your Python expertise on a 1-5 scale (5 being expert)?" -> 5 (user,
+            // 2026-07-28). Deliberately scoped to a 1-5 scale: the answer is the TOP of that scale,
+            // and a 1-10 scale would need a different number, so it stays unanswered rather than
+            // being answered wrongly. The technology named is incidental.
+            topic: 'skill-self-rating-1-5',
+            patterns: [
+                /\b1\s*[-–to]{1,3}\s*5\s*scale/i,
+                /scale of 1\s*(to|-|–)\s*5/i,
+                /on a 1\s*[-–]\s*5/i,
+                /\(5 being (an )?expert\)/i
+            ],
+            optionCandidates: [/^\s*5\b/, /\bexpert\b/i],
+            optionLabel: '5',
+            text: '5'
+        },
+        {
             topic: 'banking-bfsi-experience',
             patterns: [
                 /banking\s*\/?\s*bfsi[\s\S]{0,30}(domain )?experience/i,
@@ -866,6 +901,11 @@
                 // option lists.
                 /\d+\s*(\+|or more)?\s*days?\s*(a|per)\s*week/i,
                 /\d+\s*x'?s?\s*(a|per)\s*week/i,
+                // …and the remaining cadence spellings: "2-3x a week", "3 times a week", "twice a
+                // week" (user, 2026-07-28: anything saying "… a week" is an attendance commitment).
+                /\d+\s*[-–]\s*\d+\s*x'?s?\s*(a|per)\s*week/i,
+                /\d+\s*times?\s*(a|per)\s*week/i,
+                /(once|twice|thrice)\s*(a|per)\s*week/i,
                 // "Do you live within commuting distance to one of our hubs (NY, SF, DC, BOS or
                 // London)?" (user, 2026-07-27) — the hub list is incidental, so match the shape:
                 // living within commuting distance of a hub/office/location.
@@ -1479,6 +1519,18 @@
                 /^\s*(decline|prefer not|i (do not|don'?t) wish)/i
             ],
             optionLabel: 'He / Him / His'
+        },
+        {
+            // STANDING RULE (user, 2026-07-28): "Do you have experience …?" is always YES,
+            // whatever technology or practice follows. Deliberately ordered AFTER the specific
+            // experience topics above so they keep their own tailored answers, and excluded from
+            // the "how many years" / years-band questions, which need a number rather than Yes.
+            topic: 'has-experience-generic',
+            patterns: [
+                /do you have (any |prior |previous |professional |hands[- ]on )?experience/i
+            ],
+            exclude: /how many years|years of (relevant|professional)|please (describe|explain|list)|which of the following/i,
+            choose: 'yes'
         },
         // ── EEO / voluntary self-identification (defaults per info/myworkdayjobs) ──
         // Option lists confirmed live on 6sense 2026-07-26.

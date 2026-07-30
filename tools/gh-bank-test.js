@@ -977,6 +977,35 @@ assert(optPick('disability', ['Yes', 'No', 'Prefer not to say']) === 'No', 'a pl
 assert(optPick('disability', ['Yes, I have a disability', 'No, I don\u2019t have a disability', 'I don\u2019t wish to answer']) === 'No, I don\u2019t have a disability', 'a typographic apostrophe still matches the have-not option');
 assert(!/wish to answer|prefer not/i.test(optPick('disability', ['I don\u2019t wish to answer', 'No, I don\u2019t have a disability'])), 'the disability answer never declines');
 
+console.log('\n=== Self-rating scale and weekly-cadence spellings (2026-07-28) ===');
+const PY_SCALE = 'What is your Python expertise on a 1-5 scale (5 being expert)?';
+routes(PY_SCALE, 'skill-self-rating-1-5');
+assert(pick(PY_SCALE).text === '5', 'a 1-5 self rating answers 5');
+assert(optPick('skill-self-rating-1-5', ['1', '2', '3', '4', '5']) === '5', 'the numeric list picks 5');
+assert(optPick('skill-self-rating-1-5', ['1 - Beginner', '3 - Intermediate', '5 - Expert']) === '5 - Expert', 'a labelled list picks the expert end');
+assert(pick('Rate your Python skill on a scale of 1 to 10') === null, 'a 1-10 scale is left unanswered rather than answered with the wrong number');
+
+// Every weekly-cadence spelling is an attendance commitment -> Yes.
+for (const q of ['Are you able to work out of our San Jose, CA office 2-3x a week?', 'Are you able to be in office 3 times a week?', 'Can you come to the office twice a week?', 'Can you commit to 3 days a week?']) {
+  assert(pick(q) && pick(q).choose === 'yes', `weekly cadence -> Yes: ${q.slice(0, 46)}`);
+}
+
+console.log('\n=== Generic experience rule, state-exclusion list, single-option radios (2026-07-28) ===');
+routes('Do you have experience implementing access control models (like OAuth)', 'has-experience-generic');
+assert(pick('Do you have experience with Kubernetes?').choose === 'yes', 'a generic experience question -> Yes');
+// The catch-all must never override a specific experience topic with its own answer.
+routes('Do you have any experience building software in the supply-chain or logistics space?', 'supply-chain-logistics-experience');
+routes('Do you have experience with Java and Spring Boot?', 'experience-java-spring');
+routes('How many years of experience do you have with Python?', 'years-of-relevant-experience');
+
+// Companies list states they are not registered to employ in, so living there disqualifies.
+const STATE_LIST = 'Do you live in one of the following states? Alabama, Alaska, Delaware, Kansas, Maine, Mississippi, Montana, Nebraska, New Mexico, North Dakota, South Dakota, West Virginia, or Wyoming.';
+routes(STATE_LIST, 'state-exclusion-list');
+assert(pick(STATE_LIST).choose === 'no', 'the applicant does not live in any of those states -> No');
+assert(pick('Do you live in one of the following states? California, Texas, New York') === null, 'when the list DOES include the home state the question is left for a human, not answered No');
+
+assert(/a radio group offering exactly ONE real/.test(src), 'a single-option radio group is selected outright');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);
