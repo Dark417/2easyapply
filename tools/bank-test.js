@@ -593,7 +593,10 @@ assert(pick('Do you have the unrestricted right to work in the United States?')?
 
 // Pair 4: hybrid ROLE (no "office" word) with a weekly cadence -> Yes, via relocation-consider.
 const HYBRID_ROLE_Q = 'This hybrid role involves being in San Carlos, CA, 3 days per week. Please mark Yes that you read, understand, and are able to do this.';
-routes(HYBRID_ROLE_Q, 'relocation-consider');
+// Either affirmative office topic is fine here - what matters is the answer, and the standing
+// "N days a week -> Yes" rule now claims this wording first.
+assert(['office-attendance-requirement', 'relocation-consider'].includes(pick(HYBRID_ROLE_Q)?.topic), 'hybrid weekly-cadence question is owned by an affirmative office topic');
+assert(pick(HYBRID_ROLE_Q)?.choose === 'yes', 'hybrid weekly-cadence question -> Yes');
 assert(pick(HYBRID_ROLE_Q).choose === 'yes', 'hybrid-role weekly-cadence attestation -> Yes');
 
 // Pair 5: startup experience -> Yes; must never fall into prior-employment's "have you worked at" No.

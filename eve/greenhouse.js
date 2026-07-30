@@ -128,6 +128,10 @@
         github: "https://github.com/your-handle",
         currentCompany: "Your Current Employer",
         currentTitle: "Your Current Title",
+        school: "Your University",
+        graduationDate: "01/01/2020",
+        graduationYear: "2020",
+        gpa: "3.50",
     });
     function initialsFrom(name) {
         return String(name || '').split(/[s.-]+/).filter(Boolean).map(part => part[0].toUpperCase()).join('');
@@ -200,9 +204,9 @@
         { label: /current (job )?title|^title$/i, value: GH_PROFILE.currentTitle },
         // Education identity fields (Ashby screenshot 2026-07-27). The school name is the form the
         // user fills on these boards; the grad date is the Buffalo MS completion (Feb 2022).
-        { label: /^school\b|^university\b|^college\b|(most recent|current) (school|university)|education institution/i, value: 'University at Buffalo' },
-        { label: /^graduation date|graduation \(date|date of graduation/i, value: '02/01/2022' },
-        { label: /^graduation year|year of graduation/i, value: '2022' },
+        { label: /^school\b|^university\b|^college\b|(most recent|current) (school|university)|education institution/i, value: GH_PROFILE.school },
+        { label: /^graduation date|graduation \(date|date of graduation/i, value: GH_PROFILE.graduationDate },
+        { label: /^graduation year|year of graduation/i, value: GH_PROFILE.graduationYear },
         { label: /location \(city|your location|^city\b/i, value: `${GH_PROFILE.city}, TX` },
         { label: /^address$/i, value: GH_PROFILE.mailingAddress },
         { label: /^state\b|province/i, value: GH_PROFILE.state },
@@ -280,6 +284,17 @@
             ],
             requiredOnly: true,
             text: '3.65'
+        },
+        {
+            // "Where did you go for college?" (user, 2026-07-28) — a question rather than a short
+            // field label, so it needs a bank topic; the answer is this installation's own school.
+            topic: 'school-attended',
+            patterns: [
+                /where did you (go|attend)[\s\S]{0,20}(for )?(college|university|school)/i,
+                /(which|what) (college|university|school) did you attend/i,
+                /name of (the )?(college|university|school) you attended/i
+            ],
+            profileKey: 'school'
         },
         {
             topic: 'mailing-address',
@@ -621,7 +636,12 @@
             patterns: [
                 /non-?disclosure or non-?compete agreement/i,
                 /agreement[\s\S]{0,100}(restrict|prevent)[\s\S]{0,60}working/i,
-                /restrictive covenant/i
+                /restrictive covenant/i,
+                // "…subject to any agreement with a former employer/third party (such as a
+                // non-solicitation or non-compete agreement)…" (user, 2026-07-28).
+                /non-?solicitation/i,
+                /subject to any agreement/i,
+                /agreement with a (former employer|third party)/i
             ],
             choose: 'no'
         },
@@ -927,6 +947,13 @@
                 /if you are (based|located) in[\s\S]{0,80}(able to|can you)[\s\S]{0,40}(commute|work|come)/i,
                 /able to commute to the office/i,
                 /commut(e|ing) to/i,
+                // STANDING RULE (user, 2026-07-28): any question mentioning "N days a week" is an
+                // attendance commitment and is answered YES, whatever the surrounding wording. This
+                // is the catch-all behind the specific office-attendance phrasings; it lives here
+                // because this topic also handles "I can work N days a week in the <city> office"
+                // option lists.
+                /\d+\s*(\+|or more)?\s*days?\s*(a|per)\s*week/i,
+                /\d+\s*x'?s?\s*(a|per)\s*week/i,
                 // "Do you live within commuting distance to one of our hubs (NY, SF, DC, BOS or
                 // London)?" (user, 2026-07-27) — the hub list is incidental, so match the shape:
                 // living within commuting distance of a hub/office/location.
@@ -1553,9 +1580,14 @@
                 /how would you describe your gender identity/i,
                 /gender identity[\s\S]{0,40}mark all that apply/i,
                 /what is your gender identity/i,
-                /\bgender identity\b/i
+                /\bgender identity\b/i,
+                // "I identify my gender as:" and the bare "I identify as:" (user, 2026-07-28) —
+                // the latter offers Cisgender / Transgender rather than man / woman, hence the
+                // extra candidate below.
+                /^i identify (my gender )?as\b/i,
+                /identify my gender/i
             ],
-            optionCandidates: [/cisgender man/i, /^\s*man\s*$/i, /^\s*male\s*$/i],
+            optionCandidates: [/cisgender man/i, /^\s*man\s*$/i, /^\s*male\s*$/i, /^\s*cisgender\s*$/i],
             optionMatch: /^\s*man\s*$/i,
             optionLabel: 'Cisgender man'
         },
@@ -1659,8 +1691,14 @@
             topic: 'disability',
             patterns: [/disability/i, /consider yourself to have a disability/i, /disability status/i],
             optionCandidates: [
-                /no,?\s*i\s*don'?t\s*have\s*a\s*disability/i,
-                /^\s*no\b[\s\S]{0,20}(do not have a disability|not have)/i
+                // Real forms use a TYPOGRAPHIC apostrophe as often as an ASCII one ("I don’t have a
+                // disability"), so every contraction here accepts both (user-reported 2026-07-28).
+                /no,?\s*i\s*don['’]?t\s*have\s*a\s*disability/i,
+                /^\s*no\b[\s\S]{0,25}(do(es)?n['’]?t|do not) have a disability/i,
+                /^\s*no\b[\s\S]{0,20}(do not have a disability|not have)/i,
+                // "I have a disability: Yes / No" (user, 2026-07-28) — a plain negative, taken only
+                // after the long forms so a decline option can never win.
+                /^\s*no\s*$/i
             ],
             optionMatch: /^\s*no\b[\s\S]{0,20}(do not have a disability|not have)/i,
             optionLabel: "No, I don't have a disability",

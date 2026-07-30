@@ -426,6 +426,17 @@
             text: '3.65'
         },
         {
+            // "Where did you go for college?" (user, 2026-07-28) — a question rather than a short
+            // field label, so it needs a bank topic; the answer is this installation's own school.
+            topic: 'school-attended',
+            patterns: [
+                /where did you (go|attend)[\s\S]{0,20}(for )?(college|university|school)/i,
+                /(which|what) (college|university|school) did you attend/i,
+                /name of (the )?(college|university|school) you attended/i
+            ],
+            profileKey: 'school'
+        },
+        {
             topic: 'country-of-residence',
             patterns: [
                 /what is your country of residence/i,
@@ -1155,8 +1166,13 @@
                 // "Are you subject to any restrictive covenant or non-competition agreement that may
                 // affect your ability to work for Relativity?"
                 /subject to any[\s\S]{0,60}(restrictive covenant|non-?compet)/i,
-                /(non-?solicit|garden leave|notice restriction)[\s\S]{0,60}agreement/i
-            ],
+                /(non-?solicit|garden leave|notice restriction)[\s\S]{0,60}agreement/i,
+                // "…subject to any agreement with a former employer/third party (such as a
+                // non-solicitation or non-compete agreement)…" (user, 2026-07-28).
+                /non-?solicitation/i,
+                /subject to any agreement/i,
+                /agreement with a (former employer|third party)/i
+                        ],
             choose: 'no',
             // Same answer either way: a dropdown gets "No", a textarea gets "No." (user, 2026-07-27).
             text: 'No.'
@@ -1739,7 +1755,11 @@
                 // Combined location+schedule question (user, 2026-07-28), mirrored from greenhouse.js.
                 /based onsite at[sS]{0,80}office/i,
                 /d+s*[-–]s*d+ days per week/i,
-                /open to (this|the) schedule/i
+                /open to (this|the) schedule/i,
+                // STANDING RULE (user, 2026-07-28): any "N days a week" question is an attendance
+                // commitment and is always answered YES, mirrored from greenhouse.js.
+                /\d+\s*(\+|or more)?\s*days?\s*(a|per)\s*week/i,
+                /\d+\s*x'?s?\s*(a|per)\s*week/i
                         ],
             // A "which office do you PREFER / preferred work location" question is a location CHOICE,
             // not an ability question (user, 2026-07-28) - relocation-locations-all owns it.
@@ -1838,7 +1858,7 @@
         // "What is your gender identity?" (user, 2026-07-27, mirrored from greenhouse.js) widened the
         // pattern beyond the "how would you describe…"/"mark all that apply" checklist phrasing.
         // optionCandidates prefers "Cisgender man" when offered, else the original "Man" match.
-        { topic: 'gender-identity', patterns: [/how would you describe your gender identity/i, /gender identity[\s\S]{0,40}mark all that apply/i, /what is your gender identity/i, /\bgender identity\b/i], optionCandidates: [/cisgender man/i, /^\s*man\s*$/i, /^\s*male\s*$/i], optionMatch: /^\s*man\s*$/i, label: 'Cisgender man' },
+        { topic: 'gender-identity', patterns: [/how would you describe your gender identity/i, /gender identity[\s\S]{0,40}mark all that apply/i, /what is your gender identity/i, /\bgender identity\b/i], optionCandidates: [/cisgender man/i, /^\s*man\s*$/i, /^\s*male\s*$/i, /^\s*cisgender\s*$/i], optionMatch: /^\s*man\s*$/i, label: 'Cisgender man' },
         { topic: 'racial-ethnic-background', patterns: [/how would you describe your racial\/?ethnic background/i, /racial or ethnic background[\s\S]{0,40}mark all that apply/i], optionMatch: /^\s*east[\s-]?asian\s*$/i, label: 'East Asian' },
         { topic: 'sexual-orientation', patterns: [/how would you describe your sexual orientation/i, /\bsexual orientation\b/i], optionMatch: /^\s*heterosexual\s*$/i, label: 'Heterosexual' },
         { topic: 'transgender', patterns: [/do you identify as transgender/i, /\btransgender\b/i], optionMatch: /^\s*no\b/i, label: 'No' },
@@ -1848,7 +1868,7 @@
         { topic: 'lgbtq-identity', patterns: [/lgbtq/i, /identify as (part of )?(the )?lgbtq/i, /part of the lgbtq\+? community/i], optionMatch: /^\s*no\b/i, label: 'No' },
         { topic: 'disability-major-life', patterns: [/disability or chronic condition[\s\S]{0,180}substantially limits/i, /substantially limits[\s\S]{0,100}major life activities/i], optionMatch: /^\s*no\b/i, label: 'No' },
         { topic: 'veteran-active-member', patterns: [/veteran or active member[\s\S]{0,60}(armed forces|military)/i, /active member of the united states armed forces/i], optionMatch: /^\s*no,\s*i am not a veteran or active member\b/i, label: 'No, I am not a veteran or active member' },
-        { topic: 'gender', patterns: [/what is your gender/i, /select your gender/i, /\bgender\b/i], optionMatch: /(^|[^a-z])(male|man)([^a-z]|$)/i, label: 'Male' },
+        { topic: 'gender', patterns: [/what is your gender/i, /select your gender/i, /\bgender\b/i, /^i identify (my gender )?as\b/i, /identify my gender/i], optionCandidates: [/cisgender man/i, /(^|[^a-z])(male|man)([^a-z]|$)/i, /^\s*cisgender\s*$/i], optionMatch: /(^|[^a-z])(male|man)([^a-z]|$)/i, label: 'Male' },
         // Race/ethnicity. Flat lists just offer "Asian" / "Asian (United States of America)", but
         // granular ones (Visa) split Asian into subgroups plus an "Asian - Not Listed" catch-all.
         // The applicant is a Chinese national, so prefer the specific subgroup where offered and use
@@ -1869,7 +1889,7 @@
                 /american indian or alaska native/i,
                 /native hawaiian or other pacific islander/i,
                 /two or more races/i,
-                /black or african american/i
+                /black or african american/i,
             ],
             exclude: /nationality|citizen/i,
             optionMatch: /\basian\b/i,
@@ -1921,10 +1941,12 @@
         // to the original guarded "no" match — never a decline-to-answer option.
         {
             topic: 'disability-selfid',
-            patterns: [/consider yourself to have a disability/i, /do you (have|consider)[\s\S]*disabilit/i, /disability status/i, /what is your disability status/i],
+            patterns: [/consider yourself to have a disability/i, /do you (have|consider)[\s\S]*disabilit/i, /disability status/i, /what is your disability status/i, /^i have a disability/i],
             exclude: /section 4212|veteran|protected/i,
             search: 'No',
-            optionCandidates: [/no,?\s*i\s*don'?t\s*have\s*a\s*disability/i, /(^|\W)no\b/i],
+            // Typographic apostrophes are as common as ASCII ones (user, 2026-07-28), and a plain
+            // "I have a disability: Yes / No" list needs the bare negative as a last resort.
+            optionCandidates: [/no,?\s*i\s*don['’]?t\s*have\s*a\s*disability/i, /^\s*no\s*$/i, /(^|\W)no\b/i],
             optionMatch: /(^|\W)no\b/i,
             label: "No, I don't have a disability"
         }

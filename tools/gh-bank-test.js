@@ -963,6 +963,20 @@ assert(/ARTIFACT_NAME_RE/.test(backgroundSource), 'artifacts are matched by file
 assert(/if \(!CONFIGURED_ARTIFACTS\) await loadLocalProfile\(\)/.test(backgroundSource), 'a restarted service worker re-reads the profile before serving an artifact');
 assert(/artifactCandidates/.test(backgroundSource), 'several candidate paths are tried before giving up');
 
+console.log('\n=== College, restrictive agreements, self-ID phrasings (2026-07-28) ===');
+routes('Where did you go for college?', 'school-attended');
+assert(pick('Where did you go for college?').profileKey === 'school', 'the college answer comes from the profile');
+const NON_SOLICIT = 'Are you currently subject to any agreement with a former employer/third party (such as a non-solicitation or non-compete agreement) that may potentially limit your ability to perform the duties of the position you are applying for?';
+routes(NON_SOLICIT, 'restrictive-agreements');
+assert(pick(NON_SOLICIT).choose === 'no', 'non-solicitation / non-compete -> No');
+routes('I identify my gender as:', 'gender-identity');
+assert(optPick('gender-identity', ['Man', 'Woman', 'Non-binary', 'Prefer not to say']) === 'Man', 'gender identity -> Man');
+routes('I identify as:', 'gender-identity');
+assert(optPick('gender-identity', ['Cisgender', 'Transgender', 'Prefer not to say']) === 'Cisgender', 'a cisgender/transgender list -> Cisgender');
+assert(optPick('disability', ['Yes', 'No', 'Prefer not to say']) === 'No', 'a plain disability Yes/No list -> No');
+assert(optPick('disability', ['Yes, I have a disability', 'No, I don\u2019t have a disability', 'I don\u2019t wish to answer']) === 'No, I don\u2019t have a disability', 'a typographic apostrophe still matches the have-not option');
+assert(!/wish to answer|prefer not/i.test(optPick('disability', ['I don\u2019t wish to answer', 'No, I don\u2019t have a disability'])), 'the disability answer never declines');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);
