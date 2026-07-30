@@ -928,6 +928,20 @@ assert(/schoolOther: true/.test(src), 'the second education entry is flagged to 
 assert(/schoolSearch: 'other'/.test(src), 'the second education entry searches "other"');
 assert(!/schoolSearch: 'Beijing International'/.test(src), 'the undergrad name is no longer searched');
 
+console.log('\n=== Work-location choice: all when multi, precedence when single (2026-07-28) ===');
+routes('Preferred Work Location', 'relocation-locations-all');
+routes('Which office would you prefer to work from?', 'relocation-locations-all');
+assert(pick('Preferred Work Location').checkAll === true, 'a multi-select work-location question ticks every office');
+// Single-choice lists fall back to the reasoned precedence on the same entry.
+assert(optPick('relocation-locations-all', ['San Francisco HQ', 'New York City Office', 'Seattle Office']) === 'San Francisco HQ', 'single choice -> San Francisco first');
+assert(optPick('relocation-locations-all', ['New York City Office', 'Seattle Office']) === 'Seattle Office', 'single choice -> Seattle over New York');
+assert(optPick('relocation-locations-all', ['Open to relocating', 'San Francisco HQ']) === 'Open to relocating', 'an option committing to nothing geographic wins');
+assert(optPick('relocation-locations-all', ['Remote', 'San Francisco HQ']) === 'San Francisco HQ', 'Remote is a fallback, not a preference');
+assert(optPick('relocation-locations-all', ['Select...', 'Prefer not to say', 'London']) === 'London', 'a real option beats a placeholder or a decline');
+// Ability questions stay with the office-attendance affirmative.
+routes("Which of Harvey's offices would you be able to work from?", 'office-attendance-requirement');
+routes('Are you able to work from our Austin office 3 days/week?', 'office-attendance-requirement');
+
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);
 const dupes = topics.filter((t, i) => topics.indexOf(t) !== i);

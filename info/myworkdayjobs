@@ -1547,6 +1547,23 @@ still gets its own shorter answer. Patterns:
 - ai experience
 - what is your experience with (ai|artificial intelligence)
 
+## [WorkLocation-Choice] (topic: relocation-locations-all)
+
+Two shapes, one topic (user rule, 2026-07-28):
+- MULTI-SELECT ("Preferred Work Location - select all that apply") -> tick EVERY office. Ruling any
+  out only narrows the funnel; the applicant relocates anywhere.
+- SINGLE CHOICE -> ordered precedence, reasoned from the real position (lives in Dallas, open to
+  relocating, targets the Bay Area first):
+  1. an option committing to nothing geographic - open to relocating / anywhere / no preference /
+     flexible - honest for someone not yet living in any of the offices;
+  2. San Francisco / Bay Area / California;  3. Seattle;  4. New York;
+  5. the applicant own metro (Dallas / Texas) if offered;  6. Remote, as a fallback rather than a
+     preference, since the question usually gates an in-office role;  7. any remaining real option,
+     so a required field is never left blank. NEVER a decline or placeholder.
+
+A "which office would you PREFER" question is a location choice, not an ability question, and is
+excluded from the office-attendance affirmative.
+
 ## [Initials] (topic: initials -> derived from the profile name)
 
 "By initialing below, you hereby agree…" certification/confidentiality blocks want INITIALS.

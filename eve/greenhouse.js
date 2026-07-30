@@ -733,6 +733,10 @@
                 /\b(willing|able|comfortable|prepared|can you)\b[\s\S]{0,160}\b(office|on-?site)\b[\s\S]{0,100}\btimes? per week\b/i,
                 /work in person[\s\S]{0,60}office location[\s\S]{0,60}(times|days) per week/i
             ],
+            // A "which office do you PREFER / preferred work location" question is a location CHOICE,
+            // not an ability question — it belongs to relocation-locations-all, which picks a city
+            // (or ticks them all) instead of answering Yes (user, 2026-07-28).
+            exclude: /prefer(red)? (work )?location|location preference|which office[\s\S]{0,40}prefer/i,
             choose: 'yes',
             // The last two fallback candidates carry a negative lookahead for "based in" so a
             // plain-Yes-shaped option can NEVER be picked when it also asserts current residency in
@@ -921,14 +925,43 @@
             // (Ashby screenshot 2026-07-27: New York, NY + San Francisco, CA, both checked). The
             // applicant is open to relocating anywhere (standing rule), so every offered location is
             // checked — `checkAll` ticks the whole group instead of picking one option.
+            // Office / work-location choice (user rule, 2026-07-28). ONE topic covers both control
+            // shapes, because the answer differs by shape:
+            //   • multi-select ("Preferred Work Location — select all that apply", checkboxes)
+            //     -> `checkAll` ticks EVERY office. The applicant relocates anywhere, so ruling any
+            //     of them out only narrows the funnel.
+            //   • single choice -> the ordered precedence below, reasoned from the applicant's real
+            //     position: they live in Dallas, are open to relocating anywhere, and target the Bay
+            //     Area first, then Seattle, then New York.
+            //       1. an option that commits to NOTHING geographic — "open to relocating",
+            //          "anywhere", "no preference", "flexible" — it keeps every office in play and
+            //          is the honest answer for someone not yet living in any of them;
+            //       2. San Francisco / Bay Area / California — the primary target;
+            //       3. Seattle; 4. New York; 5. the applicant's OWN metro (Dallas/Texas) if offered,
+            //          which is at least true today; 6. Remote — a fallback, not a preference, since
+            //          this question is usually gating an in-office role; 7. any remaining real
+            //          option, so a required field is never left blank. Never a decline option.
             topic: 'relocation-locations-all',
             patterns: [
                 /indicate all of the locations/i,
                 /locations?[\s\S]{0,40}interested in relocating to/i,
                 /(which|what) locations?[\s\S]{0,40}(would you|are you)[\s\S]{0,30}(interested|willing|open)/i,
-                /select all[\s\S]{0,40}(locations|offices|cities)/i
+                /select all[\s\S]{0,40}(locations|offices|cities)/i,
+                /preferred (work )?location/i,
+                /(which|what) office[\s\S]{0,40}(would you|do you|are you)/i,
+                /location preference/i
             ],
-            checkAll: true
+            checkAll: true,
+            optionCandidates: [
+                /open to relocat|willing to relocat|anywhere|no preference|flexible|any (office|location)/i,
+                /san francisco|\bsf\b|bay area|california|\bca\b(?![a-z])/i,
+                /seattle|\bwa\b(?![a-z])/i,
+                /new york|\bnyc\b|\bny\b(?![a-z])/i,
+                /dallas|austin|texas|\btx\b(?![a-z])/i,
+                /remote/i,
+                /^(?!\s*(select|choose|prefer not|decline|none|n\/a)).+/i
+            ],
+            optionLabel: 'every office when multi-select; otherwise relocate/anywhere → SF → Seattle → NY'
         },
         {
             // "What's your english level?" as a CEFR list (screenshot 2026-07-27: C2: Proficient. /
