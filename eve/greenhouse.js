@@ -321,6 +321,20 @@
             profileKey: 'mailingAddress'   // resolved from the runtime profile
         },
         {
+            // "Are you currently located in the US?" — a plain Yes/No residency question (the
+            // applicant is in Dallas, TX). Ordered with the other location questions and kept
+            // away from the location autocomplete by isLocationFieldLabel().
+            topic: 'located-in-us',
+            // The combined "U.S. OR CANADA and/or authorized to work" question has its own entry.
+            exclude: /canada|authoriz/i,
+            patterns: [
+                /(are|is) (you|the candidate)[\s\S]{0,30}(located|based|residing|living|reside)[\s\S]{0,20}in( the)?\s*(u\.?s\.?a?|united states)\b/i,
+                /(currently )?(located|based|residing) in the (u\.?s\.?a?|united states)\b/i,
+                /are you (currently )?in the (u\.?s\.?a?|united states)\b/i
+            ],
+            choose: 'yes'
+        },
+        {
             topic: 'current-location-north-america',
             patterns: [
                 /are you currently located in north america/i,
@@ -2324,8 +2338,18 @@
                 };
             });
     }
+    // A label that OPENS with an interrogative is a question about location, not a location
+    // field to be autocompleted — "Are you currently located in the US?" must reach the question
+    // bank (which answers Yes), never the Dallas autocomplete (user-reported 2026-07-28).
+    const LOCATION_QUESTION_OPENER = /^\s*(are|is|was|were|do|does|did|can|could|will|would|have|has|had|must|should|may)\b/i;
+    function isLocationFieldLabel(label) {
+        const text = String(label || '').trim();
+        if (!text) return false;
+        if (LOCATION_QUESTION_OPENER.test(text)) return false;
+        return /(location|located|city|reside|live)/i.test(text);
+    }
     function isLocationCombo(item) {
-        return /_systemfield_location/.test(item.path) || /(location|located|city|reside|live)/i.test(item.label);
+        return /_systemfield_location/.test(item.path) || isLocationFieldLabel(item.label);
     }
     function typeaheadResults() {
         return [...document.querySelectorAll(
@@ -3012,7 +3036,7 @@
                     processed.add(shell);
                     const input = shellInput(shell);
                     const label = shellLabel(shell);
-                    if (/(location|located)/i.test(label)) {
+                    if (isLocationFieldLabel(label)) {
                         // Location autocomplete: type "Dallas", wait 0.5s, select the FIRST result
                         // (user override 2026-07-26 — Dallas everywhere). Checked BEFORE the
                         // generic "already selected" skip below: MyGreenhouse (gh-account) prefills

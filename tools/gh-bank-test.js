@@ -514,7 +514,9 @@ assert(/function clearInactiveRelationshipFollowUps\(/.test(src) && /input\[id\^
 assert(/if \(el\.closest\('\.select-shell'\)\) continue/.test(src), 'react-select hidden required sentinels are excluded from generic completeness');
 assert(/&& !el\.closest\('\.select-shell'\)/.test(src), 'react-select hidden required sentinels are excluded from the text-fill scan');
 assert(/function shellOpen\(/.test(src) && /aria-expanded'\) !== 'true'/.test(src), 'react-select menu open is idempotent');
-assert(/if \(\/\(location\|located\)\/i\.test\(label\)\)/.test(src), '"Where are you currently located?" uses the Dallas autocomplete path');
+assert(/function isLocationFieldLabel\(/.test(src), 'a location FIELD is told apart from a location QUESTION before the Dallas autocomplete runs');
+assert(/if \(isLocationFieldLabel\(label\)\)/.test(src), 'the react-select location branch uses that guard');
+assert(/LOCATION_QUESTION_OPENER/.test(src), 'a label opening with are/do/is is never treated as a location field');
 assert(/\^name\$\/i\.test\(label\) && \/\^question_\/i\.test\(input\.id\)/.test(src), 'custom question_* field labelled Name is not treated as the applicant system name');
 assert(/function checkboxGroups\(/.test(src) && /function checkboxGroupLabel\(/.test(src), 'checkboxes are grouped by question');
 assert(/\.ashby-application-form-field-entry, \[class\*="fieldEntry"\]/.test(src) && /const key = question \|\| box\.name \|\| box/.test(src), 'Ashby checkbox options group by their enclosing question before input name');

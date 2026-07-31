@@ -398,6 +398,20 @@
             choose: 'yes'
         },
         {
+            // "Are you currently located in the US?" — a plain Yes/No residency question (the
+            // applicant is in Dallas, TX). Ordered with the other location questions and kept
+            // away from the location autocomplete by isLocationFieldLabel().
+            topic: 'located-in-us',
+            // The combined "U.S. OR CANADA and/or authorized to work" question has its own entry.
+            exclude: /canada|authoriz/i,
+            patterns: [
+                /(are|is) (you|the candidate)[\s\S]{0,30}(located|based|residing|living|reside)[\s\S]{0,20}in( the)?\s*(u\.?s\.?a?|united states)\b/i,
+                /(currently )?(located|based|residing) in the (u\.?s\.?a?|united states)\b/i,
+                /are you (currently )?in the (u\.?s\.?a?|united states)\b/i
+            ],
+            choose: 'yes'
+        },
+        {
             topic: 'current-location-north-america',
             patterns: [
                 /are you currently located in north america/i,
