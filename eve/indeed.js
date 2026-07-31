@@ -45,9 +45,10 @@
     // settle (none observed on Indeed yet; constant kept for parity with Workday/gh).
     const ACTION_DELAY_MS = 0;
     const SEARCH_SETTLE_MS = 500;
-    // Per-selection pacing (user, 2026-07-27, shared with the gh/Ashby engine): each SINGLE
-    // selection (dropdown option, radio, checkbox) gets 0.5s to commit before the next control.
-    const SELECTION_SETTLE_MS = 500;
+    // Per-selection pacing (user, 2026-07-27, shortened to 0.3s 2026-07-28; shared with the
+    // gh/Ashby engine): each SINGLE selection (dropdown option, radio, checkbox) gets this long to
+    // commit before the next control is touched.
+    const SELECTION_SETTLE_MS = 300;
     const MAX_AUTO_STEPS = 30;
     // Submit-on-complete (user-approved 2026-07-27, like the gh rule): when the review step is
     // reached and EVERY required field is verified filled, Eve clicks Submit once and waits for
@@ -561,7 +562,9 @@
                 /(prior|former|current) employee of/i,
                 /previously (been )?employed/i,
                 /employment history/i,
-                /(do you currently|have you)[\s\S]{0,40}work(ed)? (at|for)/i
+                /(do you currently|have you)[\s\S]{0,40}work(ed)? (at|for)/i,
+                /(currently )?contract(ing|ed) (at|for|with)\b/i,
+                /are you (currently )?(a |an )?(contractor|consultant) (at|for|with)\b/i
             ],
             exclude: /authoriz|right to work|current (company|employer|title)|how many years|years of professional experience/i,
             // Long-form options ("I have not previously been employed at <Company>") never start
@@ -1772,7 +1775,16 @@
         },
         // US sanctions / export-control screen (xAI/Databricks style) — Chinese national in the US
         // on H-1B: for the Yes/No variant the answer is No.
-        { topic: 'export-control-restricted-country', patterns: [/(citizen|national|resident) of (cuba|iran|north korea|syria)/i, /sanctions and export controls/i], choose: 'no' },
+        {
+            topic: 'export-control-restricted-country',
+            patterns: [
+                /(citizen|national|resident)[\s\S]{0,140}(cuba|iran|north korea|syria)/i,
+                /(citizen|national|resident)[\s\S]{0,140}(north korea|iran|syria|cuba)[\s\S]{0,180}(crimea|donetsk|luhansk)/i,
+                /(crimea|donetsk|luhansk)[\s\S]{0,180}(citizen|national|resident)/i,
+                /sanctions and export controls/i
+            ],
+            choose: 'no'
+        },
         {
             topic: 'age-minimum',
             patterns: [

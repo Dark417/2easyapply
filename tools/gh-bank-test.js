@@ -70,6 +70,14 @@ routes(AGE_MAJORITY_CONTRACT, 'age-minimum');
 assert(pick(AGE_MAJORITY_CONTRACT).choose === 'yes', 'age of majority + right to contract -> Yes');
 routes('Are you at least 18 years of age?', 'age-minimum');
 assert(pick('Are you at least 18 years of age?').choose === 'yes', 'ordinary minimum-age wording remains Yes');
+const OMNISSA_CONTRACTOR = 'Are you currently contracting at Omnissa?';
+routes(OMNISSA_CONTRACTOR, 'prior-employment');
+assert(pick(OMNISSA_CONTRACTOR).choose === 'no', 'shared currently-contracting question -> No');
+const OMNISSA_SANCTIONS = 'Are you a citizen, national or resident of any of the following countries and/or regions: North Korea, Iran, Syria, Cuba & Crimea, Donetsk, Luhansk regions of Ukraine?';
+routes(OMNISSA_SANCTIONS, 'export-control-restricted-country');
+assert(pick(OMNISSA_SANCTIONS).choose === 'no', 'shared sanctioned-country/region question -> No');
+assert(pick('What is your nationality?')?.topic !== 'export-control-restricted-country', 'shared bank keeps plain nationality separate');
+assert(pick('Are you a resident of Texas?')?.topic !== 'export-control-restricted-country', 'shared bank keeps ordinary residency separate');
 
 console.log('\n=== VeriPark shared topics (2026-07-27) ===');
 routes('Have you applied with VeriPark previously?', 'prior-application');
@@ -567,7 +575,7 @@ assert(pick('Where do you plan on working from (for pay transparency)?') === nul
 // Ashby typeahead: click → type → 0.5s → click the FIRST suggestion (never leave typed text).
 assert(/function fillTypeaheadCombo\(/.test(src), 'greenhouse.js ships the Ashby typeahead fill');
 assert(/resultContainer/.test(src), 'typeahead reads the portal-rendered Ashby result list');
-assert(/const GH_SELECTION_SETTLE_MS = 500;/.test(src), 'every single selection is paced by 0.5s');
+assert(/const GH_SELECTION_SETTLE_MS = 300;/.test(src), 'every single selection is paced by 0.3s (user, 2026-07-28)');
 assert(/function clickAway\(/.test(src) && /async function afterSelection\(/.test(src), 'each single selection is followed by a click away onto empty space');
 assert(src.indexOf('// 2) Plain text inputs') < src.indexOf('// 2a) Ashby typeahead comboboxes'), 'plain text fields are filled BEFORE the click-selections');
 assert(/typeaheadCombos\(form\)/.test(src) && /missingRequiredControls/.test(src), 'an empty required typeahead counts as a missing required control');

@@ -677,6 +677,8 @@ Patterns:
 - have you previously been DIRECTLY employed with <company/list>\?? (i.e. paycheck or W-2 directly)
 - have you been employed or are you currently employed with an authorized dealer of <company>\??
 - have you previously or are you currently working as a contractor for <company>\??
+- are you currently contracting (at|for|with) <company>\??
+- are you currently a contractor or consultant (at|for|with) <company>\??
   Exception: If it's a single dropdown about the TARGET company with options like
   never / current / former / intern / contractor -> pick the "never worked" option.
   (e.g. xAI: "I have never worked for SpaceX, xAI, X, or Twitter".)
@@ -1118,6 +1120,8 @@ Patterns:
 - compliance with u\.?s\.? sanctions and export controls
 - citizen or permanent resident of cuba, iran, north korea, or syria
 - are you a citizen,? national or permanent resident of (iran|cuba|north korea|syria)  -> **No** (Chinese national; Yes/No variant, Salesforce 2026-07-20)
+- are you a citizen, national or resident of listed sanctioned countries and/or regions, including
+  North Korea, Iran, Syria, Cuba, Crimea, Donetsk, or Luhansk -> **No**
   (Workday code bank topic: export-control-restricted-country -> choose No)
 
 # ── Added from Salesforce Platform Engineer Application Questions (live page, 2026-07-20). ──
@@ -2961,3 +2965,9 @@ review-module: "Review your application" — Eve verified completeness and HELD 
   field may stay unfilled/reported on some tenants; Degree/Field/dates still fill regardless
   [NEW `fillAshbyEducationEntries()` engine, ASHBY_EDUCATION_DETAIL for degree+dates, reuses the
   shared GH_EDUCATION school/discipline search terms from the MyGreenhouse work].
+
+[SEEN QUESTIONS LOG] — 2026-07-30 | Omnissa application questions
+- "Are you currently contracting at Omnissa?" -> No [prior-employment]
+- "Are you a citizen, national or resident of any of the following countries and/or regions:
+  North Korea, Iran, Syria, Cuba & Crimea, Donetsk, Luhansk regions of Ukraine?" ->
+  No [export-control-restricted-country]

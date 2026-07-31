@@ -100,6 +100,14 @@ routes('Were you a partner and/or have you ever been employed by KPMG LLP and/or
 const PREVIOUSLY_EMPLOYED_WITH_US = 'Have you been previously employed with us?';
 routes(PREVIOUSLY_EMPLOYED_WITH_US, 'prior-employment');
 assert(pick(PREVIOUSLY_EMPLOYED_WITH_US).choose === 'no', 'been-previously-employed wording -> No');
+const OMNISSA_CONTRACTOR = 'Are you currently contracting at Omnissa?';
+routes(OMNISSA_CONTRACTOR, 'prior-employment');
+assert(pick(OMNISSA_CONTRACTOR).choose === 'no', 'currently contracting at target company -> No');
+const OMNISSA_SANCTIONS = 'Are you a citizen, national or resident of any of the following countries and/or regions: North Korea, Iran, Syria, Cuba & Crimea, Donetsk, Luhansk regions of Ukraine?';
+routes(OMNISSA_SANCTIONS, 'export-control-restricted-country');
+assert(pick(OMNISSA_SANCTIONS).choose === 'no', 'listed sanctioned countries/regions -> No');
+assert(pick('What is your nationality?')?.topic !== 'export-control-restricted-country', 'plain nationality is not a sanctions question');
+assert(pick('Are you a resident of Texas?')?.topic !== 'export-control-restricted-country', 'ordinary residency is not a sanctions question');
 
 console.log('\n=== Topgolf screenshot (2026-07-27) ===');
 const TOPGOLF_AUDIT = 'Are you currently, or have you ever been, a partner, principal, shareholder or employee of Deloitte & Touche LLP or any of its subsidiaries or affiliates (collectively, Deloitte)?';

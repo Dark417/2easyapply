@@ -94,10 +94,12 @@
     // typeahead (Location autocomplete, phone Country), wait 0.5s for the filtered results, then
     // select. Same pattern as Workday's PICKER_SEARCH_SETTLE_MS.
     const GH_SEARCH_SETTLE_MS = 500;
-    // Per-selection pacing (user, 2026-07-27): every SINGLE selection — a dropdown option, a
-    // radio, a segmented Yes/No, a checkbox — is followed by 0.5s so the framework can commit it
-    // (and mount any conditionally revealed follow-up) before the next control is touched.
-    const GH_SELECTION_SETTLE_MS = 500;
+    // Per-selection pacing (user, 2026-07-27; shortened to 0.3s 2026-07-28): every SINGLE
+    // selection — a dropdown option, a radio, a segmented Yes/No, a checkbox — is followed by this
+    // pause so the framework can commit it (and mount any conditionally revealed follow-up) before
+    // the next control is touched. The SEARCH settle above stays longer: it waits on a network
+    // lookup, not on a click.
+    const GH_SELECTION_SETTLE_MS = 300;
     const SALARY_EXPECTATION = '160000';
     const MAX_ARTIFACT_BYTES = 5 * 1024 * 1024;
     // Which packaged documents this engine may request. Their real filenames and sizes live in
@@ -649,7 +651,9 @@
                 /(prior|former|current) employee of/i,
                 /previously (been )?employed/i,
                 /employment history/i,
-                /(do you currently|have you)[\s\S]{0,40}work(ed)? (at|for)/i
+                /(do you currently|have you)[\s\S]{0,40}work(ed)? (at|for)/i,
+                /(currently )?contract(ing|ed) (at|for|with)\b/i,
+                /are you (currently )?(a |an )?(contractor|consultant) (at|for|with)\b/i
             ],
             exclude: /authoriz|right to work|current (company|employer|title)|how many years|years of professional experience/i,
             // Long-form options ("I have not previously been employed at <Company>") never start
@@ -1860,7 +1864,16 @@
         },
         // US sanctions / export-control screen (xAI/Databricks style) — Chinese national in the US
         // on H-1B: for the Yes/No variant the answer is No.
-        { topic: 'export-control-restricted-country', patterns: [/(citizen|national|resident) of (cuba|iran|north korea|syria)/i, /sanctions and export controls/i], choose: 'no' },
+        {
+            topic: 'export-control-restricted-country',
+            patterns: [
+                /(citizen|national|resident)[\s\S]{0,140}(cuba|iran|north korea|syria)/i,
+                /(citizen|national|resident)[\s\S]{0,140}(north korea|iran|syria|cuba)[\s\S]{0,180}(crimea|donetsk|luhansk)/i,
+                /(crimea|donetsk|luhansk)[\s\S]{0,180}(citizen|national|resident)/i,
+                /sanctions and export controls/i
+            ],
+            choose: 'no'
+        },
         {
             topic: 'age-minimum',
             patterns: [

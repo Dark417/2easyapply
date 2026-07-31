@@ -126,7 +126,7 @@
     }
     // Every TEXT field: click the field → type → click away → pause, then the next field. Filling
     // back-to-back too quickly left required inputs still counted as empty by the page.
-    const SR_FIELD_SETTLE_MS = 500;
+    const SR_FIELD_SETTLE_MS = 300;
     async function fillTextField(input, value) {
         realClick(input);
         try { input.focus(); } catch { }

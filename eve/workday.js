@@ -18,9 +18,9 @@
     // Per-field pacing (user, 2026-07-27): after a text field is typed and clicked away from, wait
     // before clicking into the next one — filling back-to-back too quickly left required fields
     // still flagged as empty. The general ACTION_DELAY_MS stays 0.
-    const FIELD_SETTLE_MS = 500;
+    const FIELD_SETTLE_MS = 300;
     const PICKER_SEARCH_SETTLE_MS = 500; // Field of Study / School search: wait for results, then select
-    const DROPDOWN_SETTLE_MS = 500; // Degree / any multi-option dropdown: 0.5s after opening AND after clicking the choice (user rule 2026-07-26)
+    const DROPDOWN_SETTLE_MS = 300; // Degree / any multi-option dropdown: after opening AND after clicking the choice (user rule 2026-07-26, shortened to 0.3s 2026-07-28)
     // Base salary expectation, per year, in USD. SINGLE SOURCE OF TRUTH — the salary-expectation
     // question entry below reads this constant, so changing the figure is a one-line edit here.
     // Mirrored in info/myworkdayjobs [Salary/Compensation expectations]; keep the two in step.
@@ -379,7 +379,9 @@
             patterns: [
                 /citizen,?\s*national or permanent resident of[\s\S]{0,40}(iran|cuba|north korea|syria)/i,
                 /(iran|cuba|north korea|syria)[\s\S]{0,40}(citizen|national|permanent resident)/i,
-                /export control[\s\S]{0,160}(iran|cuba|north korea|syria)/i
+                /export control[\s\S]{0,160}(iran|cuba|north korea|syria)/i,
+                /(citizen|national|resident)[\s\S]{0,140}(north korea|iran|syria|cuba)[\s\S]{0,180}(crimea|donetsk|luhansk)/i,
+                /(crimea|donetsk|luhansk)[\s\S]{0,180}(citizen|national|resident)/i
             ],
             choose: 'no'
         },
@@ -899,6 +901,8 @@
                 /authorized dealer of/i,
                 /(previously|currently) (working|work) as a contractor/i,
                 /working as a contractor for/i,
+                /(currently )?contract(ing|ed) (at|for|with)\b/i,
+                /are you (currently )?(a |an )?(contractor|consultant) (at|for|with)\b/i,
                 // Fidelity (2026-07-25): "Have you ever accepted an offer to work at Fidelity in any
                 // capacity (regular, intern, temp, consultant, third party contractor, etc.)?" -> No
                 // (only real employers: J.P. Morgan, Graphen). Also "Do you currently, or have you
@@ -2479,14 +2483,29 @@
 
     function setComboboxSearchValue(input, value) {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        input.focus();
-        if (setter) setter.call(input, value); else input.value = value;
+        try { input.focus(); } catch { }
+        // Search inputs are not normal committed text fields. Mimic real typing and deliberately do
+        // NOT dispatch `change`: Workday fires change on blur/selection, and sending it before Enter
+        // can close the prompt before its remote search runs.
+        if (setter) setter.call(input, ''); else input.value = '';
         input.dispatchEvent(new InputEvent('input', {
             bubbles: true,
-            data: value,
-            inputType: value ? 'insertText' : 'deleteContentBackward'
+            data: null,
+            inputType: 'deleteContentBackward'
         }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+        let typed = '';
+        for (const character of String(value || '')) {
+            const key = { bubbles: true, cancelable: true, key: character, code: '', charCode: character.charCodeAt(0) };
+            input.dispatchEvent(new KeyboardEvent('keydown', key));
+            typed += character;
+            if (setter) setter.call(input, typed); else input.value = typed;
+            input.dispatchEvent(new InputEvent('input', {
+                bubbles: true,
+                data: character,
+                inputType: 'insertText'
+            }));
+            input.dispatchEvent(new KeyboardEvent('keyup', key));
+        }
     }
 
     async function fillField(field, answer, context = autoActionContext()) {
@@ -2811,13 +2830,20 @@
     // long known for prompt LEAF nodes, now seen on the OPENER. Try the cheap click first and only
     // escalate to pointer events if the control did not actually expand, so controls that do respond
     // to `.click()` are never double-fired (which would open then immediately close them).
-    // Search-style inputs (School / Field of Study) keep the plain path: they have no aria-expanded
-    // to test, so escalating would be a blind second interaction.
+    // Search-style inputs (School / Field of Study) need a real pointer click followed by focus.
+    // A bare `.click()` can leave Workday's selectinput visually active without making it the live
+    // keyboard target, so the following type/Enter sequence never opens its remote result list.
     async function clickPickerOpener(control, message, context = autoActionContext()) {
         if (!control || control.disabled) return false;
         const isListboxOpener = control.getAttribute('aria-haspopup') === 'listbox'
             || (control.tagName === 'BUTTON' && !control.matches('input'));
-        if (!isListboxOpener) return clickButton(control, message, context);
+        if (!isListboxOpener) {
+            const clicked = await clickPickerChoice(control, message, context);
+            if (clicked) {
+                try { control.focus(); } catch { }
+            }
+            return clicked && (document.activeElement === control || control.matches(':focus'));
+        }
         const opened = () => control.getAttribute('aria-expanded') === 'true' || Boolean(ownedOptionList(control));
         if (opened()) return true;
         if (!await clickButton(control, message, context)) return false;
@@ -2911,6 +2937,50 @@
             || Boolean(control.closest('[data-automation-id="multiSelectContainer"]'));
     }
 
+    function pickerOwnerId(control) {
+        if (!control) return '';
+        return clean(control.getAttribute('data-uxi-multiselect-id')
+            || control.closest('[data-automation-id="multiSelectContainer"]')?.id);
+    }
+
+    // Workday renders prompt results in a document-level portal. The result's promptLeafNode carries
+    // the originating selectinput's `data-uxi-multiselect-id`; selected chips in this or another
+    // multiselect also match `[role=option]`, so a global option scan can click a chip instead of a
+    // result. Keep only live prompt options owned by this exact input.
+    function pickerResultOptions(control) {
+        const selectors = '[role="option"], [data-automation-id="promptOption"], [data-automation-id="menuItem"]';
+        const ownerId = pickerOwnerId(control);
+        return deepElements(selectors).filter(node => {
+            if (!visible(node) || node.closest('#eve-floating-ui')) return false;
+            if (node.getAttribute('data-automation-id') === 'selectedItem'
+                || node.closest('[data-automation-id="selectedItemList"], [data-automation-id="multiSelectContainer"]')) return false;
+            if (!ownerId) return true;
+            const leaf = node.matches('[data-automation-id="promptLeafNode"]')
+                ? node
+                : (node.closest('[data-automation-id="promptLeafNode"]')
+                    || node.querySelector?.('[data-automation-id="promptLeafNode"]'));
+            return leaf?.getAttribute('data-uxi-multiselect-id') === ownerId;
+        });
+    }
+
+    async function enterPickerSearch(input, term, label, context) {
+        if (!await clickPickerOpener(input, `Opening ${label}`, context)) return false;
+        const typed = await performDelayedAction(() => {
+            try { input.focus(); } catch { }
+            if (document.activeElement !== input) return false;
+            setComboboxSearchValue(input, term);
+            const key = { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 };
+            input.dispatchEvent(new KeyboardEvent('keydown', key));
+            input.dispatchEvent(new KeyboardEvent('keypress', key));
+            input.dispatchEvent(new KeyboardEvent('keyup', key));
+            return true;
+        }, `Searching ${label} ${term}`, context);
+        if (!typed) return false;
+        // Required human-like boundary: results are inspected only after Enter + 0.5 seconds.
+        await WAIT(PICKER_SEARCH_SETTLE_MS);
+        return true;
+    }
+
     function sourceIsFreeText() {
         const s = sourceControl();
         if (!s || !s.matches('input')) return false;
@@ -2970,7 +3040,7 @@
         };
 
         let seen = new Set(visibleOptionNodes()); // background tokens present before the prompt opens
-        if (!await clickButton(source, 'Opening How Did You Hear About Us', context)) return false;
+        if (!await clickPickerOpener(source, 'Opening How Did You Hear About Us', context)) return false;
 
         const chosen = [];
         for (let depth = 0; depth < MAX_SOURCE_DEPTH; depth += 1) {
@@ -3527,13 +3597,15 @@
         return fallbackFirst && opts.length ? opts[0].el : null;
     }
 
-    async function waitForPrecedenceOption(candidates, timeoutMs, context, { excludeRe = null, fallbackFirst = false } = {}) {
+    async function waitForPrecedenceOption(candidates, timeoutMs, context, { excludeRe = null, fallbackFirst = false, ownerControl = null } = {}) {
         const end = Date.now() + timeoutMs;
         const selectors = '[role="option"], [data-automation-id="promptOption"], [data-automation-id="menuItem"]';
         let sawOptions = false;
         while (Date.now() < end) {
             if (!actionsAllowed(context)) return null;
-            const optionEls = deepElements(selectors).filter(node => visible(node) && !node.closest('#eve-floating-ui'));
+            const optionEls = ownerControl
+                ? pickerResultOptions(ownerControl)
+                : deepElements(selectors).filter(node => visible(node) && !node.closest('#eve-floating-ui'));
             if (optionEls.length) {
                 sawOptions = true;
                 const hit = pickByPrecedence(optionEls, candidates, { excludeRe });
@@ -3543,7 +3615,9 @@
         }
         // Rule exhausted: options were present but none matched -> first in the list, if allowed.
         if (fallbackFirst && sawOptions) {
-            const optionEls = deepElements(selectors).filter(node => visible(node) && !node.closest('#eve-floating-ui'));
+            const optionEls = ownerControl
+                ? pickerResultOptions(ownerControl)
+                : deepElements(selectors).filter(node => visible(node) && !node.closest('#eve-floating-ui'));
             return pickByPrecedence(optionEls, candidates, { excludeRe, fallbackFirst: true });
         }
         return null;
@@ -3551,7 +3625,8 @@
 
     // Field of Study is a "select with precedence" picker on some tenants and free text on others.
     // Accepts a string or an ordered candidate array. Types the broadest concrete term to surface
-    // options, then picks the highest-precedence match; falls back to typing the primary value.
+    // options, then picks the highest-precedence match. A picker never falls back to typed text:
+    // only a committed Workday token is an answer.
     async function setEntryFieldOfStudy(prefix, fieldOfStudy, context) {
         const candidates = (Array.isArray(fieldOfStudy) ? fieldOfStudy : [fieldOfStudy]).filter(Boolean);
         if (!candidates.length) return;
@@ -3566,30 +3641,24 @@
         const searchTerm = [...stems].sort((a, b) => a.length - b.length)[0] || primary;
         const isPicker = isSearchPickerControl(input);
         if (isPicker) {
-            await clickButton(input, 'Opening Field of Study', context);
-            if (await performDelayedAction(() => {
-                setComboboxSearchValue(input, searchTerm);
-                // Long-list pickers ("Partial List (First 500 Entries)" / "All") need Enter to run
-                // the search and return matching results; typing alone only shows category headers.
-                const key = { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 };
-                input.dispatchEvent(new KeyboardEvent('keydown', key));
-                input.dispatchEvent(new KeyboardEvent('keypress', key));
-                input.dispatchEvent(new KeyboardEvent('keyup', key));
-                return true;
-            }, `Searching field of study ${searchTerm}`, context)) {
-                await WAIT(PICKER_SEARCH_SETTLE_MS); // 0.5s for the filtered results to render, then select as soon as a match appears (waitForPrecedenceOption polls)
+            if (await enterPickerSearch(input, searchTerm, 'field of study', context)) {
                 // Precedence CHAIN only. User rule (2026-07-25): for Field of Study do NOT fall back to
                 // "first option in the list" — that grabbed an unrelated first entry. Use the chain; if
-                // nothing in the chain matches, leave it for the typed-primary fallback below (which the
-                // chain's broad globs make rare). Still exclude "Partial List (First N Entries)" / "All".
+                // nothing in the chain matches, leave it unanswered. Still exclude prompt headers.
                 const headers = /partial list|first\s*\d+\s*entries|^all$|^recent$|^suggested/i;
-                const option = await waitForPrecedenceOption(candidates, 4000, context, { fallbackFirst: false, excludeRe: headers });
+                const option = await waitForPrecedenceOption(candidates, 4000, context, {
+                    fallbackFirst: false,
+                    excludeRe: headers,
+                    ownerControl: input
+                });
                 if (option) {
                     await clickPickerChoice(option, 'Selecting Field of Study', context);
                     await clickAwayToCommit(context); // click an empty place so the results list closes and the chip commits
-                    return;
+                    const selected = clean(selectedItemText(input));
+                    if (selected && candidates.some(candidate => candidateMatch(selected, candidate))) return;
                 }
             }
+            return;
         }
         if (clean(input.value) !== primary) await performDelayedAction(() => setNativeValue(input, primary), 'Filling Field of Study', context);
     }
@@ -3644,23 +3713,17 @@
         }
         for (const term of stems) {
             if (!actionsAllowed(context)) return;
-            await clickButton(input, 'Opening School or University', context);
-            const typed = await performDelayedAction(() => {
-                setComboboxSearchValue(input, term);
-                const key = { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 };
-                input.dispatchEvent(new KeyboardEvent('keydown', key));
-                input.dispatchEvent(new KeyboardEvent('keypress', key));
-                input.dispatchEvent(new KeyboardEvent('keyup', key));
-                return true;
-            }, `Searching school ${term}`, context);
-            if (!typed) continue;
-            await WAIT(PICKER_SEARCH_SETTLE_MS);
+            if (!await enterPickerSearch(input, term, 'school', context)) continue;
             // Precedence only — no fallbackFirst, so we never attach an unrelated school.
-            const option = await waitForPrecedenceOption(candidates, 4000, context, { excludeRe: headers });
+            const option = await waitForPrecedenceOption(candidates, 4000, context, {
+                excludeRe: headers,
+                ownerControl: input
+            });
             if (option) {
                 await clickPickerChoice(option, 'Selecting School or University', context);
-                await WAIT(200);
-                if (clean(selectedItemText(input))) return;
+                await clickAwayToCommit(context);
+                const selected = clean(selectedItemText(input));
+                if (selected && candidates.some(candidate => candidateMatch(selected, candidate))) return;
             }
         }
         // Not in this tenant's list (Beijing International Studies University usually isn't).
@@ -3675,22 +3738,19 @@
 
     async function selectSchoolOther(input, schoolName, context) {
         if (!actionsAllowed(context)) return false;
-        await clickButton(input, 'Opening School or University', context);
         // TYPE "other" rather than clearing the box: some tenants only reveal options as you
         // type, and the exact-match regex below still guarantees the real "Other" entry is the
         // one picked, never a school whose name happens to contain the word.
-        await performDelayedAction(() => {
-            setComboboxSearchValue(input, 'other');
-            const key = { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13, which: 13 };
-            input.dispatchEvent(new KeyboardEvent('keydown', key));
-            input.dispatchEvent(new KeyboardEvent('keyup', key));
-            return true;
-        }, 'Looking for an Other school option', context);
-        await WAIT(PICKER_SEARCH_SETTLE_MS);
-        const other = await waitForOptionMatching(text => SCHOOL_OTHER_RE.test(clean(text)), 3000, context);
+        if (!await enterPickerSearch(input, 'other', 'school', context)) return false;
+        const other = await waitForOptionMatching(
+            text => SCHOOL_OTHER_RE.test(clean(text)),
+            3000,
+            context,
+            input
+        );
         if (!other) return false;
         if (!await clickPickerChoice(other, 'Selecting Other school', context)) return false;
-        await WAIT(400);
+        await clickAwayToCommit(context);
         // Some tenants reveal a free-text "School Name" box once Other is chosen — fill the real name.
         const freeText = [...document.querySelectorAll('input[type="text"], textarea')].find(node =>
             visible(node) && !node.disabled && !node.closest('#eve-floating-ui')
@@ -4120,13 +4180,15 @@
             : text => /^yes\b/i.test(text) || normalizeKey(text) === 'yes';
     }
 
-    async function waitForOptionMatching(pred, timeoutMs, context) {
+    async function waitForOptionMatching(pred, timeoutMs, context, ownerControl = null) {
         const end = Date.now() + timeoutMs;
         const selectors = '[role="option"], [data-automation-id="promptOption"], [data-automation-id="menuItem"], li[role="option"], [role="menuitemradio"]';
         while (Date.now() < end) {
             if (!actionsAllowed(context)) return null;
-            const option = deepElements(selectors)
-                .filter(node => visible(node) && !node.closest('#eve-floating-ui'))
+            const options = ownerControl
+                ? pickerResultOptions(ownerControl)
+                : deepElements(selectors).filter(node => visible(node) && !node.closest('#eve-floating-ui'));
+            const option = options
                 .find(node => pred(clean(node.getAttribute('data-automation-label') || node.textContent)));
             if (option) return option;
             await WAIT(200);
