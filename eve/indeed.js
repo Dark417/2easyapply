@@ -563,6 +563,68 @@
             optionLabel: 'No / never worked'
         },
         {
+            // "Can you provide verification of both your identity and authorization to work in the
+            // United States, to the extent required by law?" (Axon/Greenhouse, 2026-07-28) — the I-9
+            // documentation question. The applicant can produce both, so Yes.
+            topic: 'work-eligibility-verification',
+            patterns: [
+                /provide verification of[\s\S]{0,60}(identity|identify)/i,
+                /verification of both your identity and authorization to work/i,
+                /(present|provide)[\s\S]{0,40}documentation[\s\S]{0,40}(employment eligibility|work authorization)/i
+            ],
+            choose: 'yes'
+        },
+        {
+            // "Based on the below information, would you meet the requirements for a deemed export
+            // license in order to access EAR-controlled technology?" (Axon, 2026-07-28). The form
+            // explains that every Non-U.S. Person needs one EXCEPT a green-card holder, a citizen or
+            // an asylee/refugee. The applicant is on an H-1B and meets none of those exceptions, so
+            // the answer chosen by the user is No (i.e. "I do not meet the exempting criteria").
+            topic: 'deemed-export-license',
+            patterns: [
+                /deemed export licen[cs]e/i,
+                /ears*-?s*controlled technology/i,
+                /export administration regulations[sS]{0,120}(licen[cs]e|access)/i
+            ],
+            choose: 'no'
+        },
+        {
+            // Axon and other Federal Firearms Licensees include the ATF Form 4473 eligibility
+            // questionnaire. "Are you an alien who has been admitted to the United States under a
+            // nonimmigrant visa? (i.e. H-1B, TN, F1)" is TRUE for this applicant (H-1B), so it is
+            // answered YES and is ordered BEFORE the prohibited-person block below, which answers
+            // No to everything else. Answering No here would be a false statement on a federal
+            // compliance form.
+            topic: 'nonimmigrant-visa-alien',
+            patterns: [
+                /alien who has been admitted to the united states under a nonimmigrant visa/i,
+                /admitted[\s\S]{0,40}under a nonimmigrant visa/i
+            ],
+            choose: 'yes'
+        },
+        {
+            // ATF Form 4473 prohibited-person questions (Federal Firearms Licensee employee
+            // questionnaire, Axon 2026-07-28). Each asks whether a disqualifying condition
+            // applies; none does, so every one is answered No. The nonimmigrant-visa question in
+            // the same block is NOT here — see the entry above.
+            topic: 'firearms-prohibited-person',
+            patterns: [
+                /fugitive from justice/i,
+                /alien illegally or unlawfully in the united states/i,
+                /unlawful user of,? or addicted to/i,
+                /adjudicated as a mental defective/i,
+                /committed to a mental institution/i,
+                /(restraining|protection) order[\s\S]{0,120}(harassing|stalking|threatening)/i,
+                /subject to a court order[\s\S]{0,120}(intimate partner|child)/i,
+                /under indictment or information in any court/i,
+                /convicted in any court[\s\S]{0,120}(felony|misdemeanor crime of domestic violence)/i,
+                /misdemeanor crime of domestic violence/i,
+                /discharged from the armed forces under dishonorable conditions/i,
+                /renounced your united states citizenship/i
+            ],
+            choose: 'no'
+        },
+        {
             topic: 'restrictive-agreements',
             patterns: [
                 /non-?disclosure or non-?compete agreement/i,
@@ -572,7 +634,12 @@
                 // non-solicitation or non-compete agreement)…" (user, 2026-07-28).
                 /non-?solicitation/i,
                 /subject to any agreement/i,
-                /agreement with a (former employer|third party)/i
+                /agreement with a (former employer|third party)/i,
+                // "Do you have any contractual obligations, agreements, relationships, or commitments
+                // to another person or entity that would impact, impede or interfere with your
+                // ability to join <Company>?" (Axon, 2026-07-28).
+                /contractual obligations[\s\S]{0,120}(impact|impede|interfere)/i,
+                /commitments to another (person|entity)/i
             ],
             choose: 'no'
         },
@@ -912,6 +979,9 @@
                 /\d+\s*[-–]\s*\d+\s*x'?s?\s*(a|per)\s*week/i,
                 /\d+\s*times?\s*(a|per)\s*week/i,
                 /(once|twice|thrice)\s*(a|per)\s*week/i,
+                // Spelled-out cadence: "onsite in the Seattle office four days a week" (Axon,
+                // 2026-07-28) — the digit patterns above cannot see it.
+                /(one|two|three|four|five|six|seven)\s+days?\s*(a|per)\s*week/i,
                 // "Do you live within commuting distance to one of our hubs (NY, SF, DC, BOS or
                 // London)?" (user, 2026-07-27) — the hub list is incidental, so match the shape:
                 // living within commuting distance of a hub/office/location.
