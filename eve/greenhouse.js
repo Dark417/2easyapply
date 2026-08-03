@@ -643,6 +643,20 @@
             choose: 'yes'
         },
         {
+            // "Are you a current or former (prior 18 months) employee of EY, PwC, Deloitte or
+            // KPMG?" (user, 2026-07-28) — an auditor-independence check. The applicant has never
+            // worked for an audit firm, so No. Ordered before prior-employment, whose generic
+            // "have you ever been employed" patterns would otherwise claim it (same answer, but
+            // this keeps the reason legible). Firm names are incidental; match the shape.
+            topic: 'audit-firm-affiliation',
+            patterns: [
+                /(current or former|currently or previously)[\s\S]{0,60}(employee|employed)[\s\S]{0,60}(ey|pwc|deloitte|kpmg|ernst|pricewaterhouse)/i,
+                /(ey|pwc|deloitte|kpmg|ernst & young|pricewaterhousecoopers)[\s\S]{0,60}(employee|employed|partner|principal|shareholder)/i,
+                /(employee|partner|principal|shareholder)[\s\S]{0,80}(audit|accounting) firm/i
+            ],
+            choose: 'no'
+        },
+        {
             // Prior/current employment with the target company (incl. "I have never worked for…"
             // status dropdowns, e.g. xAI's SpaceX/xAI/X/Twitter history picker) -> No / never.
             topic: 'prior-employment',
@@ -676,7 +690,9 @@
             patterns: [
                 /provide verification of[\s\S]{0,60}(identity|identify)/i,
                 /verification of both your identity and authorization to work/i,
-                /(present|provide)[\s\S]{0,40}documentation[\s\S]{0,40}(employment eligibility|work authorization)/i
+                /(present|provide)[\s\S]{0,40}documentation[\s\S]{0,40}(employment eligibility|work authorization)/i,
+                /(if|when) hired[\s\S]{0,50}(provide|produce|present)[\s\S]{0,30}proof of (employment |work )?eligibility/i,
+                /(provide|produce|present)[\s\S]{0,30}proof of (employment |work )?eligibility[\s\S]{0,50}(if|when) hired/i
             ],
             choose: 'yes'
         },
@@ -1387,7 +1403,12 @@
             patterns: [
                 /(at least )?the minimum years of (relevant )?(work )?experience/i,
                 /minimum years of[\s\S]{0,40}experience[\s\S]{0,60}(job description|described|required)/i,
-                /meet the (minimum|required)[\s\S]{0,30}experience/i
+                // "…meet the minimum QUALIFICATION for years of professional work experience…" (user,
+                // 2026-07-28) — a noun sits between "minimum" and "experience", so the 30-character
+                // window was just too short and the question fell through to the years-BAND topic,
+                // which would have typed "5" into a Yes/No control.
+                /meet the (minimum|required)[\s\S]{0,60}experience/i,
+                /can you confirm[\s\S]{0,80}(minimum|required)[\s\S]{0,60}(qualification|experience)/i
             ],
             choose: 'yes'
         },
@@ -1566,6 +1587,18 @@
                 /(explain|describe|tell us)[\s\S]{0,50}(ideal candidate|why you are|best fit for)/i
             ],
             text: "I’m a strong fit for a Software Engineer role because over 5+ years I’ve moved beyond pure implementation into end-to-end ownership. In my current role, I design and build backend services, make system design and data modeling decisions, and deliver production systems that need to be reliable, scalable, and maintainable. I’ve worked across APIs, data pipelines, cloud infrastructure, observability, and release operations, which means I understand not just how to code a feature, but how to ship and operate it well. I also enjoy leading through execution: driving technical decisions, improving engineering quality, and taking responsibility for outcomes in fast-moving environments."
+        },
+        {
+            // "What excites you about this role?" (user, 2026-07-28) — their own words, tightened.
+            // Ordered before why-company-essay: that one pitches the COMPANY, this answers what is
+            // exciting about the WORK.
+            topic: 'excites-about-role',
+            patterns: [
+                /what excites you (most )?about (this|the) (role|position|job|opportunity)/i,
+                /what (are you|is) (most )?excited about[\s\S]{0,30}(role|position)/i,
+                /what excites you (most )?about/i
+            ],
+            text: 'Building genuinely innovative products is what excites me most — being somewhere the work is technically ambitious rather than incremental. I also want to keep going deep on AI and new technology while it is changing how software gets built, since that is where I learn fastest and where I can contribute the most. Just as much, I want to work with people I can learn from and actually enjoy spending my days with.'
         },
         {
             // "What about <company> is exciting to you?" / "Why do you want to work here?" —
@@ -2463,6 +2496,17 @@
     }
 
     // ── Question bank matching ────────────────────────────────────────────────────────────────
+    // Unified cross-platform bank (BETA): extra topics from the generated shared bank
+    // (question-bank.js), consulted only when the eveUnifiedBank storage flag is true.
+    async function sharedBankExtras(platform) {
+        try {
+            const shared = (typeof self !== 'undefined' ? self : window).EVE_SHARED_QUESTION_BANK;
+            if (!shared) return [];
+            const stored = await storageGet(['eveUnifiedBank']);
+            if (stored.eveUnifiedBank !== true) return [];
+            return shared.extrasFor(platform) || [];
+        } catch { return []; }
+    }
     async function ghQuestionBank() {
         const stored = await storageGet([GH_INFO_KEY]);
         const extra = stored[GH_INFO_KEY]?.questions;
@@ -2480,6 +2524,9 @@
                 entries.push({ topic: raw.topic, patterns, choose: raw.choose, text: raw.text, optionMatch: raw.optionMatch ? globToRegExp(raw.optionMatch) : undefined });
             }
         });
+        for (const entry of await sharedBankExtras('greenhouse')) {
+            if (!entries.some(existing => existing.topic === entry.topic)) entries.push(entry);
+        }
         return entries;
     }
     // Identity-profile lookup. `shortLabelOnly` entries are for field-name labels ("Website"),

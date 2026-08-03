@@ -11,7 +11,7 @@ Use this skill when the user says `lk` or asks to run Eve's LinkedIn Easy Apply 
 2. If Eve UI edits are part of the request, update the extension code so the Search and Apply tabs read from and persist back to `/params`.
 3. Use the local Python automation script for LinkedIn search/open/apply orchestration instead of re-implementing the flow ad hoc.
 4. Respect the persisted `auto` settings for randomized delays, rate limits, post-burst rest windows, and job-detail scrolling.
-5. Log confirmed submissions to `app-log.xlsx` and use the logged unique job ID to prevent re-applying to the same job.
+5. Log confirmed submissions to `app-log.csv` and use the logged unique job ID to prevent re-applying to the same job.
 6. When the user asks to refine the overall apply process, coordinate with `lead-product` and `refine-task` and update `design/task1-auto-flow.md`.
-4. Keep all Eve-used data persisted by default. Only delete persisted data when the user explicitly requests deletion or a merge.
-5. After editing extension files under `eve/`, run the `auto-extension-update` skill.
+7. Keep all Eve-used data persisted by default. Only delete persisted data when the user explicitly requests deletion or a merge.
+8. After editing extension files under `eve/`, run the `auto-extension-update` skill.

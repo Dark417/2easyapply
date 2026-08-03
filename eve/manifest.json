@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Eve",
-  "version": "1.1.288",
+  "version": "1.1.291",
   "description": "Local MVP Chrome Extension for automating and autofilling LinkedIn Easy Apply and Workday application workflows.",
   "permissions": [
     "storage",
@@ -61,6 +61,7 @@
         "ui.css"
       ],
       "js": [
+        "question-bank.js",
         "workday.js"
       ],
       "run_at": "document_end"
@@ -73,6 +74,7 @@
         "ui.css"
       ],
       "js": [
+        "question-bank.js",
         "greenhouse.js"
       ],
       "all_frames": true,
@@ -86,6 +88,7 @@
         "ui.css"
       ],
       "js": [
+        "question-bank.js",
         "greenhouse.js"
       ],
       "run_at": "document_end"
@@ -98,6 +101,7 @@
         "ui.css"
       ],
       "js": [
+        "question-bank.js",
         "greenhouse.js"
       ],
       "run_at": "document_end"
@@ -110,6 +114,7 @@
         "ui.css"
       ],
       "js": [
+        "question-bank.js",
         "greenhouse.js"
       ],
       "run_at": "document_end"
@@ -122,6 +127,7 @@
         "ui.css"
       ],
       "js": [
+        "question-bank.js",
         "greenhouse.js"
       ],
       "all_frames": true,
@@ -135,6 +141,7 @@
         "ui.css"
       ],
       "js": [
+        "question-bank.js",
         "indeed.js"
       ],
       "run_at": "document_end"

@@ -331,7 +331,7 @@ const matchProfileField = label => FIELDS.find(e => {
   if (e.shortLabelOnly && (label.length > 40 || label.includes('?'))) return false;
   return e.label.test(label);
 }) || null;
-assert(matchProfileField('Legal Name')?.value === 'Xiaoxiao Lei', 'Ramp Legal Name -> Xiaoxiao Lei');
+assert(matchProfileField('Legal Name')?.value === GH_PROFILE.fullName, 'Ramp Legal Name -> the full legal name');
 const textFillDecision = (label, isTextarea) => {
   const profile = matchProfileField(label);
   if (!isTextarea && profile) return { kind: 'profile', value: profile.value };
@@ -354,7 +354,7 @@ assert(websiteDecision.kind === 'profile' && websiteDecision.value === 'https://
 const portfolioDecision = textFillDecision('Portfolio', false);
 assert(portfolioDecision.kind === 'profile' && portfolioDecision.value === 'https://github.com/Dark417', 'plain "Portfolio" input still gets the GitHub profile URL');
 const linkedinDecision = textFillDecision('LinkedIn Profile', false);
-assert(linkedinDecision.kind === 'profile' && linkedinDecision.value === 'www.linkedin.com/in/xiaoxiaolei/', 'LinkedIn Profile input gets the scheme-less value');
+assert(linkedinDecision.kind === 'profile' && linkedinDecision.value === GH_PROFILE.linkedin, 'LinkedIn Profile input gets the scheme-less profile value');
 routes('What about our mission excites you?', 'why-company-essay');
 const INTERESTED_ROLE = 'What interested you about this role?';
 routes(INTERESTED_ROLE, 'why-company-essay');
@@ -775,7 +775,7 @@ assert(optPick('office-attendance-requirement', HARVEY_TIED_OFFICE_OPTIONS) === 
 assert(!BANK.find(e => e.topic === 'office-attendance-requirement').optionCandidates.some(c => c.test(HARVEY_TIED_OFFICE_OPTIONS[0])), 'office-attendance-requirement candidates never match the false already-based-in-location option');
 
 // Pairs 8/9: identity profile fields (Legal First and Last Name / Current or Most Recent Employer).
-assert(matchProfileField('Legal First and Last Name')?.value === 'Xiaoxiao Lei', 'Legal First and Last Name -> Xiaoxiao Lei');
+assert(matchProfileField('Legal First and Last Name')?.value === GH_PROFILE.fullName, 'Legal First and Last Name -> the full legal name');
 assert(matchProfileField('Current or Most Recent Employer')?.value === GH_PROFILE.currentCompany, 'Current or Most Recent Employer -> the canonical J.P. Morgan Chase & Co. value');
 assert(typeof GH_PROFILE.currentCompany === 'string' && GH_PROFILE.currentCompany.length > 0, 'currentCompany has a single canonical value from the profile');
 
@@ -798,11 +798,11 @@ assert(/const ACKNOWLEDGEMENT_OPTION =/.test(src), 'an acknowledgement radio opt
 
 // Profile fields that were missed on live forms.
 const legalNameDecision = textFillDecision('First and Last Legal Name', false);
-assert(legalNameDecision.kind === 'profile' && legalNameDecision.value === 'Xiaoxiao Lei', '"First and Last Legal Name" fills the full legal name');
+assert(legalNameDecision.kind === 'profile' && legalNameDecision.value === GH_PROFILE.fullName, '"First and Last Legal Name" fills the full legal name');
 const legalNameDecision2 = textFillDecision('Legal First and Last Name', false);
-assert(legalNameDecision2.kind === 'profile' && legalNameDecision2.value === 'Xiaoxiao Lei', 'the reversed word order fills the same value');
+assert(legalNameDecision2.kind === 'profile' && legalNameDecision2.value === GH_PROFILE.fullName, 'the reversed word order fills the same value');
 const zipDecision = textFillDecision('Zip Code', false);
-assert(zipDecision.kind === 'profile' && zipDecision.value === '75023', 'Zip Code fills 75023');
+assert(zipDecision.kind === 'profile' && zipDecision.value === GH_PROFILE.zip, 'Zip Code fills the profile zip');
 
 // Hub-radius question: never a city, never the unable-to-relocate option.
 const HUB = 'We are a flexible remote-first company, but we do require employees to reside within 50 miles of the hub advertised on the job posting for this role. At the time of hire, will you be located within 50 miles of one of our hubs? If so, please select which location.';
@@ -901,9 +901,9 @@ assert(pick(LOCATION_REQUIREMENTS) && pick(LOCATION_REQUIREMENTS).choose === 'ye
 routes('Are you currently based in New York or San Francisco?', 'based-in-ny-or-sf');
 assert(pick('Are you currently based in New York or San Francisco?').choose === 'no', 'a plain are-you-based-there question is still answered No');
 const preferredPhone = textFillDecision('Preferred phone number', false);
-assert(preferredPhone.kind === 'profile' && preferredPhone.value === '(571) 376-1882', '"Preferred phone number" fills the phone');
+assert(preferredPhone.kind === 'profile' && preferredPhone.value === GH_PROFILE.phone, '"Preferred phone number" fills the phone');
 const preferredFirst = textFillDecision('Preferred First Name', false);
-assert(preferredFirst.kind === 'profile' && preferredFirst.value === 'Xiaoxiao', 'the phone pattern does not steal Preferred First Name');
+assert(preferredFirst.kind === 'profile' && preferredFirst.value === GH_PROFILE.preferredName, 'the phone pattern does not steal Preferred First Name');
 
 console.log('\n=== Education level, GPA, relocation assistance (2026-07-27) ===');
 const EDU_LEVEL = 'What is your highest completed level of education?';

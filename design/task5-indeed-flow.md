@@ -180,7 +180,7 @@ setting `input.files` via `DataTransfer` + dispatching synthetic `input`/`change
 no error, no console signal beyond a generic "Uncaught (in promise)". A **CDP-level trusted file
 injection** (chrome-devtools MCP `upload_file`, the same primitive Playwright/Puppeteer/Selenium
 use) on the identical `<input>` attaches it instantly, confirmed by the "-list" div showing
-`"Xiaoxiao Lei Cover Letter.pdf · Uploaded just now · Remove"`. `Event.isTrusted` cannot be spoofed
+the cover-letter filename with `· Uploaded just now · Remove`. `Event.isTrusted` cannot be spoofed
 from page/content-script JS — this means **indeed.js, running unsupervised with no CDP session of
 its own, can never complete this specific attach by itself.** (The packaged-artifact resume
 fallback in `handleResumeSelection` uses the identical dispatch technique and has never actually
@@ -190,8 +190,8 @@ carry the same latent limitation; untested.)
 **Design (user-approved 2026-07-27) — two-party handoff**: `handleCoverLetterUpload()` selects
 "Upload a file" if not already chosen, waits ~500 ms for the widget to mount, and checks the
 "-list" div. If a file is already attached, it reports `skipped` and moves on. Otherwise it returns
-`needs-trusted-upload` with a message naming the exact selector and the packaged file's repo path
-(`cv/Xiaoxiao Lei Cover Letter.pdf`) — `fillCurrentStepFields()` routes this into the normal
+`needs-trusted-upload` with a message naming the exact selector and the packaged cover-letter
+artifact's path (`eve/artifacts/cover-letter.pdf`) — `fillCurrentStepFields()` routes this into the normal
 `failures` pause path, so Eve stops cleanly with an actionable message instead of guessing or
 silently leaving the question half-answered. Whoever is driving Chrome over CDP (a Claude Code
 session with chrome-devtools MCP attached, in current practice) performs the actual
@@ -201,7 +201,7 @@ cover-letter file question; it is the best available design given the trust cons
 
 ## Live run evidence (Infosys "Graph DB Developer", 2026-07-27, v1.1.225)
 
-One Auto Apply click: resume-selection (kept `Xiaoxiao_Lei_Resume.pdf`, Continue) →
+One Auto Apply click: resume-selection (kept the already-on-file resume, Continue) →
 questions/1 (identity: LinkedIn/State/City/Address/Zip/School/Grad year — largely Indeed-prefilled)
 → questions/2 → questions/3 (8 required Yes/No screeners: prior Infosys employment No, restrictive
 covenants No, source Indeed (singleton), work auth Yes, Bachelor's minimum Yes, relocate Yes,

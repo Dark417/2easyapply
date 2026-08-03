@@ -1,154 +1,116 @@
 ---
 name: add-question
-description: Add or update application questions in the answer bank. Triggered by "add <question>", a pasted paragraph of questions, or screenshots — answered or not. Extracts a PATTERN for the question and a PATTERN for the answer, reasons out which answer fits the user, and writes both to info/myworkdayjobs and the code bank in eve/workday.js.
+description: The single canonical skill for growing the shared answer bank. Triggered by "add/save <question>", a bare "question: answer" line, pasted form text, or screenshots — answered or not. Extracts a PATTERN for the question and a PATTERN for the answer, reasons the best-fit answer from the user's real info, and lands both in info/myworkdayjobs and the code banks (all platforms).
 ---
 
 # add-question
 
-Grow the answer bank from whatever the user hands over. **Never store a literal question string.**
-A literal only ever matches the one page it was copied from — that is a save that does nothing.
+Grow the answer bank from whatever the user hands over. **Never store a literal question string** —
+a literal only matches the one page it was copied from. (This skill absorbed the former
+`add-regex` skill; there is no separate skill for "just the regex".)
 
-## Triggers
-
-Any of these means "run this skill":
+## Triggers (terse input is enough)
 
 - `add <anything>` / `save <anything>` — one question, with or without an answer
-- a pasted paragraph or block of an application form (many questions at once)
-- one or more screenshots of a form
-- a bare `question: answer` line about the current working tab
+- a bare `question: answer` line — bank it AND apply it to the fixed working tab
+- a pasted paragraph/block of an application form (many questions at once)
+- one or more screenshots of a form — **no verb needed**; a screenshot of questions is an
+  implicit add
+- `work-on-page` hitting an unrecognized question
 
-The user may or may not supply the answer. If they do, that answer is authoritative — bank it and
-do not second-guess it. If they don't, **reason one out** (see [Choosing the answer](#choosing-the-answer)).
+Answer authority: if the user supplied/selected an answer (text, or visible in the screenshot),
+it is authoritative — bank it, don't second-guess. Otherwise reason one out (below).
 
-## The four steps
+## Pipeline (do all of it, every time)
 
-### 1. Extract the question pattern
+**1. Understand the question.** What is it *actually* asking? Separate the semantic invariant
+from incidental detail. Company names, locations, specific numbers, punctuation, and legal
+boilerplate do not become match tokens unless they change the answer.
 
-Strip everything page-specific, then generalise:
+**2. Find or create the topic.** Search the existing banks first (`info/myworkdayjobs`
+`[QUESTION BANK]`; `DEFAULT_APPLICATION_QUESTIONS` in `eve/workday.js`; `DEFAULT_GH_QUESTIONS` in
+`eve/greenhouse.js`). Same question, different words → **add patterns to the existing topic**.
+A new topic is right only when the *answer* genuinely differs.
+one topic = one question = many question patterns; usually 1–2 answer patterns.
+
+**3. Extract the question pattern** (2–4 variants):
 
 | Strip | Replace with |
 |---|---|
-| the hiring company's name | `[\s\S]{0,40}` or drop the clause entirely |
-| a specific number (18, 5 years, 3 days) | `\d{1,2}` |
-| a specific location / role / product | a bounded wildcard `[\s\S]{0,60}` |
-| trailing "?", "*", "(required)" | nothing — never anchor on them |
+| hiring company's name | `[\s\S]{0,40}` or drop the clause |
+| specific number (18, 5 years) | `\d{1,2}` |
+| specific location/role/product | bounded wildcard `[\s\S]{0,60}` |
+| trailing `?`, `*`, `(required)` | nothing — never anchor on them |
 
-Then write **2–4 variants** covering how the same question gets asked elsewhere: synonyms
-(`authorized`/`eligible`/`permitted`), optional clauses (`now or in the future`), reordered wording,
-and the long "explanation paragraph" form. Prefer bounded `[\s\S]{0,N}` gaps over `.*` so a pattern
-can't span two questions in one block.
+Cover synonyms (`authorized`/`eligible`/`permitted`), optional clauses (`now or in the future`),
+reordered wording, and the long explanation-paragraph form. Prefer bounded `[\s\S]{0,N}` gaps over
+`.*` so a pattern can't span two questions. A slightly-broad pattern guarded by a good `exclude`
+beats a narrow one that misses.
 
-Aim for **flexible matching that catches more cases** — a slightly-too-broad pattern guarded by a
-good `exclude` beats a narrow one that misses.
+**4. Extract the answer pattern** — tenants word options differently:
 
-### 2. Extract the answer pattern
+| Answer shape | Encoding |
+|---|---|
+| plain Yes/No | `choose: 'yes' \| 'no'` (matches `Yes` and `Yes, I affirm…`) |
+| one option among several | `optionMatch` regex, e.g. `/never worked/i` |
+| granular option list | ordered `optionCandidates`, most specific first — first one the tenant offers wins |
+| free text | `text: '…'` (sanitized: no `< > [ ] " { } \`) |
+| dropdown reveals a details box | add `followUp: { patterns, text }` |
+| could render as textarea OR dropdown | give the entry **both** `choose` and `text` |
 
-The answer is a pattern too, because tenants word their options differently:
+**5. Prevent stealing.** Order matters — the most specific topic sits ABOVE the broader one
+(first match wins). Every broadened pattern gets an `exclude` when a neighboring topic shares its
+vocabulary. Classic collisions: age vs years-of-experience; salary-expectation vs current salary;
+relocation vs relocation-where; sponsorship vs unrestricted-right-to-work; located-in-X question
+vs location field. Add a contrasting regression case for each risky neighbor.
 
-- plain Yes/No → `choose: 'yes' | 'no'` (matches bare `Yes` *and* `Yes, I am at least 18 years old`)
-- a specific option among several → `optionMatch` regex, e.g. `/never worked/i`, `/temporary work visa|h-?1b/i`
-- a granular option list → **ordered** `optionCandidates`, most specific first; the first one the
-  tenant actually offers wins (`Chinese*Mandarin*` → `Mandarin*` → `Chinese`)
-- free text → `text: '...'`
+**6. Write it — all places, every time:**
 
-**One question can render as a textarea on one site and a dropdown on another.** When that is
-plausible, give the entry **both** `choose` and `text`. The runtime fills the textarea when there is
-one and answers the dropdown when there isn't.
+1. `info/myworkdayjobs` `[QUESTION BANK]`, under the right `SECTION:` header, in the group format
+   (topic, Answer + WHY it fits this applicant, Patterns, Exclude, Source). Append the raw
+   observed wording to `[SEEN QUESTIONS LOG]`.
+2. The code bank: `DEFAULT_APPLICATION_QUESTIONS` (or `DEFAULT_VOLUNTARY_DISCLOSURES` for
+   EEO/self-identify) in `eve/workday.js`, AND `DEFAULT_GH_QUESTIONS` in `eve/greenhouse.js` when
+   not Workday-specific, then `node tools/sync-indeed-bank.js` (Indeed splices from greenhouse).
+   Use the Edit tool for regex edits — never shell heredocs (they once shipped literal 0x08).
+   User-specific phrasings not worth shipping globally can go to
+   `workdaySavedAnswers.applicationQuestions` instead.
+3. Regenerate the beta shared bank: `node tools/build-shared-bank.js` (keeps
+   `eve/question-bank.js` in sync even while the `eveUnifiedBank` flag is off).
 
-### 3. Group, don't append
+**7. Verify and ship:**
 
-Before creating a topic, look for one that already exists. If the new question is the same question
-asked differently, **add patterns to that topic** — do not create a near-duplicate.
+1. `node tools/bank-test.js` and `node tools/gh-bank-test.js` — add a `routes()` assertion for
+   EVERY question added this round plus one for the chosen answer; guard `indexOf` against `-1`.
+   Must stay 100%.
+2. Bump `eve/manifest.json` → `node tools/sync-abby.js` (until the abby migration completes) →
+   reload (`tools/cdp/wake-sw.js` + `reload-ext.js`) → verify the SERVED file contains a new
+   symbol.
+3. Report tersely: topics added/updated, anything left open. No root-cause essays.
 
-- one topic = one question = many question patterns
-- one topic = usually 1–2 answer patterns
-- answers within a topic must **not fight each other**: order them by priority, most specific first,
-  and make sure a broader answer pattern can never win over a more specific one that also matches
+## Choosing the answer (when the user didn't give one)
 
-Splitting into a new topic is right only when the *answer* genuinely differs.
+Reason from `info/myworkdayjobs` — the option that best fits the applicant's **real information**,
+not the closest text. Precedence only breaks ties. Standing answers:
 
-### 4. Stop a broad pattern from stealing
-
-Every broadened pattern needs an `exclude` if any neighbouring question shares its vocabulary.
-Classic collisions:
-
-- `age` (`\d{1,2} years`) vs. tenure (`years of experience`, `how many years`, `notice period`)
-- `salary-expectation` vs. current salary / salary history / hourly rate
-- `relocation` vs. `relocation-where` (the multi-select follow-up)
-- `sponsorship` vs. `unrestricted-right-to-work`
-
-Order matters: the most specific topic must sit **above** the broader one in
-`DEFAULT_APPLICATION_QUESTIONS`, because the first matching entry wins.
-
-## Choosing the answer
-
-When the user didn't give one, reason it out from `info/myworkdayjobs` — pick the option that best
-fits the applicant's **real information**, not the one whose text looks closest. Precedence only
-breaks ties. Standing answers already established:
-
-- work authorization / unrestricted right to work → **Yes**; sponsorship needed → **Yes (H-1B transfer)**
-- relocation, hybrid/office attendance → **always the affirmative option**, no confirmation needed
-- prior employment with the hiring company or its affiliates → **No**
-- age / legal working age → **Yes**
+- work authorization / unrestricted right to work → **Yes**; sponsorship → **Yes (H-1B transfer)**
+- relocation, hybrid/office attendance → **always affirmative**, no confirmation needed
+- prior employment with the hiring company/affiliates → **No**
+- age / legal working age → **Yes**; generic "do you have experience with X" → **Yes**
 - restrictive covenant, non-compete, debarment, government official → **No**
-- EEO/demographics → per the `[EEO...]` group; disability → "I do not want to answer" unless overridden
+- any prompt containing `acknowledge` → affirmative; a single-option dropdown → select it
+- EEO/demographics → per the `[DEMOGRAPHICS]` group; disability → "I do not want to answer"
+  unless overridden
 
-If an answer genuinely cannot be inferred and getting it wrong would matter (salary, visa status,
-a legal attestation), **ask the user** rather than guess, and log it under `[OPEN QUESTIONS]`.
-
-## Where it gets written
-
-Both places, every time:
-
-1. **`info/myworkdayjobs`** — the human-readable bank, under `[QUESTION BANK]`.
-   Questions live in **topical sections**; put the group under the right one:
-
-   ```
-   # ==== SECTION: LOCATION ====        current location, country of residence, work states
-   # ==== SECTION: RELOCATION ====      willing to relocate, where, office attendance
-   # ==== SECTION: WORK AUTHORIZATION ==  authorization, sponsorship, visa, I-9
-   # ==== SECTION: WORK EXPERIENCE ====  years of experience, tech-specific experience, prior employment
-   # ==== SECTION: SALARY ====          expectations, current comp, notice period
-   # ==== SECTION: EDUCATION & SKILLS ==  degree, certifications, languages
-   # ==== SECTION: LEGAL & COMPLIANCE ==  non-compete, debarment, government, sanctions, securities
-   # ==== SECTION: CONSENT & ACKNOWLEDGEMENT ==  SMS, AI screening, truthfulness, terms
-   # ==== SECTION: DEMOGRAPHICS (EEO) ==  race, gender, veteran, disability
-   # ==== SECTION: FREE TEXT & ESSAYS ==  proud work, why this company, details boxes
-   # ==== SECTION: MISC / TENANT-SPECIFIC ==  anything that fits nowhere above
-   ```
-
-   Group format:
-
-   ```
-   ## [TopicName] (topic: `topic-id` -> **Answer**)
-
-   Answer: <the answer, and WHY it fits this applicant>
-   Patterns:
-
-   - <regex variant 1>
-   - <regex variant 2>
-   - <regex variant 3>
-
-   Exclude: <regex>   # only when a neighbouring topic shares vocabulary
-   Source: <tenant / date>
-   ```
-
-2. **the code bank** — `DEFAULT_APPLICATION_QUESTIONS` (or `DEFAULT_VOLUNTARY_DISCLOSURES` for the
-   Voluntary Disclosures / Self Identify steps) in `eve/workday.js`. Mirror into
-   `greenhouse.js` / `indeed.js` / `smartrecruiters.js` when the question is not Workday-specific.
-
-## Finish the round
-
-1. `node tools/bank-test.js` — add a `routes(<question text>, '<topic>')` assertion for **every**
-   question added this round, plus an assertion for the chosen answer. It must stay at 100%.
-   Assertions that use `indexOf` must guard against `-1`, or they pass vacuously.
-2. Bump `eve/manifest.json` and reload the extension (`node tools/cdp/reload-ext.js`).
-3. Report tersely: topics added/updated, and anything left as an open question.
+If an answer can't be safely inferred and being wrong would matter (salary, visa specifics, legal
+attestation), **ask the user** (in-app question UI) and log it under `[OPEN QUESTIONS]` — never
+silently omit or guess.
 
 ## Anti-patterns
 
-- storing the exact question string, or anchoring a pattern on the company name
-- creating a second topic for a question that already has one
-- broadening a pattern without adding the `exclude` that keeps it in its lane
-- guessing at salary, visa status, or a legal attestation instead of asking
-- adding to `info/` but not the code bank (or vice versa) — the bank is only real when both agree
+- storing the exact question string, or anchoring on a company name
+- a second topic for a question that already has one
+- broadening a pattern without its `exclude`
+- adding to `info/` but not the code bank, or vice versa — the bank is only real when both agree
+  and the tests pass
+- retyping regexes into tests instead of extracting them from source

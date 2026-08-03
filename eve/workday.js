@@ -245,7 +245,9 @@
                 // Visa words it "provide verification of your identify upon hire" — note their typo
                 // ("identify"), so match the `identi` stem rather than the whole word.
                 /verification of[\s\S]{0,25}identi/i,
-                /(verification|proof|documentation|evidence) of[\s\S]{0,40}(identity|employment eligibility)[\s\S]{0,80}(work|employment)/i
+                /(verification|proof|documentation|evidence) of[\s\S]{0,40}(identity|employment eligibility)[\s\S]{0,80}(work|employment)/i,
+                /(if|when) hired[\s\S]{0,50}(provide|produce|present)[\s\S]{0,30}proof of (employment |work )?eligibility/i,
+                /(provide|produce|present)[\s\S]{0,30}proof of (employment |work )?eligibility[\s\S]{0,50}(if|when) hired/i
             ],
             choose: 'yes'
         },
@@ -763,7 +765,11 @@
             patterns: [
                 /(currently|ever)[\s\S]{0,80}(partner|principal|shareholder|employee)[\s\S]{0,100}(deloitte|touche|kpmg|pwc|pricewaterhousecoopers)/i,
                 /(partner|principal|shareholder|employee)[\s\S]{0,100}(deloitte|touche)[\s\S]{0,100}(subsidiar|affiliate)/i,
-                /(partner|principal|shareholder|employee) of[\s\S]{0,100}(audit|accounting|professional services) firm/i
+                /(partner|principal|shareholder|employee) of[\s\S]{0,100}(audit|accounting|professional services) firm/i,
+                // "Are you a current or former (prior 18 months) employee of EY, PwC, Deloitte or
+                // KPMG?" (user, 2026-07-28) — adds EY/Ernst and the current-or-former phrasing.
+                /(current or former|currently or previously)[\s\S]{0,60}(employee|employed)[\s\S]{0,60}(\bey\b|pwc|deloitte|kpmg|ernst|pricewaterhouse)/i,
+                /(\bey\b|ernst & young)[\s\S]{0,60}(employee|employed|partner|principal)/i
             ],
             choose: 'no'
         },
@@ -1491,6 +1497,18 @@
             text: 'I use AI chat and AI coding agents every day, in both work and personal life. At work, I built an AI agent system to automate financial-data validation between vendor emails and our internal platform. Bankers previously had to read each email, extract relevant fields, clean inconsistent formats, and compare the values manually, which was time-consuming and error-prone. The system uses Google ADK, FastAPI, Azure OpenAI, and AWS Bedrock to classify incoming emails, route them by financial instrument type, extract structured data, normalize the results, retrieve matching internal records, and run sequential and parallel comparison agents. I added schema-constrained outputs, validation rules, traceable comparison results, and a human-review step for uncertain cases so the workflow remained explainable and operationally safe. We evaluated it against manually reviewed examples and confirmed that it identified most known discrepancies. The solution changed the process from manual comparison to exception-based review and was projected to save the banker team hundreds of hours per month while improving consistency, productivity, and data quality.'
         },
         {
+            // "What excites you about this role?" (user, 2026-07-28) — their own words, tightened.
+            // Ordered before why-company-essay: that one pitches the COMPANY, this answers what is
+            // exciting about the WORK.
+            topic: 'excites-about-role',
+            patterns: [
+                /what excites you (most )?about (this|the) (role|position|job|opportunity)/i,
+                /what (are you|is) (most )?excited about[\s\S]{0,30}(role|position)/i,
+                /what excites you (most )?about/i
+            ],
+            text: 'Building genuinely innovative products is what excites me most — being somewhere the work is technically ambitious rather than incremental. I also want to keep going deep on AI and new technology while it is changing how software gets built, since that is where I learn fastest and where I can contribute the most. Just as much, I want to work with people I can learn from and actually enjoy spending my days with.'
+        },
+        {
             // "What interested you about this role?" / "Why do you want to work here?" — user's
             // supplied wording (2026-07-27), mirrored from greenhouse.js so every shared task
             // (T2/T3/T5/T6) answers it the same way. Role/company/team wording is interchangeable.
@@ -1625,6 +1643,23 @@
             optionCandidates: [/^\s*5\b/, /\bexpert\b/i],
             optionLabel: '5',
             text: '5'
+        },
+        {
+            // Yes/No "do you meet the minimum experience in the job description" (Indeed/Infosys
+            // 2026-07-27). Ordered BEFORE the banded years-of-experience entries so a Yes/No
+            // control never falls into a numeric band optionMatch. CV: 4+ years professional -> Yes.
+            topic: 'meets-minimum-experience',
+            patterns: [
+                /(at least )?the minimum years of (relevant )?(work )?experience/i,
+                /minimum years of[\s\S]{0,40}experience[\s\S]{0,60}(job description|described|required)/i,
+                // "…meet the minimum QUALIFICATION for years of professional work experience…" (user,
+                // 2026-07-28) — a noun sits between "minimum" and "experience", so the 30-character
+                // window was just too short and the question fell through to the years-BAND topic,
+                // which would have typed "5" into a Yes/No control.
+                /meet the (minimum|required)[\s\S]{0,60}experience/i,
+                /can you confirm[\s\S]{0,80}(minimum|required)[\s\S]{0,60}(qualification|experience)/i
+            ],
+            choose: 'yes'
         },
         {
             // "How many years of relevant work experience do you have?" — a BANDED dropdown whose
@@ -4045,6 +4080,19 @@
         } catch { return null; }
     }
 
+    // Unified cross-platform bank (BETA): extra topics from the generated shared bank
+    // (question-bank.js), consulted only when the eveUnifiedBank storage flag is true.
+    // With the flag off (default) this returns [] and behavior is the status quo.
+    async function sharedBankExtras(platform) {
+        try {
+            const shared = (typeof self !== 'undefined' ? self : window).EVE_SHARED_QUESTION_BANK;
+            if (!shared) return [];
+            const stored = await storageGet(['eveUnifiedBank']);
+            if (stored.eveUnifiedBank !== true) return [];
+            return shared.extrasFor(platform) || [];
+        } catch { return []; }
+    }
+
     // Default question bank merged with user-accumulated phrasings in workdaySavedAnswers.
     async function applicationQuestionBank() {
         const stored = (await storageGet([WORKDAY_INFO_KEY]))[WORKDAY_INFO_KEY] || {};
@@ -4066,6 +4114,9 @@
             } else if (patterns.length) {
                 bank.push({ topic: raw.topic || 'custom', patterns, exclude: raw.exclude ? globToRegExp(raw.exclude) : null, choose, optionMatch, optionLabel: raw.optionLabel || (optionMatch ? raw.answer : null), followUp });
             }
+        }
+        for (const entry of await sharedBankExtras('workday')) {
+            if (!bank.some(existing => existing.topic === entry.topic)) bank.push(entry);
         }
         return bank;
     }

@@ -157,6 +157,6 @@ The modal is rendered inside a **Shadow DOM** on `#preact-border-shadow-host`.
 ### Field Table
 | Field Label | Current Value |
 |-------------|---------------|
-| Email address | xiaoxiaolei417@gmail.com |
+| Email address | applicant@example.com |
 | Phone country code | United States (+1) |
-| Mobile phone number | 5713761882 |
+| Mobile phone number | 5555550100 |

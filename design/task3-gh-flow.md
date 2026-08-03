@@ -98,7 +98,7 @@ you've recruited for." (→ smallest-company-essay, user-approved verbatim 2026-
 bank-covered — Eve's Apply fills the whole TurbineOne page.
 
 **6sense / Software Engineer III 8037358** — Apply test page (partially sim-filled already):
-first/last/email/phone/LinkedIn filled; resume attached (`Xiaoxiao_Lei_resume.pdf`); sponsorship
+first/last/email/phone/LinkedIn filled; resume attached (the packaged resume artifact, `eve/artifacts/resume.pdf`); sponsorship
 combobox = Yes; EEO combos = Male / No / Asian / I am not a protected veteran / No-disability.
 Still empty: Location (City)* (`#candidate-location`), Website (text), 3 optional Yes/No
 experience combos (Java+Spring Boot / backend+frontend / cloud+containers), Cover Letter upload.
@@ -163,7 +163,7 @@ from the text-input scan too. Menu opening must also be idempotent: if the combo
 
 **Conditional custom Name field:** Accenture question `#question_8460094006` is a follow-up under
 the family/close-relationship question. Its label is only `Name`; v1.1.195 mistook it for Ashby’s
-system Name field and wrote `Xiaoxiao Lei` even though the controlling answer was No. Exact `Name`
+system Name field and wrote the applicant's full name even though the controlling answer was No. Exact `Name`
 autofill is allowed only for Ashby’s `_systemfield_name`; custom `question_*` fields must fall
 through to the question bank/unanswered handling.
 

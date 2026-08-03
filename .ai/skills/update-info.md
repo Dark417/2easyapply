@@ -37,6 +37,10 @@ Keep `info/myworkdayjobs` (the human-readable application answer bank for the us
    regex family that covers equivalent phrasings without stealing a neighboring topic.
 5. If a form needs a field with **no known answer**, add it to `[OPEN QUESTIONS]` and never guess (especially work auth, visa, salary, employment history).
 6. Never copy secrets (`.env`, passwords, tokens, cookies, private URLs) into the bank.
+7. **PII boundary**: personal data lives ONLY in gitignored locations (`info/`, `cv/`,
+   `eve/artifacts/`, `eve/profile.local.json`, `eve/secrets.local.json`). The git remote is
+   public — never write the applicant's real name, email, phone, or address into tracked files
+   (code, `AGENTS.md`, `.ai/`, `design/`); reference them generically instead.
 
 ## Boundary vs. `update-instructions`
 

@@ -37,10 +37,16 @@ Eve supports Workday application URLs whose hostname contains `myworkdayjobs.com
   Any prompt containing `acknowledge` resolves to an affirmative answer.
 - Desired employment start date is **09/07/2026**. Prior/current interviewing with the employer is
   **No**; company names are incidental and the topic is distinct from prior application.
+- Omnissa wording extends existing topics rather than creating one-off entries: currently
+  contracting with the hiring company → `prior-employment` **No**; citizenship/nationality/residency
+  in the listed sanctioned countries or Ukraine regions → `export-control-restricted-country`
+  **No**. Company name and list order are incidental. v1.1.287 regression: Workday **360/360** and
+  shared Greenhouse/Indeed **572/572** assertions passed, including ordinary-nationality and
+  Texas-residency collision guards.
 
 1. On **Start Your Application**, select **Autofill with Resume**.
 2. On Workday authentication, select **Sign in with Google**.
-3. On a Google account chooser that is verified as a Workday OAuth request, select `xiaoxiaoleijobapp@gmail.com`.
+3. On a Google account chooser that is verified as a Workday OAuth request, select the configured job-application Google account (see `info/myworkdayjobs` [CONTACT], gitignored).
 4. Return to Workday and resume only the persisted session that the user explicitly activated.
 5. On the authenticated **Autofill with Resume** page, Eve privately requests the packaged resume from its background service worker, reconstructs a `File`, assigns it to Workday's real input with `DataTransfer`, and waits for upload acceptance. Both Manual **Apply** and Auto **Auto Apply** use the generic delayed **Continue** after confirmation; Manual's one-shot capability expires on the next step, while Auto may keep looping.
 6. On **My Information**, do not invoke sim. **How Did You Hear About Us? is first-option-always (user, 2026-07-25)**: open the picker, click the FIRST option, and if it drills into a sub-list click the first option there too, repeating to a depth cap of 4 (`MAX_SOURCE_DEPTH`). The old LinkedIn / **Job Board → LinkedIn** walk and the later "prefer Referral" precedence are both removed on purpose — no preference is to be reintroduced. **Skip-if-already-filled**: every My Information search-and-pick field that already holds a real value is treated as done and never reopened. Fill missing fixed fields from `workdaySavedAnswers`, retain valid account-populated values, ignore optional blanks, save the resulting Workday values back to that key, and click **Save and Continue**.
@@ -69,12 +75,12 @@ Eve supports Workday application URLs whose hostname contains `myworkdayjobs.com
 
 - Pre-flow and authentication coverage starts logged out at the designated `/apply` URL.
 - Filling-flow coverage starts from the authenticated Workday step named by the user. Authentication branches are parked for that slice and XC must not log out or replay them.
-- The active resume slice uses the explicitly authorized packaged `eve/artifacts/Xiaoxiao_Lei_RESUME.pdf`, attaches it through Workday's real file input without a chooser, and waits for Workday's successful-upload state. Manual consumes one delayed Continue and stops on the next step; Auto may keep looping. Sim is not used.
+- The active resume slice uses the explicitly authorized packaged resume artifact (`eve/artifacts/resume.pdf`), attaches it through Workday's real file input without a chooser, and waits for Workday's successful-upload state. Manual consumes one delayed Continue and stops on the next step; Auto may keep looping. Sim is not used.
 
 ## Automation pacing
 
 - **No general delay (user, 2026-07-18).** `ACTION_DELAY_MS = 0`: clicks, picker choices, checkbox/radio changes, and programmatic field sets execute immediately. Correctness comes from the picker code already **polling/waiting for options to render** (`waitForOptionMatching`, `waitForButton`, `waitForPrecedenceOption`, `MutationObserver`), not from a fixed pre-delay. There is no artificial spacing in the job flow.
-- **The only deliberate wait is the long search-result pickers** — **Field of Study** (and a searchable **School** list where a tenant uses one): after typing the search term, wait `PICKER_SEARCH_SETTLE_MS = 500` ms for the filtered results to come back, then select as soon as a match appears (the precedence poll still covers slower results up to its own timeout). These are the "long list, only a few real matches" fields the user called out. Everything else has zero delay.
+- **The only deliberate wait is the long search-result pickers** — **Field of Study** and every searchable Workday typeahead (including searchable **School**): real pointer-click the text bar, focus it, type the term with input events, press Enter, wait `PICKER_SEARCH_SETTLE_MS = 500` ms, inspect the now-rendered result list, pointer-click the matched result, then click a neutral area and verify the selected token. Typed search text alone is never a completed answer. The precedence poll still covers slower results after the mandatory 0.5 s boundary. Everything else uses the base action spacing.
 - Historical note: this supersedes the former 2 s (later 250 ms) global spacing. The status line no longer says "(2s safety delay)"; it just shows the action.
 - The applicable mode/capability and extension-enabled flag are rechecked immediately before each interaction. Turning Auto off cancels an Auto session; invalidating a Manual pass expires its one-shot resume capability and prevents an already-scheduled click.
 - DOM observation may poll faster because observation itself is read-only and does not interact with the site.
@@ -94,15 +100,15 @@ Eve supports Workday application URLs whose hostname contains `myworkdayjobs.com
 - On **My Information**, the fill pass merges stable packaged profile defaults with `workdaySavedAnswers`; previously saved non-empty Workday values win. Each explicit Manual **Apply** force-refills every known blank while preserving already-valid values, a fresh or empty runtime cache must not leave known identity, address, or phone fields blank, and it then clicks **Save and Continue** to reach the next step.
 - The manual pass must not enter the pre-flow application, authenticate, open a local file chooser, auto-submit at Review (Submit needs explicit approval), or persist a running session. After clicking its one advance action it stops and does not react to later DOM/navigation changes.
 - Switching from Auto to Manual cancels the active loop first. A later Manual **Apply** click is a new single-step action, never a continuation of the former loop.
-- **Autofill with Resume is a fillable step**: the extension retrieves `artifacts/Xiaoxiao_Lei_RESUME.pdf` through an allowlisted background message and assigns it to Workday's real file input with `DataTransfer`; no chooser or document UI is shown. After confirmed upload, Manual **Apply** clicks Continue and stops on the next step; Auto **Auto Apply** may continue its loop.
-- Cover-letter inputs are matched separately and receive `artifacts/Xiaoxiao_Lei_Cover_Letter.pdf`. The background endpoint exposes only these two logical artifact IDs and never publishes the PDFs as web-accessible resources.
+- **Autofill with Resume is a fillable step**: the extension retrieves the packaged resume artifact (`eve/artifacts/resume.pdf`) through an allowlisted background message and assigns it to Workday's real file input with `DataTransfer`; no chooser or document UI is shown. After confirmed upload, Manual **Apply** clicks Continue and stops on the next step; Auto **Auto Apply** may continue its loop.
+- Cover-letter inputs are matched separately and receive the packaged cover-letter artifact (`eve/artifacts/cover-letter.pdf`). The background endpoint exposes only these two logical artifact IDs and never publishes the PDFs as web-accessible resources.
 - A tenant may implement resume upload as a pre-step that automatically swaps the page to **My Information** when parsing finishes. This is a Workday-owned state transition, not a Continue click. Manual mode reports the transition and stops; it never fills the newly rendered step in the same Apply pass.
 
 Workday renders many step controls asynchronously. After every navigation, the adapter keeps the exact application session active and uses a `MutationObserver` with a 200 ms polling fallback for up to 15 seconds. Authentication gets a dedicated Google-only wait, so an email button rendering first cannot trigger the fallback. **Sign in with Google** is clicked as soon as Workday makes it available instead of treating the first empty DOM check as a blocked step.
 
 ## Packaged document boundary
 
-- The user explicitly authorized the private extension package to contain `eve/artifacts/Xiaoxiao_Lei_RESUME.pdf` and `eve/artifacts/Xiaoxiao_Lei_Cover_Letter.pdf`.
+- The user explicitly authorized the private extension package to contain the packaged resume artifact (`eve/artifacts/resume.pdf`) and the packaged cover-letter artifact (`eve/artifacts/cover-letter.pdf`).
 - Neither PDF is listed in `web_accessible_resources`. Only the background service worker reads the fixed internal paths.
 - The message bridge accepts only logical IDs `resume` and `coverLetter`, only from a sender tab whose URL hostname contains `myworkdayjobs.com`, and returns only `name`, `type`, `size`, and chunk-encoded `dataBase64`.
 - Both background and content-script sides validate the fixed PDF filename, exact expected size, and PDF signature. Contents and base64 are never logged.
@@ -138,7 +144,7 @@ Workday renders many step controls asynchronously. After every navigation, the a
 
 BlackRock Workday was used to validate the observed route:
 
-`Start Your Application → Autofill with Resume → Sign In → Sign in with Google → xiaoxiaoleijobapp@gmail.com → Autofill with Resume`
+`Start Your Application → Autofill with Resume → Sign In → Sign in with Google → the configured job-application Google account → Autofill with Resume`
 
 ### 2026-07-16 — BlackRock entry/auth slice (passed)
 
@@ -154,8 +160,8 @@ BlackRock Workday was used to validate the observed route:
 ### 2026-07-16 — BlackRock authenticated resume slice (passed)
 
 - Baseline: preserve the authenticated BlackRock tab on step 1 of 7, **Autofill with Resume**. Login and account-creation branches were intentionally parked and were not replayed.
-- File: `cv/Xiaoxiao_Lei_RESUME.pdf`, supplied to Workday's real `input[data-automation-id="file-upload-input-ref"]`. The PDF remained outside packaged extension assets.
-- Workday rendered the filename `Xiaoxiao_Lei_RESUME.pdf` and the visible status **Successfully Uploaded!**. Upload completion alone did not navigate or click Continue.
+- File: the applicant's local resume PDF (a `cv/` copy), supplied to Workday's real `input[data-automation-id="file-upload-input-ref"]`. The PDF remained outside packaged extension assets.
+- Workday rendered the resume filename and the visible status **Successfully Uploaded!**. Upload completion alone did not navigate or click Continue.
 - With Auto mode armed, the explicit Eve **Auto Apply** action triggered Workday `pageFooterNextButton` after **2,012 ms**, satisfying the two-second action-delay rule.
 - The target advanced to step 2 of 7, **My Information**. The source field was still blank at the handoff; no My Information values were changed and no application was submitted.
 - Chrome DevTools MCP's `upload_file` rejected the repository PDF because the path was outside that MCP server's configured workspace roots. XC used the same live tab's CDP `DOM.setFileInputFiles` operation as a test-only fallback. This does not change the production boundary: a content script cannot choose an arbitrary local path without an explicit user-granted file handle or runtime resume store.
@@ -189,8 +195,8 @@ BlackRock Workday was used to validate the observed route:
 ### 2026-07-16 — Packaged resume Manual Apply retest (passed)
 
 - Target: the refreshed authenticated BlackRock **Associate, Consultant Relations** Autofill with Resume step, Auto off, empty Workday file input.
-- One Manual **Apply** click silently assigned `Xiaoxiao_Lei_RESUME.pdf` (`106737` bytes, `application/pdf`) to Workday's real `file-upload-input-ref` after **2,020 ms**.
-- Workday displayed `Xiaoxiao_Lei_RESUME.pdf successfully uploaded` and **Successfully Uploaded!** after **2,468 ms**.
+- One Manual **Apply** click silently assigned the packaged resume artifact (`106737` bytes, `application/pdf`) to Workday's real `file-upload-input-ref` after **2,020 ms**.
+- Workday displayed the resume filename with `successfully uploaded` and **Successfully Uploaded!** after **2,468 ms**.
 - Chooser probes observed no input click, `showPicker`, or window picker signal. Navigation probes observed no Continue/Next click. Workday Continue remained enabled and untouched; the URL and step stayed on Autofill with Resume.
 - Auto remained off, Eve reported **Packaged resume uploaded successfully. Review it, then continue manually.**, and the console had no errors or warnings.
 - This decisively passes the private background-artifact bridge, content-side PDF reconstruction, two-second Manual attachment pacing, hidden upload, and Manual no-navigation contract for the resume artifact. Cover-letter routing remains statically validated until a safe live cover-letter input is available.
@@ -198,7 +204,7 @@ BlackRock Workday was used to validate the observed route:
 ### 2026-07-16 — Frozen 1.1.83 packaged resume verification (passed)
 
 - The extension was explicitly reloaded from `chrome://extensions`, then the exact authenticated BlackRock resume step was hard-refreshed to an empty upload baseline.
-- One Manual **Apply** click assigned `Xiaoxiao_Lei_RESUME.pdf` (`106737` bytes, `application/pdf`, `lastModified: 0`) after **2,028 ms**. Workday confirmed **Successfully Uploaded!** after **2,379 ms**.
+- One Manual **Apply** click assigned the packaged resume artifact (`106737` bytes, `application/pdf`, `lastModified: 0`) after **2,028 ms**. Workday confirmed **Successfully Uploaded!** after **2,379 ms**.
 - Chooser count: 0. Continue/Next/navigation click count: 0. The exact URL and Autofill with Resume step 1/7 remained unchanged, Auto remained off, Continue stayed enabled and untouched, and the console had no errors or warnings.
 - Final state was intentionally left with the packaged resume successfully uploaded. No application navigation or submission occurred.
 
@@ -206,15 +212,15 @@ BlackRock Workday was used to validate the observed route:
 
 - Exact existing target: authenticated BlackRock **Associate, Consultant Relations** at `/apply/autofillWithResume`; Workday kept the same SPA URL while changing the active step.
 - After a hard refresh, the resume control was empty. Arming Auto remained inert for **15.631 seconds**: zero file changes, footer clicks, or step changes until the separate **Auto Apply** action.
-- Auto Apply silently attached packaged `Xiaoxiao_Lei_RESUME.pdf` after **2,021 ms**. Workday visibly reported **Successfully Uploaded!** 598 ms later.
+- Auto Apply silently attached the packaged resume artifact after **2,021 ms**. Workday visibly reported **Successfully Uploaded!** 598 ms later.
 - The shared `advanceWorkdayStep()` primitive re-resolved live `[data-automation-id="pageFooterNextButton"]`, clicked **Continue** exactly once **2,009 ms** after the attachment action, and observed the stable step signature change from **Autofill with Resume** to **My Information** 1,693 ms later.
 - Auto was disarmed 2 ms after the new step was observed, before a next-step fill. During the following 2.7 seconds the My Information fields did not change, the footer-click total remained one, and the action returned to Manual **Apply**.
 - Three source-less `Uncaught (in promise)` console entries were present along with Workday CSP/accessibility messages. DevTools exposed no source, stack, or arguments, so they could not be attributed to Eve; the tested upload/advance flow completed successfully. Do not report this round as zero-console-error evidence.
-- On the arrived **My Information** step, one Manual **Apply** pass normalized Phone Number to `(571) 376-1882` and selected exact `LinkedIn`. It made zero additional footer clicks, kept the same URL/step, left Auto off, and ended with **Current Workday step filled. Review it, then continue manually.** The three source-less promise entries showed no count delta before/after this pass.
+- On the arrived **My Information** step, one Manual **Apply** pass normalized Phone Number to the profile's `(xxx) xxx-xxxx` format and selected exact `LinkedIn`. It made zero additional footer clicks, kept the same URL/step, left Auto off, and ended with **Current Workday step filled. Review it, then continue manually.** The three source-less promise entries showed no count delta before/after this pass.
 
 ### 2026-07-16 — User-reported Continue probe (previous contract diagnosed; superseded)
 
-- Exact existing target: authenticated BlackRock **Associate, Consultant Relations** at `/apply/autofillWithResume`, with `Xiaoxiao_Lei_RESUME.pdf` and **Successfully Uploaded!** already visible. Workday `pageFooterNextButton` was enabled and labeled **Continue**.
+- Exact existing target: authenticated BlackRock **Associate, Consultant Relations** at `/apply/autofillWithResume`, with the packaged resume artifact and **Successfully Uploaded!** already visible. Workday `pageFooterNextButton` was enabled and labeled **Continue**.
 - The observed initial state was Auto off, action button **Apply**. One Manual **Apply** click produced zero footer clicks and no navigation under the then-current contract. The user's report established that resume upload must instead be the sole Manual navigation exception; version 1.1.86 supersedes that behavior.
 - Arming Auto alone remained inert for 16.7 seconds. The separate explicit **Auto Apply** click produced exactly one Continue click after 2,017.5 ms and a real **My Information** step transition 1,950 ms later. Auto was disarmed immediately; Save and Continue was untouched and no console errors or warnings appeared.
 - The probe also validated the Auto generic primitive and motivated two retained hardening changes: serialize the rendered toggle mode before dispatch, and separate upload confirmation from delayed footer readiness.
@@ -223,14 +229,14 @@ BlackRock Workday was used to validate the observed route:
 
 - Eve was reloaded through `chrome://extensions`; the extension card changed from 1.1.84 to 1.1.86. A hard refresh of the exact authenticated BlackRock **Associate, Consultant Relations** tab safely restored an empty **Autofill with Resume** step without logout, discard, restart, or tenant substitution.
 - Baseline: Auto off, action **Apply**, empty `file-upload-input-ref`, and enabled footer `pageFooterNextButton` labeled **Continue**.
-- One Manual **Apply** silently attached packaged `Xiaoxiao_Lei_RESUME.pdf` after 2,020.5 ms. After Workday confirmed the upload, its one-shot capability clicked exact Continue once 2,018.6 ms after attachment.
+- One Manual **Apply** silently attached the packaged resume artifact after 2,020.5 ms. After Workday confirmed the upload, its one-shot capability clicked exact Continue once 2,018.6 ms after attachment.
 - Workday reached **My Information** 1,702.3 ms later. Auto remained off, the action returned to **Apply**, status reported that resume Continue completed and Eve stopped, and **Save and Continue** was enabled but untouched. Total footer clicks remained exactly one.
 - This passes the narrow Manual navigation exception: the capability is issued only for the current confirmed resume pass, consumed before the exact Continue click, and cannot drive the next step.
 
 ### 2026-07-16 — BlackRock My Information slice (passed; picker-read defect observed)
 
 - Exact target: `BlackRock_Professional/job/London%2C-Greater-London/Private-Funds-Lawyer-Infrastructure_R264763-1/apply/autofillWithResume` in the user's existing authenticated Chrome tab.
-- State 0 was step 2 of 6, **My Information**. The visible values were Country `United States of America`; First Name `Xiaoxiao`; Last Name `Lei`; preferred-name unchecked; Address Line 1 `1721 Walters Dr`; City `Plano`; State `Texas`; Postal Code `75023`; email `xiaoxiaoleijobapp@gmail.com` (read-only); Phone Device Type `Mobile`; Country Phone Code `United States of America (+1)`; Phone Number `1-571-376-1882`; optional Phone Extension blank.
+- State 0 was step 2 of 6, **My Information**. The visible values were Country `United States of America`; the applicant's First and Last Name; preferred-name unchecked; the applicant's street address as Address Line 1; City `Plano`; State `Texas`; the applicant's Postal Code; the configured job-application account email (read-only); Phone Device Type `Mobile`; Country Phone Code `United States of America (+1)`; the configured Phone Number; optional Phone Extension blank.
 - **How Did You Hear About Us?** was already a valid exact `LinkedIn` selected token at `#source--source`, so XC retained it. The phone-code picker at `#phoneNumber--countryPhoneCode` likewise had a valid selected token while its nested text input value was empty.
 - Workday enabled and accepted `button[data-automation-id="pageFooterNextButton"]`. After a 3.4-second safety wait, XC clicked it exactly once and advanced to step 3 of 6, **My Experience**, on the unchanged application URL. My Experience fields were not touched and the application was not submitted.
 - No console errors or warnings were observed before or after the transition.
@@ -249,7 +255,7 @@ BlackRock Workday was used to validate the observed route:
 - Exact existing target: authenticated **Associate, Consultant Relations** at `/job/San-Francisco%2C-CA/Associate--Consultant-Relations_R265367/apply/autofillWithResume`; Workday retained the same SPA URL while advancing.
 - Baseline was **My Information**, step 2 of 7, with Auto disarmed. The source input was `#source--source`. Typing `linkedin` did not flatten this tenant's root categories, so XC selected **Job Board**, scrolled its virtualized list (`scrollHeight 2118`, `clientHeight 399`) to approximately `scrollTop 900`, and chose exact **LinkedIn**, never **Friend's LinkedIn Feed**.
 - Valid source evidence was the selected-token accessibility state: `aria-description` reported **1 item selected, LinkedIn** and the token exposed **LinkedIn, press delete to clear value**. The raw nested search-input value is not selection evidence. The country-phone-code picker follows the same selected-token rule.
-- Existing profile values were preserved: United States of America; Xiaoxiao Lei; preferred name unchecked; 1721 Walters Dr; Plano; Texas; 75023; read-only account email; Mobile; United States of America (+1); and `(571) 376-1882`. Only optional Phone Extension was blank.
+- Existing profile values were preserved: United States of America; the applicant's full name; preferred name unchecked; the applicant's street address; Plano; Texas; the applicant's postal code; read-only account email; Mobile; United States of America (+1); and the configured phone number. Only optional Phone Extension was blank.
 - XC waited at least two seconds between interactions, clicked `pageFooterNextButton` labeled **Save and Continue** exactly once, and reached **My Experience**, step 3 of 7. Auto remained off, no later navigation occurred, no fields on My Experience were touched, and the console had no errors.
 - Version `1.1.88` makes this behavior reusable: immutable shared-profile defaults cover a fresh or partial Workday store; source selection runs first; direct exact **LinkedIn** search is attempted without scrolling the root categories; **Job Board → LinkedIn** is the virtualized fallback; and success requires an exact selected token/accessibility description rather than the typed search value. Workday search inputs marked by `data-uxi-widget-type="selectinput"`, `data-uxi-multiselect-id`, or `multiSelectContainer` explicitly reject their raw typed value as selection evidence. Saved non-empty `workdaySavedAnswers` still override defaults, and generic `advanceWorkdayStep()` remains the sole Auto Save-and-Continue path.
 - The extension was reloaded successfully without refreshing or navigating the completed target tab. The tab remained on **My Experience**, step 3 of 7, with Auto false and no additional page action. A read-only probe of an existing My Information tab confirmed its source token uses `data-automation-id="selectedItem"` while the nested search input is an empty `data-uxi` selectinput. The code fix received syntax, manifest, diff, and DOM-marker validation without manufacturing a Back/discard/restart retest.
@@ -285,7 +291,7 @@ BlackRock Workday was used to validate the observed route:
 
 ### 2026-07-17 — Logged-out entry flow PASSED + My Information false-pause fixed (v1.1.102)
 
-- **Scenario (Private Funds Lawyer, logged out)**: XC (Chrome MCP) turned Auto **on**, clicked **Auto Apply** on **Start Your Application**. Observed end-to-end, non-stop: **Autofill with Resume** selected → **Sign in with Google** → authenticated **silently** (existing session, `xiaoxiaoleijobapp@gmail.com`) → returned to the authenticated flow → resume handled → advanced to **My Information (step 1 of 5)**. Entry + auth flow works as specified.
+- **Scenario (Private Funds Lawyer, logged out)**: XC (Chrome MCP) turned Auto **on**, clicked **Auto Apply** on **Start Your Application**. Observed end-to-end, non-stop: **Autofill with Resume** selected → **Sign in with Google** → authenticated **silently** (existing session, the configured job-application Google account) → returned to the authenticated flow → resume handled → advanced to **My Information (step 1 of 5)**. Entry + auth flow works as specified.
 - **Bug found & fixed**: at My Information the Auto loop **paused** with *"Select Job Board, then LinkedIn, and click Auto Apply again"* even though the source token **already showed LinkedIn** (retained from a prior session). Cause: `ensureSourceLinkedIn` did a single synchronous `isLinkedInSelected()` check the instant the step rendered — before the retained `selectedItem` token was in the DOM — so it fell through to a re-select attempt that timed out and false-paused. Fix: made the initial check **poll up to 4s** (`waitForLinkedInSelection(4000)`) for an already-present/late-rendering LinkedIn token before attempting selection. `waitForLinkedInSelection` now takes a timeout arg.
 - **Per-page flow memory (Auto ON)**: Start Your Application → Autofill with Resume → Sign in with Google → (silent or chooser) account → resume upload/parse → My Information → My Experience → Application Questions → Voluntary Disclosures → Review (hard stop; Submit needs explicit approval). Auto runs it non-stop and pauses only on an unanswerable field; re-clicking Auto Apply resumes from the current step. Manual (Auto off) finishes just the current page incl. its appended Continue.
 

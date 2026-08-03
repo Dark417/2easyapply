@@ -60,6 +60,8 @@ assert(SALARY_EXPECTATION === '160000', `SALARY_EXPECTATION constant resolves ($
 
 console.log('\n=== Visa (REF084823W) ===');
 routes('Can you provide verification of your identify upon hire?', 'work-eligibility-verification');
+routes('If hired, can you provide proof of eligibility?', 'work-eligibility-verification');
+assert(pick('If hired, can you provide proof of eligibility?').choose === 'yes', 'proof-of-eligibility-on-hire uses Yes');
 routes('Are you legally eligible to work in the job’s location?', 'work-authorization');
 routes('In order to begin or continue employment in the United States, will you now or in the future require sponsorship or assistance? (This includes support such as; J-1, F-1, CPT, or OPT and employment based sponsorship such as; H-1B, H-1B1, E-3, O-1, TN, and any EAD card holders that may need assistance)', 'sponsorship');
 routes('Are you a military spouse?', 'spouse-military-service');
