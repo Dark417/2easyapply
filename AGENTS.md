@@ -27,6 +27,8 @@ Interpret input by this map; when input matches none of it, treat it as a normal
 | `lk search` | Open the LinkedIn search tabs | `linkedin-job-search` |
 | `gh` | Greenhouse (T3) context: `job-boards.greenhouse.io`, `my.greenhouse.io` | T3 |
 | `ash` | Ashby context — same T3 adapter and steps as gh | T3 |
+| `kf` | Kforce (T7) context: `www.kforce.com` detail page → Apply Online form | T7 |
+| `orc` / `oracle` | Oracle Careers (T8) context: `careers.oracle.com` search list, OCI scan, applied sync | T8 |
 | `unified bank on` / `off` | Flip the beta shared-bank flag `eveUnifiedBank` in extension storage | see Unified question base |
 | `migrate abby` | Execute `design/abby-migration.md` (re-point done by user first) | see Extension directories |
 
@@ -65,9 +67,9 @@ Run in this order at the start of every chat, then as events require:
 
 `work-on-page` → `add-question` → `test-page` is the shared stuck-step loop for the platform tasks.
 
-## Tasks (five orthogonal workflows)
+## Tasks (six orthogonal workflows)
 
-Five parallel, non-blocking tasks; work in one never gates another. `work on <url>` scopes to the
+Six parallel, non-blocking tasks; work in one never gates another. `work on <url>` scopes to the
 task the URL belongs to. (T3 "Apply with sim" was retired 2026-07-27; Greenhouse moved into the T3
 slot; the gap at T4 is deliberate.)
 
@@ -90,10 +92,51 @@ slot; the gap at T4 is deliberate.)
   shadow-piercing (`deepQueryAll`/`deepGetControl`). **Autofill-only, never submit.** The packaged
   resume triggers SmartRecruiters' own parser; Eve fills only the gaps the parser leaves and never
   overwrites a parser-filled value. Runtime memory `srSavedAnswers` (seen-log only).
+- **T7 — Kforce ("kf")** (`www.kforce.com`; `eve/kforce.js`, `design/task7-kforce-flow.md`):
+  detail page `#TK_WIDGET_INITIATOR` (Apply Today) → `.TK_WIDGET[rel="form"] a` (Apply Now,
+  never "Apply With Indeed") → POST navigation to `/Jobs/<id>/ApplyOnline/` → fill identity/
+  state/zip from the profile → packaged resume via `#uploadFileSystemResume` ("From this
+  computer") → Employment Eligibility = `eligibility1` ("solely for my present employer") →
+  Submit once when every required field is verified → `/tech-professionals-thank-you-for-applying/`
+  confirms and logs. In-flight state spans the navigation in `sessionStorage`
+  (`eve_kforce_session`); resumes on load only for a user-activated Auto session. Runtime memory
+  `kforceSavedAnswers` (seen-log only; no question bank). **Root "Apply All"** on the search
+  list: its own toggle (`eveKforceRootAuto`), opens not-yet-applied jobs in BACKGROUND tabs (3
+  concurrent, never focused; background.js `kforceOrchestration` tab map + `eve:kforce-*`
+  messages), root-auto implies single-job auto in those tabs, closes each tab on completion and
+  marks the card (green ✓ applied / amber working / red `!`). Child tabs: route-based page
+  detection, never wait for hidden-tab animations, 1.5 s settle then Submit only after
+  `#resumeGuid` is set (async SignalR upload). Root opens only titles containing "engineer"
+  (others: hard-red ✕, never opened) and retries a failed job in a fresh tab up to 3 attempts.
+  Status dot is yellow for the whole run, across pages.
+- **T8 — Oracle Careers ("orc")** (`careers.oracle.com`; `eve/oracle.js`,
+  `design/task8-oracle-flow.md`): **OCI filter** (6-month per-line cooldown): 3px bordered box
+  top-left of every job tile — brown-yellow = OCI (`/OCI|Oracle Cloud Infrastructure/i` in card
+  text or full description, **ignoring skills/qualifications sections** — every job lists OCI as
+  a skill), green = scanned clean, grey dashed = not scanned; heavy ✓ in the same colour =
+  applied; red `!` = apply failed. **Scan** loads every result then checks each description via
+  the tenant REST API (preview-dialog fallback). **Keyword filter**: on-page panel + popup + Settings → Filters (`eveKeywordFilter`, global) — on Oracle it matches the card title and hides the card like the level gate. **Level gate**: only "Senior"/"Sr" titles
+  (never principal/staff/distinguished/director/VP/lead/manager/architect…) — everything else is
+  hidden from the list and never opened. **Apply** (2026-09-26, live-verified 5 receipts):
+  ONE job at a time in its own foreground tab (root stays put, tab closes, root refocused):
+  APPLY NOW → e-mail (`oracleAccountEmail` from secrets) → 6 s lag → one-time code fetched by
+  background's **verification-code service** (Gmail Atom feed of the profile's own session,
+  `eve:get-verification-code`, reusable by any platform; only UNREAD mail is visible) → VERIFY →
+  3 sections: prefilled values KEPT + logged to `oracleSavedAnswers.seen`, empty fields from
+  profile/shared bank (pills, `cx-select` gridcell clicks, hidden checkbox groups, text),
+  unmatched REQUIRED → pause with the question named → SUBMIT once → leaving the section route
+  confirms. Oracle's "Too Many Attempts" lock (30 min) is detected → the batch waits with a
+  countdown (`oracleBlockedUntil` persisted) and retries the same job; never more than one code
+  resend per job; used codes persisted (`oracleUsedCodes`); "already applied" wording → marked
+  applied; `/my-profile` synced in a background tab before a batch (signed-in only) → `oracleAppliedJobs` + `eveApplicationRecords` (`platform: 'oracle'`). Root modes,
+  mutually exclusive per run: Auto ON = **Auto Apply** (batch by batch: scan the loaded cards,
+  apply to every not-applied Senior job — green first, then yellow/OCI — click "SHOW MORE RESULTS", repeat until gone —
+  Scan iterates the same way); Auto OFF = **Apply selected (N)** (top-RIGHT tick box per card,
+  above the tile overlay). No single-job apply. Applied ids also harvested from `/my-profile` (dated tiles only).
 
 ## The shared answer bank
 
-**T2, T3, and T5 share `info/myworkdayjobs`** (gitignored — it is personal data): same
+**T2, T3, and T5 share `info/myworkdayjobs`** (T6/T7 have no screening questions) (gitignored — it is personal data): same
 `[QUESTION BANK]` topics, `[ESSAYS]`, `[SEEN QUESTIONS LOG]`, `[OPEN QUESTIONS]`, read and write.
 A question learned on one platform is available on all of them.
 
@@ -259,6 +302,27 @@ Full details: `design/task3-gh-flow.md`, `design/task3-ashby-flow.md`. Anchors:
   its menu to `body` (silent zero-match, not an error).
 - Memory: `ghSavedAnswers` (own key; the source bank file is shared).
 
+## LinkedIn Easy Apply answer resolution (T1)
+
+- **T1 consumes the shared info (2026-08-27)**: `question-bank.js` is loaded before `content.js`
+  on LinkedIn. `resolveSavedValue()` precedence: `savedAnswers` (scoped/raw key) →
+  `savedRegexAnswers` globs → identity profile `eveProfile` (short field-name labels only,
+  `PROFILE_LABEL_MAP`) → shared bank (`resolveSharedBankValue`: greenhouse topics + workday
+  extras, always on for T1; `optionCandidates`/`optionMatch`/`choose` over the field's options,
+  `text` for free text — numeric inputs only accept numeric `text`; `followUp` for detail boxes).
+  New LinkedIn questions are banked in `greenhouse.js` + `info/myworkdayjobs` like every platform.
+- **Resume never refocuses the card**: when an Easy Apply modal is already open, `startAutoApply`
+  must not click the job card — LinkedIn re-renders the form and drops user-typed values.
+- **`findEasyApplyButton` never matches the search bar's "Easy Apply" FILTER pill** (aria-label
+  "Easy Apply filter.", `#searchFilter_applyWithLinkedin`) — clicking it toggles `f_AL` off and
+  rewrites the search. Root-level fallback must exclude the filter bar and Eve's panel.
+- **A hidden modal is no modal**: LinkedIn leaves the closed Easy Apply modal in the DOM with
+  `display:none`; `findEasyApplyModal()`/`isModalVisible()` treat it as closed, and a modal that
+  vanishes while waiting for Next marks the job processed and advances instead of blocking.
+- **LinkedIn daily cap**: disabled Easy Apply + "We limit daily submissions … apply tomorrow" →
+  `isLinkedInDailyLimitReached()` stops the run with a terminal message that the 1 s modal poller
+  must not overwrite (`linkedInDailyLimitHit`).
+
 ## LinkedIn Search (T1)
 
 - Keywords and location are SEPARATE (`eveParams.linkedin.keywords` vs `searches`/
@@ -267,6 +331,10 @@ Full details: `design/task3-gh-flow.md`, `design/task3-ashby-flow.md`. Anchors:
   (stale-list guard: option text stable across two reads, prefer exact match) → submit → wait for
   a real `geoId` → only then apply filter params (`f_TPR` seconds, `f_E`, `f_JT`, `f_WT`,
   `f_AL`). Only a typeahead selection attaches a real `geoId`.
+- **Per-tab filter toggle**: the "Ignore keywords" block has a Filters switch stored in
+  `sessionStorage` (`eve_filters_off`) — per page/tab, never global. OFF → `markBlockedJobs()`
+  blocks nothing (keywords, custom regex, company ✕ bans); the keyword list itself is untouched
+  and ✕ still saves the company. Default ON per tab.
 - Exclude Eve's own `#eve-floating-ui` from all lookups; prefer `role="combobox"` inputs; resolve
   the typeahead list by widening from the field wrapper (no `aria-controls`).
 - Time filter: popup converts hours/days to `f_TPR=r<seconds>`; layout order Time → Ignore
@@ -286,7 +354,8 @@ restoration after SPA mutations.
   see the migration section). Settings Export/Import backs up all keys.
 - Exported keys: `savedAnswers`, `savedAnswerGroups`, `savedRegexAnswers`, `workdaySavedAnswers`,
   `eveParams`, `eveApplyMode`, `eveApplyStats`, `eveAppLogs`, `appliedJobsLog`,
-  `eveApplicationRecords`, `settings`, `profiles`, `activeProfileId`, `profileData`, `eveTheme`.
+  `eveApplicationRecords`, `settings`, `profiles`, `activeProfileId`, `profileData`, `eveTheme`,
+  `oracleJobScan`, `oracleAppliedJobs`, `eveKeywordFilter`.
 - Plugin code and user data stay separate; the packaged artifacts under `eve/artifacts/`
   (gitignored) are the one authorized exception, served only through the allowlisted background
   message, never `web_accessible_resources`.
@@ -297,7 +366,7 @@ restoration after SPA mutations.
 ## Applied Jobs Log
 
 `eveApplicationRecords` — flat append-only array, one entry per confirmed submission across
-T1/T2/T3/T5: `{ id, platform, title, company, location, url, mode, appliedAt, timestamp }`
+T1/T2/T3/T5 (+ T7 kforce, T8 oracle harvested from /my-profile): `{ id, platform, title, company, location, url, mode, appliedAt, timestamp }`
 (Ashby/Zipline log as `greenhouse`). Single write point `recordAppliedJob()` in
 `eve/background.js` via `eve:record-applied-job` (fire-and-forget). Hooks: T1
 `logApplicationSuccess()`, T2 `handleReviewSubmit()` (best-effort meta from `document.title` +

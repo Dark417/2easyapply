@@ -729,6 +729,7 @@
             <button class="content-tab active" data-pane="info">Info</button>
             <button class="content-tab" data-pane="search">Search</button>
             <button class="content-tab" data-pane="applied">Applied Jobs</button>
+            <button class="content-tab" data-pane="filters">Filters</button>
         </aside>
 
         <main class="main-panel">
@@ -881,11 +882,39 @@
             </div>
             </div>
 
+            <div id="pane-filters" class="content-pane">
+                <div class="section">
+                    <div class="section-header">
+                        <h2>Keyword Filter</h2>
+                        <label class="switch" title="Enable/disable the global keyword filter" style="margin-left:auto;">
+                            <input type="checkbox" id="keywordFilterToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="section-body">
+                        <div class="form-group">
+                            <label for="keywordFilterList">Keywords to filter out (separated by commas; plain text matches anywhere, case-insensitive; <code>/regex/</code> for a pattern)</label>
+                            <textarea class="form-textarea" id="keywordFilterList" rows="4" placeholder="manager, principal, /\bclearance\b/"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Where it applies</label>
+                            <div class="hint">Global list, applied per domain to that platform's own component:<br>
+                                • <strong>Oracle Careers</strong> — the job card <em>title</em>: a matching card is hidden from the list and never scanned, selected or applied to.<br>
+                                • Other platforms — not wired yet (LinkedIn keeps its own "Ignore Keywords" list in the Search tab).</div>
+                        </div>
+                        <div class="hint" id="keyword-filter-status">Saves automatically.</div>
+                    </div>
+                </div>
+            </div>
+
             <div id="pane-applied" class="content-pane">
                 <div class="section">
                     <div class="section-header">
                         <h2>Applied Jobs</h2>
                         <span class="badge" id="applied-count-badge">0</span>
+                        <select id="applied-platform-filter" title="Show applications for one platform/domain" style="margin-left:auto;">
+                            <option value="">All platforms</option>
+                        </select>
                     </div>
                     <div class="section-body">
                         <div id="applied-jobs-container"></div>

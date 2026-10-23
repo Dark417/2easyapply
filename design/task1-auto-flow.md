@@ -63,3 +63,28 @@ Define the end-to-end LinkedIn Easy Apply operating flow before implementation d
 
 - `lead-product`: refine workflow and maintain task sequence clarity.
 - `lead-architect`: coordinate code changes and runtime verification.
+
+
+## Round 2026-08-27 — shared-info resolution + live run (12 applies)
+
+- Wired the cross-platform profile (`eveProfile`) and shared question bank (`question-bank.js`) into
+  `resolveSavedValue()` as fallbacks after the LinkedIn-only keys. Manifest loads `question-bank.js`
+  before `content.js` on LinkedIn.
+- Live run on the `software engineer contractor` / Contract / past-week / Easy Apply search: 12
+  confirmed submissions (Russell Tobin, Turing x2, CapitexAI, CodeGeniusRecruit, Aquent, Robert
+  Half, iTech US, Bayside, Akraya, SPECTRAFORCE, Crossing Hurdles, Insight Global, Ampstek, Pacer,
+  Vidorra, Galactic Minds …) until LinkedIn's daily cap.
+- Stuck points hit and how each was handled:
+  1. SIMARN: "W2 only" select + "JS/HTML/CSS how many years" text → filled Yes / 4; banked as
+     `w2-employment-ok`, `years-javascript-html-css`. Resume wiped the values → fixed (no card
+     refocus while a modal is open).
+  2. Insight Global: "Do you have atleast 5+ years … development?" → Yes; threshold patterns now
+     accept development/coding/… tails and "atleast".
+  3. Ampstek: "Are you fine for onsite in Concord, CA?" → Yes; `relocation-hybrid` patterns extended.
+  4. Paladin: modal went `display:none` mid-step; Eve waited forever → hidden-modal handling.
+  5. `findEasyApplyButton` root fallback clicked the header "Easy Apply" filter pill → `f_AL` lost.
+     Excluded the filter bar.
+  6. Daily cap banner → new terminal state.
+- Filling a value from outside the page: set via native setter + input/change + blur/focusout; the
+  chrome-devtools `fill` tool cannot interact with LinkedIn's `<select>` (never becomes
+  "interactive"); text inputs are fine.

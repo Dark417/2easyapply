@@ -1993,7 +1993,7 @@
             // category names too. race-ethnicity is ordered BEFORE hispanic-latino, so the standalone
             // "Hispanic or Latino" question still reaches its own entry.
             patterns: [
-                /race\s*\/?\s*ethnicity/i, /\brace\b/i, /ethnicity/i,
+                /race\s*\/?\s*ethnicity/i, /\braces?\b/i, /ethnicity/i,
                 /american indian or alaska native/i,
                 /native hawaiian or other pacific islander/i,
                 /two or more races/i,

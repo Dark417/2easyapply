@@ -246,6 +246,181 @@
   animation: pulse 2s infinite;
 }
 
+/* Yellow while an apply run is in progress or paused mid-flow (persists across steps/pages);
+   red on error. Same dot, same size — only the colour changes. */
+.ea-status-running {
+  background: #F5B301;
+  color: #F5B301;
+  animation: pulse 1.2s infinite;
+}
+
+.ea-status-error {
+  background: #E53935;
+  color: #E53935;
+}
+
+/* Orange "Pause" state of an apply button while a run is on (Kforce; readable in both themes). */
+.ea-btn-save.ea-btn-pause {
+  background: #F5A623 !important;
+  border-color: #F5A623 !important;
+  color: #1a1a1a !important;
+}
+
+/* Kforce job-list marks (eve/kforce.js): a round box before each job title; green check once
+   the job is applied, amber dashed ring while its tab is working, red "!" if the run failed. */
+.eve-kf-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 2px solid #4CAF50;
+  background: #fff;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.eve-kf-mark.applied {
+  background: #4CAF50;
+}
+
+.eve-kf-mark.working {
+  border-color: #F5B301;
+  border-style: dashed;
+}
+
+.eve-kf-mark.failed {
+  border-color: #E53935;
+  color: #E53935;
+}
+
+/* Hard red: title has no "engineer" — never opened. */
+.eve-kf-mark.skipped {
+  background: #E53935;
+  border-color: #E53935;
+  color: #fff;
+}
+
+/* Oracle (T8) OCI-filter box, top-left of each job card. Bordered, never filled:
+   yellow = mentions OCI, green = full description clean, grey dashed = not scanned yet.
+   A check inside (same colour as the border) = already applied. */
+.eve-orc-box {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 2147483000;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  border: 3px dashed #9E9E9E;
+  border-radius: 3px;
+  background: transparent;
+  color: #9E9E9E;
+  font: 800 12px/1 system-ui, sans-serif;
+  cursor: help;
+  pointer-events: auto;
+}
+
+.eve-orc-box.oci {
+  border: 3px solid #B8860B;
+  color: #B8860B;
+}
+
+.eve-orc-box.clean {
+  border: 3px solid #43A047;
+  color: #43A047;
+}
+
+.eve-orc-box.scanning {
+  animation: eve-orc-pulse 0.9s ease-in-out infinite alternate;
+}
+
+/* Applied: a heavy check drawn in the border colour (SVG mask, stroke 4). */
+.eve-orc-box.applied::after {
+  content: '';
+  display: block;
+  width: 13px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3.5 12.5l5.5 5.5L21 5' fill='none' stroke='%23000' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3.5 12.5l5.5 5.5L21 5' fill='none' stroke='%23000' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Level-skipped (not Senior / Principal and above): the whole card is hidden (user, 2026-09-26). */
+.eve-orc-hidden {
+  display: none !important;
+}
+
+/* Level-skipped (not Senior / Principal and above): solid grey with a dash, never opened. */
+.eve-orc-box.skipped {
+  border: 3px solid #9E9E9E;
+  color: #9E9E9E;
+}
+
+.eve-orc-select.off {
+  display: none;
+}
+
+/* The apply run could not finish this job: red border, "!" inside, reason in the tooltip. */
+.eve-orc-box.failed {
+  border: 3px solid #E53935;
+  color: #E53935;
+}
+
+/* Top-RIGHT tick box: selects the card for "Apply selected" (Auto OFF). */
+.eve-orc-select {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2147483000;
+  box-sizing: border-box;
+  display: block;
+  width: 19px;
+  height: 19px;
+  border: 3px solid #607D8B;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.eve-orc-select:hover {
+  background: rgba(96, 125, 139, 0.18);
+}
+
+.eve-orc-select.on {
+  background: #1E88E5;
+  border-color: #1E88E5;
+}
+
+.eve-orc-select.on::after {
+  content: '';
+  display: block;
+  width: 13px;
+  height: 13px;
+  background: #fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3.5 12.5l5.5 5.5L21 5' fill='none' stroke='%23000' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3.5 12.5l5.5 5.5L21 5' fill='none' stroke='%23000' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.eve-orc-select.applied {
+  opacity: 0.35;
+}
+
+@keyframes eve-orc-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.35; }
+}
+
 /* ── Body panels ─────────────────────────────────────────── */
 .ea-body {
   flex: 1 1 auto;

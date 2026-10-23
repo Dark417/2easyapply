@@ -1046,7 +1046,14 @@
                 // city is incidental; match the shape: a hybrid ROLE (not "setting"/"office") named
                 // with a weekly cadence, with no "office" word required (see office-attendance-
                 // requirement for the office-worded variants).
-                /hybrid role[\s\S]{0,200}\d+\s*days?\s*(a|per)\s*week/i
+                /hybrid role[\s\S]{0,200}\d+\s*days?\s*(a|per)\s*week/i,
+                // "Are you fine for onsite in Concord, CA ?" (Ampstek/LinkedIn, 2026-08-27) — no
+                // weekly cadence mentioned at all, just a plain fine/comfortable-with-onsite
+                // question. The city is incidental; match the shape, not the place name.
+                /(fine|ok|okay|comfortable|open|willing|able)[\s\S]{0,30}(for|with|to work|to be|working)?[\s\S]{0,10}on-?site\b/i,
+                /on-?site (in|at) [\w .,'-]{1,40}/i,
+                /on site at\b/i,
+                /work from (the )?office in\b/i
             ],
             choose: 'yes',
             optionMatch: /^\s*(yes\b|i can\b)/i,
@@ -1273,6 +1280,36 @@
             text: '4'
         },
         {
+            // LinkedIn Easy Apply (Turing wording, 2026-08-27): "Do you have strong hands-on
+            // experience developing applications using JavaScript, HTML, and CSS? if so how many
+            // years?" — free-text numeric, sibling to years-java-spring-react. Same figure. No
+            // "spring"/"react" token here so it can't be caught by that topic's patterns, and
+            // "how many years" keeps it out of has-experience-generic (which excludes that phrase).
+            topic: 'years-javascript-html-css',
+            patterns: [
+                /(hands[- ]on )?experience[\s\S]{0,60}javascript[\s\S]{0,40}html[\s\S]{0,40}css/i,
+                /javascript[\s\S]{0,40}html[\s\S]{0,40}css[\s\S]{0,30}how many years/i,
+                /how many years[\s\S]{0,80}javascript[\s\S]{0,40}html[\s\S]{0,40}css/i,
+                /experience[\s\S]{0,40}developing applications[\s\S]{0,40}javascript/i
+            ],
+            text: '4'
+        },
+        {
+            // LinkedIn Easy Apply (2026-08-27): "Can you work with us on our W2. The role is only
+            // available on W2" -> Yes (no restriction against W2 employment). Distinct from a
+            // C2C/1099-only question, which is intentionally NOT banked here — excluded so a
+            // future contractor-arrangement question doesn't get this topic's Yes by mistake.
+            topic: 'w2-employment-ok',
+            patterns: [
+                /work[\s\S]{0,30}on (our |your )?w-?2\b/i,
+                /w-?2[\s\S]{0,10}only\b/i,
+                /only available (on|as|for)[\s\S]{0,10}w-?2/i,
+                /are you (ok|okay|willing|open)[\s\S]{0,30}w-?2/i
+            ],
+            exclude: /\b(c2c|corp[- ]to[- ]corp|1099)\b/i,
+            choose: 'yes'
+        },
+        {
             topic: 'supply-chain-logistics-experience',
             patterns: [
                 /experience building software[\s\S]{0,80}(supply[- ]chain|logistics)/i,
@@ -1301,7 +1338,12 @@
             patterns: [
                 /do you have[\s\S]{0,60}\d+\+?\s*(or more\s*)?years?[\s\S]{0,80}experience/i,
                 /do you have[\s\S]{0,40}(three|four|five|six|seven|eight|nine|ten)\s*(\+|or more)?\s*years?[\s\S]{0,80}experience/i,
-                /(have|possess)[\s\S]{0,40}(at least|minimum of)\s*\d+\s*years?[\s\S]{0,60}experience/i
+                /(have|possess)[\s\S]{0,40}(at least|minimum of)\s*\d+\s*years?[\s\S]{0,60}experience/i,
+                // "Do you have atleast 5+ years of true 50/50 Full stack NodeJS and React
+                // development?" (LinkedIn/Insight Global, 2026-08-27) — same threshold question,
+                // but the sentence ends in "development" (never says "experience") and spells
+                // "atleast" without the space.
+                /do you have[\s\S]{0,40}(at\s?least\s*)?\d+\s*\+?\s*(or more\s*)?years?[\s\S]{0,100}\b(experience|development|developing|coding|programming|engineering|work(?:ing)?)\b/i
             ],
             exclude: /how many years|years of relevant work experience do you have\?|please (specify|indicate|enter)/i,
             choose: 'yes'

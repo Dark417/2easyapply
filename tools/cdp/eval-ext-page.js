@@ -21,6 +21,7 @@ const http = require('http');
 
 const EXT_ID = process.argv[2];
 const EXPR = process.argv[3];
+const PAGE = process.argv[4] || 'settings.html';
 const CDP_HOSTS = ['::1', '127.0.0.1'];
 
 function getJsonFrom(host, p) {
@@ -52,7 +53,7 @@ async function getJson(p) {
   });
   await new Promise(r => ws.on('open', r));
 
-  const created = await send('Target.createTarget', { url: `chrome-extension://${EXT_ID}/settings.html`, background: true });
+  const created = await send('Target.createTarget', { url: `chrome-extension://${EXT_ID}/${PAGE}`, background: true });
   const targetId = created.result?.targetId;
   if (!targetId) { console.log('PAGE_NOT_CREATED', JSON.stringify(created)); process.exit(1); }
   await new Promise(r => setTimeout(r, 1500));

@@ -126,8 +126,39 @@ function initSettings() {
         button.addEventListener('click', () => setContentPane(button.dataset.pane));
     });
     const requestedPane = String(location.hash || '').replace(/^#/, '').trim();
-    if (requestedPane === 'search' || requestedPane === 'info' || requestedPane === 'applied') setContentPane(requestedPane);
+    if (requestedPane === 'search' || requestedPane === 'info' || requestedPane === 'applied' || requestedPane === 'filters') setContentPane(requestedPane);
     wireSectionControls(document);
+    initKeywordFilter();
+}
+
+// ── Global keyword filter (user, 2026-09-26) ─────────────────────────────────
+// One list for every domain; each platform applies it to its own component (Oracle: the card
+// title). Stored as `eveKeywordFilter: { enabled, keywords: [] }`, saved on every change.
+function parseKeywordList(text) {
+    return String(text || '').split(/[,\r\n]+/).map(line => line.trim()).filter(Boolean);
+}
+function initKeywordFilter() {
+    const toggle = document.getElementById('keywordFilterToggle');
+    const list = document.getElementById('keywordFilterList');
+    const status = document.getElementById('keyword-filter-status');
+    if (!toggle || !list) return;
+    chrome.storage.local.get(['eveKeywordFilter'], (res) => {
+        const config = res.eveKeywordFilter || {};
+        toggle.checked = config.enabled !== false;
+        list.value = Array.isArray(config.keywords) ? config.keywords.join(', ') : '';
+    });
+    let timer = null;
+    const save = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            const keywords = parseKeywordList(list.value);
+            chrome.storage.local.set({ eveKeywordFilter: { enabled: toggle.checked, keywords } }, () => {
+                if (status) { status.textContent = `Saved — ${keywords.length} keyword${keywords.length === 1 ? '' : 's'}${toggle.checked ? '' : ' (filter off)'}.`; }
+            });
+        }, 250);
+    };
+    toggle.addEventListener('change', save);
+    list.addEventListener('input', save);
 }
 
 if (document.readyState === 'loading') {
@@ -153,7 +184,7 @@ const EXPORT_KEYS = [
     'savedAnswers', 'savedAnswerGroups', 'savedRegexAnswers', 'workdaySavedAnswers',
     'eveParams', 'eveApplyMode', 'eveApplyStats', 'eveAppLogs',
     'appliedJobsLog', 'eveApplicationRecords', 'settings', 'profiles', 'activeProfileId', 'profileData',
-    'eveTheme'
+    'eveTheme', 'oracleJobScan', 'oracleAppliedJobs', 'eveKeywordFilter'
 ];
 
 // ── Legacy backup compatibility (abby -> eve rename, 2026-07-26) ───────────────
@@ -247,7 +278,7 @@ document.getElementById('import-file-input').addEventListener('change', (e) => {
 });
 
 function setContentPane(name) {
-    if (name !== 'info' && name !== 'search' && name !== 'applied') name = 'info';
+    if (name !== 'info' && name !== 'search' && name !== 'applied' && name !== 'filters') name = 'info';
     document.querySelectorAll('.content-tab').forEach(button => {
         button.classList.toggle('active', button.dataset.pane === name);
     });
@@ -266,11 +297,30 @@ function formatAppliedAt(record) {
     return when.toLocaleString();
 }
 
+let lastAppliedRecords = [];
 function renderAppliedJobs(records) {
     const container = document.getElementById('applied-jobs-container');
     const badge = document.getElementById('applied-count-badge');
     if (!container) return;
-    const list = Array.isArray(records) ? records.slice() : [];
+    lastAppliedRecords = Array.isArray(records) ? records.slice() : [];
+    // Per-platform (per-domain) view: the filter lists every platform that has records.
+    const filter = document.getElementById('applied-platform-filter');
+    let platform = '';
+    if (filter) {
+        platform = filter.value || '';
+        const platforms = [...new Set(lastAppliedRecords.map(r => r.platform || 'unknown'))].sort();
+        const counts = {};
+        lastAppliedRecords.forEach(r => { const key = r.platform || 'unknown'; counts[key] = (counts[key] || 0) + 1; });
+        filter.innerHTML = `<option value="">All platforms (${lastAppliedRecords.length})</option>` +
+            platforms.map(p => `<option value="${escHtml(p)}">${escHtml(p)} (${counts[p]})</option>`).join('');
+        filter.value = platforms.includes(platform) ? platform : '';
+        platform = filter.value;
+        if (!filter.dataset.bound) {
+            filter.dataset.bound = '1';
+            filter.addEventListener('change', () => renderAppliedJobs(lastAppliedRecords));
+        }
+    }
+    const list = platform ? lastAppliedRecords.filter(r => (r.platform || 'unknown') === platform) : lastAppliedRecords.slice();
     list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     if (badge) badge.textContent = String(list.length);
 

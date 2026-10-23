@@ -834,6 +834,9 @@ const STACK_YEARS = 'Do you have three or more years of production-level experie
 // answer is Yes, which is what the standing rule requires.
 assert(pick(STACK_YEARS).choose === 'yes', 'a years-of-experience threshold question is always Yes');
 routes('Do you have 5+ years of experience with distributed systems?', 'years-of-experience-threshold');
+// LinkedIn/Insight Global 2026-08-27: no "experience" word at all, "atleast" unspaced.
+routes('Do you have atleast 5+ years of true 50/50 Full stack NodeJS and React development?', 'years-of-experience-threshold');
+routes('Do you have at least 3 years of Python coding?', 'years-of-experience-threshold');
 assert(pick(STACK_YEARS).choose === 'yes', 'a years-of-experience threshold question is always Yes');
 routes('How many years of relevant work experience do you have?', 'years-of-relevant-experience');
 
@@ -1021,6 +1024,36 @@ assert(pick(STATE_LIST).choose === 'no', 'the applicant does not live in any of 
 assert(pick('Do you live in one of the following states? California, Texas, New York') === null, 'when the list DOES include the home state the question is left for a human, not answered No');
 
 assert(/a radio group offering exactly ONE real/.test(src), 'a single-option radio group is selected outright');
+
+console.log('\n=== LinkedIn Easy Apply, live 2026-08-27 (shared bank via question-bank.js) ===');
+const W2_Q = 'Can you work with us on our W2. The role is only available on W2';
+routes(W2_Q, 'w2-employment-ok');
+assert(pick(W2_Q).choose === 'yes', 'willing to work on W2 -> Yes');
+assert(pick('Are you open to a C2C or 1099 arrangement for this role?') === null, 'a C2C/1099-only question is NOT swallowed by w2-employment-ok (left unbanked)');
+assert(pick('Have you previously been DIRECTLY employed with Acme Corp or its affiliates? (i.e. paycheck or W-2 directly)')?.topic !== 'w2-employment-ok', 'the prior-employment W-2 clarifier is not mistaken for the W2-arrangement question');
+
+const JS_HTML_CSS_Q = 'Do you have strong hands-on experience developing applications using JavaScript, HTML, and CSS? if so how many years?';
+routes(JS_HTML_CSS_Q, 'years-javascript-html-css');
+assert(pick(JS_HTML_CSS_Q).text === '4', 'JavaScript/HTML/CSS hands-on experience -> 4 years');
+// Contrasting regression: the sibling Java/Spring/React "how many years" question must still
+// route to its own topic, not get stolen by the new JS/HTML/CSS patterns.
+routes('How many years of experience do you have developing applications with Java, Spring Boot, and React?', 'years-java-spring-react');
+
+const TURING_PRIVACY_Q = 'By clicking "Yes" you agree to our Privacy Policy and data processing. Providing accurate information is essential, as any false or misleading information may lead to disqualification.';
+routes(TURING_PRIVACY_Q, 'privacy-notice-acknowledgement');
+assert(optPick('privacy-notice-acknowledgement', ['Yes', 'No']) === 'Yes', 'the Turing privacy/data-processing consent -> Yes on a plain Yes/No list');
+
+console.log('\n=== LinkedIn Easy Apply, live 2026-08-27, Ampstek (shared bank via question-bank.js) ===');
+const ONSITE_CONCORD_Q = 'Are you fine for onsite in Concord, CA ?';
+routes(ONSITE_CONCORD_Q, 'relocation-hybrid');
+assert(pick(ONSITE_CONCORD_Q).choose === 'yes', 'fine for onsite in a city (no cadence mentioned) -> Yes, standing relocation/hybrid-office rule');
+assert(optPick('relocation-hybrid', ['Yes / I can', 'No']) === 'Yes / I can', 'a plain Yes/No onsite-comfort list picks Yes');
+// Contrasting regression: a different city must still route the same way — the place name is
+// incidental and must never become part of the match.
+routes('Are you comfortable working onsite in Austin, TX?', 'relocation-hybrid');
+// Contrasting regression: the "days per week" office-attendance topic (ordered earlier in the
+// bank) must not steal a plain fine/comfortable-with-onsite question that mentions no cadence.
+assert(pick(ONSITE_CONCORD_Q).topic !== 'office-attendance-requirement', 'no weekly-cadence wording, so office-attendance-requirement does not claim this question');
 
 console.log('\n=== Structure ===');
 const topics = BANK.map(e => e.topic);

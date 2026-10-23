@@ -188,6 +188,29 @@ document.addEventListener('DOMContentLoaded', () => {
             chrome.runtime.sendMessage({ type: 'eve:open-search', params: gatherPopupParams(res.eveParams || {}) });
         });
     });
+    // Global keyword filter (also editable in Settings → Filters); saves on every change.
+    const kwToggle = document.getElementById('keywordFilterToggle');
+    const kwList = document.getElementById('keywordFilterList');
+    const kwCount = document.getElementById('keyword-filter-count');
+    const renderKwCount = (n, on) => { if (kwCount) kwCount.textContent = `${n}${on ? '' : ' (off)'}`; };
+    chrome.storage.local.get(['eveKeywordFilter'], (res) => {
+        const config = res.eveKeywordFilter || {};
+        const keywords = Array.isArray(config.keywords) ? config.keywords : [];
+        kwToggle.checked = config.enabled !== false;
+        kwList.value = keywords.join(', ');
+        renderKwCount(keywords.length, kwToggle.checked);
+    });
+    let kwTimer = null;
+    const saveKeywordFilter = () => {
+        clearTimeout(kwTimer);
+        kwTimer = setTimeout(() => {
+            const keywords = String(kwList.value || '').split(/[,\r\n]+/).map(line => line.trim()).filter(Boolean);
+            chrome.storage.local.set({ eveKeywordFilter: { enabled: kwToggle.checked, keywords } }, () => renderKwCount(keywords.length, kwToggle.checked));
+        }, 250);
+    };
+    kwToggle.addEventListener('change', saveKeywordFilter);
+    kwList.addEventListener('input', saveKeywordFilter);
+
     document.getElementById('infoBtn').addEventListener('click', () => openSettings('info'));
     document.getElementById('searchBtn').addEventListener('click', () => openSettings('search'));
 });

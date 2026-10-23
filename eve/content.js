@@ -45,6 +45,7 @@ let eveParams = {
 };
 let autoApplyRunning = false;
 let autoApplyStopRequested = false;
+let linkedInDailyLimitHit = false;   // LinkedIn's per-day Easy Apply cap was detected this session
 let autoApplyPostSubmit = false; // true while closing confirm window + advancing to next job
 let lastAutoActionAt = 0;
 let autoLoopSignature = '';
@@ -97,6 +98,15 @@ const LS_TAB = 'eve_panel_tab';       // 'search' | 'apply' | 'step' | 'info'
 const LS_MIN = 'eve_panel_minimized';
 const LS_THEME = 'eve_panel_theme';   // 'light' | 'dark'
 const LS_AUTO_OPEN_APPLY = 'eve_auto_open_apply_once';
+// Per-TAB switch for the ignore filters (keywords + custom regex + company ✕ bans). Lives in
+// sessionStorage so each page/tab decides for itself; it never touches the global keyword list.
+const SS_FILTERS_OFF = 'eve_filters_off';
+function pageFiltersEnabled() {
+    try { return sessionStorage.getItem(SS_FILTERS_OFF) !== '1'; } catch { return true; }
+}
+function setPageFiltersEnabled(on) {
+    try { on ? sessionStorage.removeItem(SS_FILTERS_OFF) : sessionStorage.setItem(SS_FILTERS_OFF, '1'); } catch {}
+}
 
 function lsGet(key) {
     try { 
@@ -318,6 +328,16 @@ function getIgnoreKeywordsFromView() {
     return Array.from(document.querySelectorAll('#ea-ignore-list .ea-token')).map(node => node.dataset.keyword || '').filter(Boolean);
 }
 
+function renderFiltersToggle() {
+    const on = pageFiltersEnabled();
+    const toggle = document.getElementById('ea-filters-toggle');
+    const status = document.getElementById('ea-filters-toggle-status');
+    const list = document.getElementById('ea-ignore-list');
+    if (toggle) toggle.checked = on;
+    if (status) status.textContent = on ? 'Filters on for this tab' : 'Filters OFF for this tab · nothing is skipped';
+    if (list) list.style.opacity = on ? '' : '0.5';
+}
+
 function renderIgnoreKeywordList() {
     const wrap = document.getElementById('ea-ignore-list');
     if (!wrap) return;
@@ -531,7 +551,16 @@ function injectFloatingUI() {
           </div>
         </div>
         <div class="ea-stack">
-          <label class="ea-mini-label" for="ea-ignore-input">Ignore keywords</label>
+          <div class="ea-auto-toggle-row">
+            <div>
+              <label class="ea-mini-label" for="ea-ignore-input">Ignore keywords</label>
+              <div id="ea-filters-toggle-status" class="ea-dim">Filters on for this tab</div>
+            </div>
+            <label class="ea-toggle-switch" title="Apply ignore keywords / company bans on this tab only">
+              <input id="ea-filters-toggle" type="checkbox" checked>
+              <span class="ea-toggle-slider"></span>
+            </label>
+          </div>
           <div class="ea-inline-row">
             <input type="text" id="ea-ignore-input" class="eve-val-input" placeholder="founding">
             <button id="ea-ignore-add-btn" class="ea-btn-fill ea-btn-fill-active ea-btn-inline">Save</button>
@@ -695,6 +724,16 @@ function injectFloatingUI() {
     document.getElementById('ea-info-save-btn').addEventListener('click', saveInfoEdits);
     document.getElementById('ea-search-save-btn').addEventListener('click', () => saveSearchParams(true));
     document.getElementById('ea-ignore-add-btn').addEventListener('click', addIgnoreKeyword);
+    const filtersToggle = document.getElementById('ea-filters-toggle');
+    if (filtersToggle) {
+        filtersToggle.addEventListener('change', () => {
+            setPageFiltersEnabled(filtersToggle.checked);
+            renderFiltersToggle();
+            markBlockedJobs();
+            console.log('[Eve] Page filters', filtersToggle.checked ? 'ON' : 'OFF', '(this tab only)');
+        });
+    }
+    renderFiltersToggle();
     document.getElementById('ea-search-open-btn').addEventListener('click', handleSearchOpen);
     chrome.storage.local.get(['eveApplyMode'], (res) => {
         eveApplyMode = res.eveApplyMode === 'manual' ? 'manual' : 'auto';
@@ -907,11 +946,19 @@ function injectCustomRegexExpression(pattern) {
     return { ok: true };
 }
 
+function isModalVisible(modal) {
+    if (!modal || !modal.isConnected) return false;
+    if (modal.offsetParent === null && getComputedStyle(modal).position !== 'fixed') return false;
+    const style = getComputedStyle(modal);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
 function findEasyApplyModal() {
-    // 1. Check for specific Easy Apply modal class
+    // 1. Check for specific Easy Apply modal class. LinkedIn leaves a CLOSED modal in the DOM
+    //    with display:none (seen 2026-08-27, Paladin) — a hidden modal is no modal at all.
     const eaModal = document.querySelector('.jobs-easy-apply-modal') ||
         document.querySelector('[data-test-modal-id="easy-apply-modal"]');
-    if (eaModal) return eaModal;
+    if (eaModal) return isModalVisible(eaModal) ? eaModal : null;
 
     // 2. Check for generic artdeco-modal but ensure it's NOT the "All filters" one
     const modals = document.querySelectorAll('.artdeco-modal');
@@ -1194,23 +1241,125 @@ function resolveRegexAnswer(label) {
 }
 
 function loadRegexAnswers(callback) {
-    chrome.storage.local.get(['savedRegexAnswers'], (res) => {
+    chrome.storage.local.get(['savedRegexAnswers', 'eveProfile'], (res) => {
         cachedRegexAnswers = res.savedRegexAnswers || DEFAULT_REGEX_ANSWERS;
+        if (res.eveProfile && typeof res.eveProfile === 'object') cachedProfile = res.eveProfile;
         if (callback) callback(cachedRegexAnswers);
     });
+}
+
+// ── Shared info fallback (T1 now consumes the cross-platform profile + question bank) ──
+// Order of precedence for a LinkedIn field: LinkedIn `savedAnswers` (exact/scoped key) →
+// `savedRegexAnswers` glob list → identity profile (`eveProfile`, short field-name labels only)
+// → the shared question bank (question-bank.js: greenhouse topics + workday extras, always on
+// for T1 since LinkedIn has no per-engine topic bank of its own).
+let cachedProfile = null;
+function loadSharedProfile(callback) {
+    chrome.storage.local.get(['eveProfile'], (res) => {
+        cachedProfile = (res && res.eveProfile && typeof res.eveProfile === 'object') ? res.eveProfile : null;
+        if (callback) callback(cachedProfile);
+    });
+}
+const PROFILE_LABEL_MAP = [
+    { label: /preferred (first )?name/i, key: 'preferredName' },
+    { label: /^first name/i, key: 'firstName' },
+    { label: /^last name|^surname|^family name/i, key: 'lastName' },
+    { label: /full (legal )?name|^legal name$|^(legal\s+)?first (and|&) last (legal\s+)?name$|^(full )?name$/i, key: 'fullName' },
+    { label: /^e-?mail/i, key: 'email' },
+    { label: /^(mobile )?phone|phone number|mobile( number)?$|cell( phone)?$/i, key: 'phone' },
+    { label: /linked ?in/i, key: 'linkedin' },
+    { label: /github|git hub/i, key: 'github' },
+    { label: /^(personal )?(website|portfolio|site)\b/i, key: 'website' },
+    { label: /current (company|employer)|(current or )?most recent employer|present employer|current\/?\s*last\s*company/i, key: 'currentCompany' },
+    { label: /current (job )?title|^(job )?title$|^headline$/i, key: 'currentTitle' },
+    { label: /^(city|city\/town)$|^location \(city\)$|^current (city|location)/i, key: 'city' },
+    { label: /^state|^province/i, key: 'state' },
+    { label: /^country/i, key: 'country' },
+    { label: /^(zip|postal)/i, key: 'zip' },
+    { label: /^(street )?address|address line 1/i, key: 'addressLine1' },
+    { label: /^(school|university|college)/i, key: 'school' },
+    { label: /^gpa/i, key: 'gpa' }
+];
+function resolveProfileValue(label) {
+    if (!cachedProfile || !label) return '';
+    // Identity labels are short field names, never sentences/questions.
+    if (label.length > 45 || label.includes('?')) return '';
+    const hit = PROFILE_LABEL_MAP.find(entry => entry.label.test(label));
+    const value = hit ? cachedProfile[hit.key] : '';
+    return value == null ? '' : String(value);
+}
+function sharedBankEntries() {
+    try {
+        const shared = (typeof self !== 'undefined' ? self : window).EVE_SHARED_QUESTION_BANK;
+        if (!shared) return [];
+        const own = shared.greenhouse?.questions || [];
+        return [...own, ...(shared.extrasFor ? shared.extrasFor('greenhouse') : [])];
+    } catch { return []; }
+}
+function sharedOptionPicker(entry, options) {
+    const opts = (options || []).filter(Boolean);
+    if (!opts.length) return '';
+    const pick = pred => opts.find(text => { try { return pred(text); } catch { return false; } }) || '';
+    if (entry.optionCandidates) {
+        for (const rx of entry.optionCandidates) { const hit = pick(t => rx.test(t)); if (hit) return hit; }
+        return '';
+    }
+    if (entry.optionMatch) return pick(t => entry.optionMatch.test(t));
+    if (entry.choose === 'yes') return pick(t => /^\s*yes\b/i.test(t) || /^\s*i (can|agree|acknowledge|affirm)\b/i.test(t));
+    if (entry.choose === 'no') return pick(t => /^\s*no\b/i.test(t));
+    if (entry.text != null) return pick(t => t.trim().toLowerCase() === String(entry.text).trim().toLowerCase());
+    return '';
+}
+function resolveSharedBankValue(field) {
+    const text = clean(field?.label || '');
+    if (!text) return '';
+    const entries = sharedBankEntries();
+    if (!entries.length) return '';
+    const options = Array.isArray(field.options) && field.options.length ? field.options : null;
+    const isNumeric = !!field.input && field.input.tagName !== 'SELECT' && (field.input.type === 'number' || field.input.inputMode === 'numeric' || field.input.inputMode === 'decimal');
+    for (const entry of entries) {
+        if (!entry || !Array.isArray(entry.patterns)) continue;
+        if (entry.exclude && entry.exclude.test(text)) continue;
+        if (!entry.patterns.some(rx => rx.test(text))) continue;
+        if (options) {
+            const hit = sharedOptionPicker(entry, options);
+            if (hit) return hit;
+            continue; // a nearby topic that cannot land on these options must not block others
+        }
+        if (entry.text != null) {
+            const value = String(entry.text);
+            if (isNumeric && !/^\s*\d+(\.\d+)?\s*$/.test(value)) continue;
+            return value;
+        }
+        if (!isNumeric && entry.choose) return entry.choose === 'yes' ? 'Yes' : 'No';
+    }
+    // "If yes, please provide details" style follow-up boxes.
+    if (!options && !isNumeric) {
+        for (const entry of entries) {
+            const fu = entry && entry.followUp;
+            if (fu && Array.isArray(fu.patterns) && fu.text != null && fu.patterns.some(rx => rx.test(text))) return String(fu.text);
+        }
+    }
+    return '';
 }
 
 function resolveSavedValue(savedAnswers, field) {
     if (!field) return '';
     if (isDynamicTodayDateField(field)) return formatTodayForInput(field.input);
-    if (!savedAnswers) return '';
-    const scoped = savedAnswers[field.saveKey];
-    if (scoped) return scoped;
-    // Backward compatibility: old data used the raw label as key.
-    const direct = savedAnswers[field.label];
-    if (direct) return direct;
+    if (savedAnswers) {
+        const scoped = savedAnswers[field.saveKey];
+        if (scoped) return scoped;
+        // Backward compatibility: old data used the raw label as key.
+        const direct = savedAnswers[field.label];
+        if (direct) return direct;
+    }
     // Regex-pattern fallback
-    return resolveRegexAnswer(field.label);
+    const viaRegex = resolveRegexAnswer(field.label);
+    if (viaRegex) return viaRegex;
+    // Shared identity profile, then the shared cross-platform question bank
+    const viaProfile = resolveProfileValue(field.label);
+    if (viaProfile) return viaProfile;
+    return resolveSharedBankValue(field);
 }
 
 function getLabelInfo(input, container) {
@@ -2021,6 +2170,18 @@ async function waitForEasyApplyModal(timeoutMs = 8000) {
     return null;
 }
 
+// LinkedIn's per-day Easy Apply cap: the job's Easy Apply button renders DISABLED and the detail
+// pane shows "We limit daily submissions to maintain quality and prevent bots … Save this job and
+// apply tomorrow." (seen 2026-08-27).
+function isLinkedInDailyLimitReached() {
+    const pane = document.querySelector('.jobs-search__job-details--container, .jobs-details, .scaffold-layout__detail') || document;
+    const text = (pane.innerText || '').toLowerCase();
+    if (/limit daily submissions|apply tomorrow|daily (application|submission) limit/.test(text)) return true;
+    const disabledApply = collectFromShadow(pane, 'button').some(btn =>
+        btn.disabled && /easy apply/i.test(btn.getAttribute('aria-label') || btn.innerText || '') && !btn.closest('#eve-floating-ui'));
+    return disabledApply && /limit|tomorrow/.test(text);
+}
+
 function findEasyApplyButton() {
     const roots = [
         document.querySelector('.jobs-search__job-details--container'),
@@ -2034,6 +2195,12 @@ function findEasyApplyButton() {
         const found = buttons.find(btn => {
             const label = (btn.getAttribute('aria-label') || btn.innerText || btn.textContent || '').trim();
             const classes = btn.className || '';
+            // NEVER the search bar's "Easy Apply" FILTER pill (aria-label "Easy Apply filter.",
+            // id searchFilter_applyWithLinkedin, inside .search-reusables__filter-list) — clicking
+            // it toggles f_AL off and silently rewrites the whole search (seen 2026-08-27). Nor
+            // anything inside Eve's own panel.
+            if (/\bfilter\b/i.test(label) || /searchFilter/i.test(btn.id || '')) return false;
+            if (btn.closest('.search-reusables__filter-list, .search-reusables__filters-bar, #eve-floating-ui, .jobs-search-box')) return false;
             return !btn.disabled && (/easy apply/i.test(label) || /jobs-apply-button/i.test(classes));
         });
         if (found) return found;
@@ -2098,6 +2265,7 @@ async function waitForAdvanceButtonEnabled(modal, timeoutMs = 5500) {
     const startTime = Date.now();
 
     while (Date.now() < deadline) {
+        if (!isModalVisible(modal)) { console.warn('[Eve] Modal hidden while waiting for advance button'); return null; }
         const btn = findAdvanceButton(modal);
         if (btn) {
             const elapsed = Date.now() - startTime;
@@ -3059,7 +3227,7 @@ async function startAutoApply({ userInitiated = false } = {}) {
         stopAllAutomatedActions('Auto mode is off. Enable Auto mode, then click Apply.');
         return { ok: false, state: 'disabled', message: 'Auto mode is off.' };
     }
-    if (userInitiated) autoApplyActivatedByUser = true;
+    if (userInitiated) { autoApplyActivatedByUser = true; linkedInDailyLimitHit = false; }
     if (!autoApplyActivatedByUser) {
         setAutoApplyDataset('idle', formatApplyStatus('Click Apply to start or resume Auto mode.'), currentHeading);
         return { ok: false, state: 'idle', message: 'Click Apply to start or resume Auto mode.' };
@@ -3087,9 +3255,13 @@ async function startAutoApply({ userInitiated = false } = {}) {
     switchView('apply');
     setAutoApplyDataset('running', formatApplyStatus('Starting'), '');
     try {
+        // RESUME CASE: an Easy Apply modal is already open (user just filled the required fields
+        // Eve paused on). Re-clicking the job card here makes LinkedIn re-render the form and
+        // DROP those freshly typed values, so never touch the card while a modal is up.
+        const modalAlreadyOpen = !!findEasyApplyModal();
         // If a job is already focused, start from it; otherwise start from the first eligible
-        let startCard = getActiveJobCard();
-        if (!startCard || !isJobCardEligible(startCard)) {
+        let startCard = modalAlreadyOpen ? null : getActiveJobCard();
+        if (!modalAlreadyOpen && (!startCard || !isJobCardEligible(startCard))) {
             startCard = findFirstEligibleJobCard();
         }
         if (startCard) {
@@ -3114,6 +3286,15 @@ async function startAutoApply({ userInitiated = false } = {}) {
             if (!easyApplyButton) {
                 if (!automatedActionsAllowed()) return { ok: false, state: 'stopped', message: 'Automated actions stopped.' };
                 autoApplyRunning = false;
+                // LinkedIn daily submission cap (seen 2026-08-27): the job's Easy Apply button is
+                // DISABLED and the detail pane says "We limit daily submissions … apply tomorrow".
+                // Nothing on this account can be submitted until tomorrow — say so and stop.
+                if (isLinkedInDailyLimitReached()) {
+                    autoApplyStopRequested = true;
+                    linkedInDailyLimitHit = true;
+                    setAutoApplyDataset('blocked', formatApplyStatus('LinkedIn daily Easy Apply limit reached — try again tomorrow.'), currentHeading);
+                    return { ok: false, state: 'blocked', message: 'LinkedIn daily limit reached.' };
+                }
                 setAutoApplyDataset('blocked', formatApplyStatus('Could not find Easy Apply button'), currentHeading);
                 return { ok: false, state: 'blocked' };
             }
@@ -3209,9 +3390,10 @@ function runAutoApplyLoop() {
 
     setAutoApplyDataset('running', isHiddenStepHeading(currentHeading) ? 'Applying hidden step' : `Applying ${currentHeading}`, currentHeading);
 
-    chrome.storage.local.get(['savedAnswers', 'savedRegexAnswers'], async (res) => {
+    chrome.storage.local.get(['savedAnswers', 'savedRegexAnswers', 'eveProfile'], async (res) => {
         if (!automatedActionsAllowed()) return;
         cachedRegexAnswers = res.savedRegexAnswers || DEFAULT_REGEX_ANSWERS;
+        if (res.eveProfile && typeof res.eveProfile === 'object') cachedProfile = res.eveProfile;
         const savedAnswers = res.savedAnswers || {};
         await scrollEasyApplyStep(modal);
         if (!automatedActionsAllowed()) return;
@@ -3238,8 +3420,21 @@ function runAutoApplyLoop() {
         // Wait for React validation to enable the Next/Submit button after filling fields
         setAutoApplyDataset('running', formatApplyStatus(`Waiting for next step button…`), currentHeading);
         const advanceButton = await waitForAdvanceButtonEnabled(modal, 5500);
-        if (!automatedActionsAllowed()) return;
+        if (!automatedActionsAllowed()) {
+            setAutoApplyDataset('paused', formatApplyStatus('Paused (automation stopped while waiting for the next step).'), currentHeading);
+            return;
+        }
         if (!advanceButton) {
+            if (!isModalVisible(modal) || !findEasyApplyModal()) {
+                // The modal closed/hid under us (LinkedIn dismissed it, or the user closed it).
+                // Nothing to click here — skip this job and keep the run going.
+                console.warn('[Eve] Easy Apply modal vanished while waiting for the next step; moving on:', currentHeading);
+                setAutoApplyDataset('running', formatApplyStatus('Modal closed — moving to next job'), currentHeading);
+                const card = getActiveJobCard();
+                if (card) card.setAttribute('data-eve-processed', 'true');
+                setTimeout(() => advanceToNextEligibleJob(), 500);
+                return;
+            }
             autoApplyRunning = false;
             setAutoApplyDataset('blocked', formatApplyStatus('No Next, Review, or Submit button found (or it stayed disabled).'), currentHeading);
             return;
@@ -3482,6 +3677,10 @@ function pollForModalLogic() {
         // or it kills the run before it ever gets going. Let the loop drive.
         if (autoApplyRunning) return;
 
+        // The daily-limit stop is a terminal, informative state — never overwrite it with
+        // "Ready to re-run" (nothing can be submitted until tomorrow).
+        if (linkedInDailyLimitHit) return;
+
         resetAutoApplySession({ preserveStepHistory: shouldPreserveLastStep, message: 'Ready to re-run Apply.' });
         
         // If modal was just closed and we were on the step tab, go back to apply tab
@@ -3508,9 +3707,10 @@ function pollForModalLogic() {
 function markBlockedJobs() {
     chrome.storage.local.get(['eveParams'], (res) => {
         if (res.eveParams) eveParams = normalizeParams(res.eveParams);
-        const ignoreEnabled = eveParams.ignore?.enabled !== false;
+        // Global flag AND the per-tab toggle must both be on for anything to be blocked.
+        const ignoreEnabled = eveParams.ignore?.enabled !== false && pageFiltersEnabled();
         const keywords = (ignoreEnabled && eveParams.ignore?.keywords) || [];
-        const customRegex = compileCustomRegexList();
+        const customRegex = ignoreEnabled ? compileCustomRegexList() : [];
         const caseSensitive = false;
 
         const jobCards = document.querySelectorAll('.jobs-search-results__list-item, .job-card-container, [data-occludable-job-id]');
@@ -4026,7 +4226,7 @@ function banCompanyFromCard(jobId, card) {
     renderIgnoreKeywordList();   // keep the search-view token list (source of truth for save) in sync
     saveSearchParams(false);     // persist eveParams.ignore
     markBlockedJobs();           // grey out + mark every card from this company as blocked/ineligible
-    console.log('[Eve] Banned company:', company);
+    console.log('[Eve] Banned company:', company, pageFiltersEnabled() ? '' : '(saved; filters are OFF on this tab so nothing is greyed out here)');
 }
 
 // ──────────────────────────────────────────────────────────

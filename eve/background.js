@@ -78,13 +78,15 @@ const GH_ARTIFACT_HOSTS = ['job-boards.greenhouse.io', 'my.greenhouse.io', 'ashb
 const INDEED_ARTIFACT_HOSTS = ['smartapply.indeed.com'];
 // SmartRecruiters Easy Apply (Task 6, eve/smartrecruiters.js): allowed to fetch the packaged resume.
 const SR_ARTIFACT_HOSTS = ['jobs.smartrecruiters.com'];
+// Kforce Apply Online (Task 7, eve/kforce.js): allowed to fetch the packaged resume.
+const KFORCE_ARTIFACT_HOSTS = ['www.kforce.com', 'kforce.com'];
 function isArtifactTabSender(sender) {
     try {
         if (!sender?.tab?.id) return false;
         return [sender.url, sender.tab.url].filter(Boolean).some(url => {
             const hostname = new URL(url).hostname;
             if (ARTIFACT_SENDER_HOSTS_RE.test(hostname)) return true;
-            return [...GH_ARTIFACT_HOSTS, ...INDEED_ARTIFACT_HOSTS, ...SR_ARTIFACT_HOSTS]
+            return [...GH_ARTIFACT_HOSTS, ...INDEED_ARTIFACT_HOSTS, ...SR_ARTIFACT_HOSTS, ...KFORCE_ARTIFACT_HOSTS]
                 .some(host => hostname === host || hostname.endsWith(`.${host}`));
         });
     } catch {
@@ -269,6 +271,184 @@ async function recordAppliedJob(record) {
     records.push(entry);
     await storageSet({ eveApplicationRecords: records });
     return entry;
+}
+
+
+// ── Root orchestration (Kforce T7 + Oracle T8), one bookkeeping map per platform ──────────────
+// The root search page asks the background to open a job in its own tab; the content script in
+// that tab learns it is orchestrated (eve:<platform>-tab-role, keyed by sender.tab.id), runs the
+// single-job Auto Apply, and reports eve:<platform>-tab-done, whereupon the tab is closed and the
+// result stored in `<platform>Orchestration.results[jobId]` for the root page to pick up via
+// storage.onChanged. Bookkeeping lives in chrome.storage.local so a dormant/restarted worker never
+// loses the tab map. Kforce opens BACKGROUND tabs (never focused); Oracle opens the tab in FRONT
+// (user, 2026-09-26: one job at a time, the tab is closed and the root tab refocused when done).
+const ORCH_KEYS = { kforce: 'kforceOrchestration', oracle: 'oracleOrchestration' };
+const ORCH_URL_RE = { kforce: /^https:\/\/www\.kforce\.com\//, oracle: /^https:\/\/careers\.oracle\.com\// };
+const orchQueues = {};
+function orchUpdate(platform, mutator) {
+    const key = ORCH_KEYS[platform];
+    orchQueues[platform] = (orchQueues[platform] || Promise.resolve()).then(async () => {
+        const stored = await storageGet([key]);
+        const state = stored[key] || {};
+        state.tabs = state.tabs || {};
+        state.results = state.results || {};
+        const out = await mutator(state);
+        await storageSet({ [key]: state });
+        return out;
+    }).catch(error => { console.warn(`[eve] ${platform} orchestration update failed`, error); });
+    return orchQueues[platform];
+}
+async function orchOpenJob(platform, url, jobId, sender, { active = false } = {}) {
+    if (!ORCH_URL_RE[platform].test(String(url || ''))) throw new Error(`Not a ${platform} job URL.`);
+    const rootTabId = sender?.tab?.id || null;
+    // Create the tab in the ROOT tab's window: tabs.create defaults to the focused window, and
+    // when that differs from the root's, openerTabId is rejected ("Tab opener must be in the same
+    // window") — 10 jobs failed that way live, 2026-08-24.
+    const windowId = sender?.tab?.windowId;
+    const tab = await chrome.tabs.create({ url, active, ...(windowId ? { windowId } : {}), openerTabId: rootTabId || undefined });
+    await orchUpdate(platform, state => { state.tabs[tab.id] = { url, jobId, openedAt: Date.now() }; if (rootTabId) state.rootTabId = rootTabId; });
+    return { tabId: tab.id };
+}
+// The Kforce Apply Now POST (TK.redirectToLinkRequest) focuses its tab — observed live 2026-08-24 —
+// but Kforce's orchestrated tabs must stay "behind the scenes". Hand focus straight back to root.
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+    try {
+        const stored = await storageGet([ORCH_KEYS.kforce]);
+        const state = stored[ORCH_KEYS.kforce];
+        if (!state?.tabs?.[tabId] || !state.rootTabId || state.rootTabId === tabId) return;
+        await chrome.tabs.update(state.rootTabId, { active: true });
+    } catch { /* root tab gone — nothing to restore */ }
+});
+async function orchTabRole(platform, sender) {
+    const tabId = sender?.tab?.id;
+    if (!tabId) return { orchestrated: false };
+    const stored = await storageGet([ORCH_KEYS[platform]]);
+    const entry = stored[ORCH_KEYS[platform]]?.tabs?.[tabId];
+    return entry ? { orchestrated: true, jobId: entry.jobId, url: entry.url } : { orchestrated: false };
+}
+async function orchTabDone(platform, sender, message) {
+    const tabId = sender?.tab?.id;
+    if (!tabId) return;
+    let rootTabId = null;
+    await orchUpdate(platform, state => {
+        const entry = state.tabs[tabId];
+        const jobId = message.jobId || entry?.jobId;
+        if (jobId) state.results[jobId] = { ok: Boolean(message.ok), message: String(message.message || ''), at: Date.now() };
+        delete state.tabs[tabId];
+        rootTabId = state.rootTabId || null;
+    });
+    try { await chrome.tabs.remove(tabId); } catch { /* already closed */ }
+    // Oracle's job tab ran in front: bring the root search tab back.
+    if (platform === 'oracle' && rootTabId && message.jobId !== 'profile-sync') { try { await chrome.tabs.update(rootTabId, { active: true }); } catch { /* root gone */ } }
+}
+async function orchCloseTab(platform, tabId, jobId, message) {
+    await orchUpdate(platform, state => {
+        if (jobId && !state.results[jobId]) state.results[jobId] = { ok: false, message: String(message || 'Timed out.'), at: Date.now() };
+        delete state.tabs[tabId];
+    });
+    try { await chrome.tabs.remove(Number(tabId)); } catch { /* already closed */ }
+}
+async function orchReset(platform) {
+    const stored = await storageGet([ORCH_KEYS[platform]]);
+    const ids = Object.keys(stored[ORCH_KEYS[platform]]?.tabs || {}).map(Number);
+    for (const id of ids) { try { await chrome.tabs.remove(id); } catch { /* gone */ } }
+    await orchUpdate(platform, state => { state.tabs = {}; state.results = {}; });
+}
+chrome.tabs.onRemoved.addListener(tabId => {
+    for (const platform of Object.keys(ORCH_KEYS)) {
+        orchUpdate(platform, state => {
+            const entry = state.tabs[tabId];
+            if (!entry) return;
+            if (entry.jobId && !state.results[entry.jobId]) state.results[entry.jobId] = { ok: false, message: 'Tab closed before finishing.', at: Date.now() };
+            delete state.tabs[tabId];
+        });
+    }
+});
+
+// ── Verification-code service (generic, 2026-09-26) ──────────────────────────────────────────
+// Reads the newest one-time code from the job-application Gmail inbox through Gmail's Atom feed
+// (https://mail.google.com/mail/u/<n>/feed/atom: the UNREAD Inbox messages, served on the Chrome
+// profile's own Gmail session — no API key, no app password, nothing to configure). Any engine
+// asks eve:get-verification-code { account, from, subject, codePattern, after, exclude, timeoutMs }
+// and gets { code, title, issued, from }. A code is found while its e-mail is unread; Eve never
+// opens or marks those messages. Verified live with Oracle ("one-time pass code: 366916" arrived
+// in the feed one second after the request).
+const GMAIL_FEED_INDEX_KEY = 'gmailFeedIndex'; // { [account]: n } — which /u/<n>/ is that account
+function decodeXml(value) {
+    return String(value == null ? '' : value).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+}
+async function gmailFeed(index) {
+    const res = await fetch(`https://mail.google.com/mail/u/${index}/feed/atom?_=${Date.now()}`, { credentials: 'include', cache: 'no-store' });
+    if (!res.ok) throw new Error(`Gmail feed HTTP ${res.status}`);
+    const text = await res.text();
+    const grab = (source, tag) => { const m = source.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`)); return m ? decodeXml(m[1]) : ''; };
+    const account = (grab(text, 'title').match(/Inbox for (\S+@\S+)/i) || [])[1] || '';
+    const entries = [...text.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m => ({
+        title: grab(m[1], 'title'), summary: grab(m[1], 'summary'),
+        from: grab(grab(m[1], 'author'), 'email'), issued: grab(m[1], 'issued') || grab(m[1], 'modified')
+    }));
+    return { account, entries };
+}
+async function gmailFeedFor(account) {
+    const stored = await storageGet([GMAIL_FEED_INDEX_KEY]);
+    const cached = stored[GMAIL_FEED_INDEX_KEY]?.[account];
+    const order = [...(Number.isInteger(cached) ? [cached] : []), 0, 1, 2, 3, 4].filter((v, i, a) => a.indexOf(v) === i);
+    let lastError = '';
+    for (const index of order) {
+        let feed;
+        try { feed = await gmailFeed(index); } catch (error) { lastError = error.message; continue; }
+        if (!account || feed.account.toLowerCase() === account.toLowerCase()) {
+            if (index !== cached) await storageSet({ [GMAIL_FEED_INDEX_KEY]: { ...(stored[GMAIL_FEED_INDEX_KEY] || {}), [account]: index } });
+            return feed;
+        }
+    }
+    throw new Error(lastError ? `Gmail feed unreachable (${lastError}) — is Gmail signed in as ${account} in this Chrome profile?` : `Gmail is not signed in as ${account} in this Chrome profile.`);
+}
+// Second source: rows of any open Gmail tab for the account (read mail included; the inbox list
+// snippet carries the code). Best-effort — no Gmail tab or a stale page just yields nothing.
+async function gmailTabEntries(account) {
+    let tabs = [];
+    try { tabs = await chrome.tabs.query({ url: 'https://mail.google.com/*' }); } catch { return []; }
+    const out = [];
+    for (const tab of tabs) {
+        try {
+            const res = await chrome.tabs.sendMessage(tab.id, { type: 'eve:gmail-scan' });
+            if (!res?.ok) continue;
+            if (account && res.account && res.account.toLowerCase() !== account.toLowerCase()) continue;
+            out.push(...(res.entries || []));
+        } catch { /* no content script in that tab (not yet reloaded) */ }
+    }
+    return out;
+}
+async function getVerificationCode(request) {
+    const account = String(request.account || '');
+    const fromRe = request.from ? new RegExp(request.from, 'i') : null;
+    const subjectRe = request.subject ? new RegExp(request.subject, 'i') : null;
+    const codeRe = new RegExp(request.codePattern || '\\b(\\d{6})\\b', 'i');
+    const after = request.after ? Date.parse(request.after) : 0;
+    const exclude = new Set((Array.isArray(request.exclude) ? request.exclude : []).map(String));
+    const timeoutMs = Math.min(Number(request.timeoutMs) || 90000, 300000);
+    const pollMs = Math.max(Number(request.pollMs) || 3000, 1500);
+    const deadline = Date.now() + timeoutMs;
+    let lastError = '';
+    while (Date.now() < deadline) {
+        try {
+            const feed = await gmailFeedFor(account).catch(error => { if (/signed in/.test(error.message || '')) throw error; return { entries: [] }; });
+            const tabEntries = await gmailTabEntries(account);
+            const hit = [...feed.entries, ...tabEntries]
+                .filter(e => (!fromRe || fromRe.test(e.from)) && (!subjectRe || subjectRe.test(e.title)) && (!after || !e.issued || Date.parse(e.issued) >= after))
+                .map(e => { const text = `${e.title}\n${e.summary}`; const m = text.match(codeRe) || text.match(/\b(\d{4,8})\b/); return { ...e, code: m ? (m[1] || m[0]) : '' }; })
+                .filter(e => e.code && !exclude.has(e.code))
+                .sort((a, b) => Date.parse(b.issued || 0) - Date.parse(a.issued || 0))[0];
+            if (hit) return { code: hit.code, title: hit.title, issued: hit.issued, from: hit.from };
+        } catch (error) {
+            lastError = error.message || String(error);
+            if (/signed in/.test(lastError)) throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, pollMs));
+    }
+    throw new Error(`No verification code arrived within ${Math.round(timeoutMs / 1000)} s${lastError ? ` (${lastError})` : ''}.`);
 }
 
 // Land on a BARE jobs search page. Filters are deliberately NOT put on this URL: the location is
@@ -619,6 +799,11 @@ async function loadLocalSecrets() {
         if (typeof secrets.workdayAccountPassword === 'string' && secrets.workdayAccountPassword) {
             await storageSet({ workdayAccountPassword: secrets.workdayAccountPassword });
         }
+        // Oracle Careers (T8) signs in with an e-mailed one-time code sent to this account; the
+        // password is kept for completeness and never typed anywhere by Eve.
+        if (typeof secrets.oracleAccountEmail === 'string' && secrets.oracleAccountEmail) {
+            await storageSet({ oracleAccount: { email: secrets.oracleAccountEmail, password: String(secrets.oracleAccountPassword || '') } });
+        }
     } catch { /* no local secrets file present — fine */ }
 }
 
@@ -718,6 +903,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             case 'eve:get-workday-artifact': {
                 const artifact = await getWorkdayArtifact(message.artifactId, sender);
                 sendResponse({ ok: true, artifact });
+                return;
+            }
+            case 'eve:kforce-open-job': case 'eve:oracle-open-job': {
+                const platform = message.type.split(':')[1].split('-')[0];
+                const result = await orchOpenJob(platform, message.url, message.jobId, sender, { active: platform === 'oracle' && !message.background });
+                sendResponse({ ok: true, ...result });
+                return;
+            }
+            case 'eve:kforce-tab-role': case 'eve:oracle-tab-role': {
+                const role = await orchTabRole(message.type.split(':')[1].split('-')[0], sender);
+                sendResponse({ ok: true, ...role });
+                return;
+            }
+            case 'eve:kforce-tab-done': case 'eve:oracle-tab-done': {
+                await orchTabDone(message.type.split(':')[1].split('-')[0], sender, message);
+                sendResponse({ ok: true });
+                return;
+            }
+            case 'eve:kforce-close-tab': case 'eve:oracle-close-tab': {
+                await orchCloseTab(message.type.split(':')[1].split('-')[0], message.tabId, message.jobId, message.message);
+                sendResponse({ ok: true });
+                return;
+            }
+            case 'eve:kforce-reset': case 'eve:oracle-reset': {
+                await orchReset(message.type.split(':')[1].split('-')[0]);
+                sendResponse({ ok: true });
+                return;
+            }
+            case 'eve:oracle-reset-results': {
+                await orchUpdate('oracle', state => { if (message.jobId) delete state.results[message.jobId]; });
+                sendResponse({ ok: true });
+                return;
+            }
+            case 'eve:get-verification-code': {
+                const result = await getVerificationCode(message.request || {});
+                sendResponse({ ok: true, ...result });
                 return;
             }
             case 'eve:record-applied-job': {
